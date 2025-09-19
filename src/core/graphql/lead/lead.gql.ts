@@ -12,6 +12,9 @@ export const LEAD_FIELDS = gql`
     assignedRM
     status
     createdAt
+    firstSeenAt
+    lastSeenAt
+    reenterCount
   }
 `;
 
@@ -27,7 +30,6 @@ export const LEADS_PAGED = gql`
   ${LEAD_FIELDS}
 `;
 
-// Keep backward-compat import name if other files still import LEADS_OPEN
 export { LEADS_PAGED as LEADS_OPEN };
 
 export const CREATE_LEAD = gql`
@@ -49,4 +51,15 @@ export const ASSIGN_LEADS = gql`
     assignLeads(ids: $ids) { ...LeadFields }
   }
   ${LEAD_FIELDS}
+`;
+
+export const CREATE_LEADS_BULK = gql`
+  mutation CreateLeadsBulk($rows: [CreateIpkLeaddInput!]!) {
+    createLeadsBulk(rows: $rows) {
+      created
+      merged
+      failed
+      errors
+    }
+  }
 `;
