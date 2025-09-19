@@ -14,6 +14,8 @@ export interface LeadFormData {
   /** Kept for back-compat if some places still use this name */
   referralCode?: string;
   remark?: string;
+  approachAt?: Date | string; // Apollo will serialize Date → ISO automatically
+  clientQa?: Array<{ q: string; a: string }>;
 }
 
 export interface Lead {
@@ -43,10 +45,10 @@ export interface Lead {
   sipAmount?: number | "";
 
   clientTypes?:
-    | Array<"Interested" | "Enquiry" | "Important">
-    | "Interested"
-    | "Enquiry"
-    | "Important";
+  | Array<"Interested" | "Enquiry" | "Important">
+  | "Interested"
+  | "Enquiry"
+  | "Important";
 
   selected?: boolean;
 }
