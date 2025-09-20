@@ -15,7 +15,7 @@ export interface LeadFormData {
   referralCode?: string;
   remark?: string;
   approachAt?: Date | string; // Apollo will serialize Date → ISO automatically
-  clientQa?: Array<{ q: string; a: string }>;
+  clientQa?: Array<{ question: string; answer: string }>;
 }
 
 export interface Lead {

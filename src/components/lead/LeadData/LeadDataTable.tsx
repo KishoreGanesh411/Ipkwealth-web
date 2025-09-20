@@ -15,7 +15,6 @@ import * as XLSX from "xlsx";
 /* ----------------------------- GQL shapes ----------------------------- */
 type LeadItemGql = {
   id?: string | null;
-  // _id removed – GraphQL does not expose $oid
   leadCode?: string | null;
   firstName?: string | null;
   lastName?: string | null;
@@ -24,11 +23,16 @@ type LeadItemGql = {
   leadSource?: string | null;
   createdAt?: string | null;
   updatedAt?: string | null;
-  firstSeenAt?: string | null;   // NEW
-  lastSeenAt?: string | null;    // NEW
-  reenterCount?: number | null;  // NEW
+
+  // extra telemetry for dormant view
+  firstSeenAt?: string | null;
+  lastSeenAt?: string | null;
+  reenterCount?: number | null;
+
   assignedRM?: string | null;
+  // Note: some APIs expose assignedRm { name }, keep fallback usage safe:
   assignedRm?: { name?: string | null } | null;
+
   status?: string | null;
 };
 
@@ -49,7 +53,7 @@ type LeadsQueryVars = {
     status: string | null;
     search: string | null;
 
-    // NEW
+    // Dormant filters
     dormantOnly?: boolean | null;
     dormantDays?: number | null;
   };
@@ -73,7 +77,7 @@ const SearchBar = memo(
           placeholder="Search by name, phone, source, code"
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          onKeyDown={(e) => e.key === 'Escape' && onReset()}
+          onKeyDown={(e) => e.key === "Escape" && onReset()}
           autoComplete="off"
           aria-label="Search leads"
         />
@@ -86,7 +90,7 @@ const SearchBar = memo(
         </button>
       </>
     );
-  })
+  }),
 );
 
 /* ------------------- Dormant-only header & row ------------------- */
@@ -98,15 +102,19 @@ function DormantHeader() {
         <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-white/60">Name</th>
         <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-white/60">Phone</th>
         <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-white/60">Lead Source</th>
-        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-white/60">Re-enter Count</th>
-        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-white/60">Entered Date</th>
-        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-white/60">Last Entered Date</th>
+        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-white/60">Re-entries</th>
+        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-white/60">First Entered</th>
+        <th className="px-5 py-3 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-white/60">Last Entered</th>
       </tr>
     </thead>
   );
 }
 
-function DormantRow({ r }: { r: Row & { firstSeenAt?: string|null; lastSeenAt?: string|null; reenterCount?: number|null } }) {
+function DormantRow({
+  r,
+}: {
+  r: Row & { firstSeenAt?: string | null; lastSeenAt?: string | null; reenterCount?: number | null };
+}) {
   return (
     <tr className="hover:bg-gray-50/60 dark:hover:bg-white/5">
       <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.leadCode ?? "—"}</td>
@@ -114,8 +122,12 @@ function DormantRow({ r }: { r: Row & { firstSeenAt?: string|null; lastSeenAt?: 
       <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.phone ?? "—"}</td>
       <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.source ?? "—"}</td>
       <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.reenterCount ?? 0}</td>
-      <td className="px-5 py-3 text-sm text-gray-600 dark:text-white/70">{r.firstSeenAt ? new Date(r.firstSeenAt).toLocaleDateString() : "—"}</td>
-      <td className="px-5 py-3 text-sm text-gray-600 dark:text-white/70">{r.lastSeenAt ? new Date(r.lastSeenAt).toLocaleDateString() : "—"}</td>
+      <td className="px-5 py-3 text-sm text-gray-600 dark:text-white/70">
+        {r.firstSeenAt ? new Date(r.firstSeenAt).toLocaleDateString() : "—"}
+      </td>
+      <td className="px-5 py-3 text-sm text-gray-600 dark:text-white/70">
+        {r.lastSeenAt ? new Date(r.lastSeenAt).toLocaleDateString() : "—"}
+      </td>
     </tr>
   );
 }
@@ -148,19 +160,20 @@ export default function LeadDataTable() {
         archived: false,
         status: isPending ? "OPEN" : null,
         search: debouncedSearch || null,
-
         dormantOnly: isDormant ? true : null,
         dormantDays: isDormant ? dormantDays : null,
       },
     }),
-    [page, debouncedSearch, isPending, isDormant, dormantDays]
+    [page, debouncedSearch, isPending, isDormant, dormantDays],
   );
 
-  const [runLeads, { data, loading, error, previousData, networkStatus }] =
-    useLazyQuery<LeadsQueryData, LeadsQueryVars>(LEADS_OPEN, {
-      fetchPolicy: "network-only",
-      notifyOnNetworkStatusChange: true,
-    });
+  const [runLeads, { data, loading, error, previousData, networkStatus }] = useLazyQuery<
+    LeadsQueryData,
+    LeadsQueryVars
+  >(LEADS_OPEN, {
+    fetchPolicy: "network-only",
+    notifyOnNetworkStatusChange: true,
+  });
 
   const lastArgs = useRef<string>("");
   useEffect(() => {
@@ -180,10 +193,14 @@ export default function LeadDataTable() {
     if (page > totalPages) setPage(totalPages);
   }, [page, totalPages]);
 
-  const rows: (Row & { firstSeenAt?: string|null; lastSeenAt?: string|null; reenterCount?: number|null })[] = useMemo(
+  const rows: (Row & {
+    firstSeenAt?: string | null;
+    lastSeenAt?: string | null;
+    reenterCount?: number | null;
+  })[] = useMemo(
     () =>
       items.map((l) => ({
-        id: l.id ?? "", // only use GraphQL id
+        id: l.id ?? "",
         leadCode: l.leadCode ?? null,
         name: l.name || [l.firstName, l.lastName].filter(Boolean).join(" ") || "—",
         phone: l.phone ?? null,
@@ -195,7 +212,7 @@ export default function LeadDataTable() {
         lastSeenAt: l.lastSeenAt ?? null,
         reenterCount: l.reenterCount ?? 0,
       })),
-    [items]
+    [items],
   );
 
   // Selection helpers (unused in Dormant mode)
@@ -226,8 +243,9 @@ export default function LeadDataTable() {
 
   const onEdit = (r: Row) =>
     setNotice({ variant: "info", title: "Edit Lead", message: `Editing ${r.name} (${r.phone ?? ""})` });
+
   const onDelete = () =>
-    setNotice({ variant: "info", title: "Not Implemented", message: "Contact Admin for need to delete this." });
+    setNotice({ variant: "info", title: "Not Implemented", message: "Contact Admin to delete this." });
 
   const refetchActive = async () => {
     await client.refetchQueries({ include: "active" });
@@ -238,19 +256,34 @@ export default function LeadDataTable() {
     try {
       const ids = [...selected];
       const candidates = ids.length ? rows.filter((r) => ids.includes(r.id)) : rows;
-      const pendingOnPage = candidates.filter((r) => !r.assignedRm || !r.leadCode).map((r) => r.id);
+      const pendingOnPage = candidates
+        .filter((r) => !r.assignedRm || !r.leadCode)
+        .map((r) => r.id);
 
       if (pendingOnPage.length === 0) {
-        setNotice({ variant: "info", title: "Nothing to Generate", message: "All visible leads already have Lead Code & RM." });
+        setNotice({
+          variant: "info",
+          title: "Nothing to Generate",
+          message: "All visible leads already have Lead Code & RM.",
+        });
         return;
       }
-      if (pendingOnPage.length === 1) await assignLeadMut({ variables: { id: pendingOnPage[0] } });
-      else await assignLeadsMut({ variables: { ids: pendingOnPage } });
+      if (pendingOnPage.length === 1) {
+        await assignLeadMut({ variables: { id: pendingOnPage[0] } });
+      } else {
+        await assignLeadsMut({ variables: { ids: pendingOnPage } });
+      }
 
       setSelected(new Set());
-      setGenDone(true); setTimeout(() => setGenDone(false), 900);
-      setPage(1); await refetchActive();
-      setNotice({ variant: "success", title: "Lead Codes Assigned", message: `${pendingOnPage.length} lead(s) were assigned.` });
+      setGenDone(true);
+      setTimeout(() => setGenDone(false), 900);
+      setPage(1);
+      await refetchActive();
+      setNotice({
+        variant: "success",
+        title: "Lead Codes Assigned",
+        message: `${pendingOnPage.length} lead(s) were assigned.`,
+      });
     } catch (err: unknown) {
       let message = "Unknown error";
       if (err instanceof ApolloError) message = err.graphQLErrors[0]?.message || err.message;
@@ -259,7 +292,7 @@ export default function LeadDataTable() {
     }
   };
 
-  // Download XLSX
+  // Download XLSX (context-aware)
   const handleDownloadXlsx = () => {
     const chosen = selected.size > 0 && !isDormant ? rows.filter((r) => selected.has(r.id)) : rows;
 
@@ -270,8 +303,8 @@ export default function LeadDataTable() {
           Phone: r.phone ?? "",
           "Lead Source": r.source ?? "",
           "Re-enter Count": r.reenterCount ?? 0,
-          "Entered Date": r.firstSeenAt ?? "",
-          "Last Entered Date": r.lastSeenAt ?? "",
+          "First Entered": r.firstSeenAt ?? "",
+          "Last Entered": r.lastSeenAt ?? "",
         }))
       : chosen.map((r) => ({
           "Lead Code": r.leadCode ?? "",
@@ -286,7 +319,7 @@ export default function LeadDataTable() {
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportRows);
     XLSX.utils.book_append_sheet(wb, ws, isDormant ? "Dormant" : "Leads");
-    XLSX.writeFile(wb, `${isDormant ? "dormant" : "leads"}-${new Date().toISOString().slice(0,10)}.xlsx`);
+    XLSX.writeFile(wb, `${isDormant ? "dormant" : "leads"}-${new Date().toISOString().slice(0, 10)}.xlsx`);
   };
 
   const searchRef = useRef<HTMLInputElement>(null);
@@ -346,7 +379,10 @@ export default function LeadDataTable() {
           <SearchBar
             ref={searchRef}
             value={search}
-            onChange={(v) => { setSearch(v); setPage(1); }}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
             onReset={handleReset}
           />
 
@@ -372,7 +408,10 @@ export default function LeadDataTable() {
                 ))}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={7} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <td
+                      colSpan={7}
+                      className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                    >
                       {loading ? "Loading…" : "No leads to show."}
                     </td>
                   </tr>
@@ -403,7 +442,10 @@ export default function LeadDataTable() {
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={showAdvancedCols ? 8 : 6} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                    <td
+                      colSpan={showAdvancedCols ? 8 : 6}
+                      className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
+                    >
                       {loading ? "Loading…" : "No leads to show."}
                     </td>
                   </tr>

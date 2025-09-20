@@ -51,7 +51,7 @@ export const LeadTableHeader = memo(function LeadTableHeader({
         )}
 
         <TableCell isHeader className="px-5 py-3 text-start text-sm font-medium text-gray-500 dark:text-gray-400">
-          Entered Date
+          Lead Date
         </TableCell>
         <TableCell isHeader className="px-5 py-3 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
           Action

@@ -1,3 +1,4 @@
+// src/core/graphql/lead/lead.gql.ts
 import { gql } from "@apollo/client";
 
 export const LEAD_FIELDS = gql`
@@ -12,6 +13,7 @@ export const LEAD_FIELDS = gql`
     assignedRM
     status
     createdAt
+    # telemetry for dormant view / metrics
     firstSeenAt
     lastSeenAt
     reenterCount
@@ -30,6 +32,7 @@ export const LEADS_PAGED = gql`
   ${LEAD_FIELDS}
 `;
 
+// keep existing import naming in your components
 export { LEADS_PAGED as LEADS_OPEN };
 
 export const CREATE_LEAD = gql`
@@ -53,8 +56,16 @@ export const ASSIGN_LEADS = gql`
   ${LEAD_FIELDS}
 `;
 
+/** 
+ * If/when your server adds the autoAssign flag,
+ * switch this to:
+ *
+ * mutation CreateLeadsBulk($rows: [BulkLeadRowInput!]!, $autoAssign: Boolean) {
+ *   createLeadsBulk(rows: $rows, autoAssign: $autoAssign) { created merged failed errors assigned }
+ * }
+ */
 export const CREATE_LEADS_BULK = gql`
-  mutation CreateLeadsBulk($rows: [CreateIpkLeaddInput!]!) {
+  mutation CreateLeadsBulk($rows: [BulkLeadRowInput!]!) {
     createLeadsBulk(rows: $rows) {
       created
       merged
