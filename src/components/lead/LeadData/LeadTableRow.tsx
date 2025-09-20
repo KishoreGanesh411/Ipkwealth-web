@@ -31,14 +31,14 @@ export function LeadTableRow({
 
   return (
     <TableRow key={key}>
-      <TableCell className="w-12 px-4 py-4">
+      {/* <TableCell className="w-12 px-4 py-4">
         <input
           type="checkbox"
           className="h-3.5 w-3.5 rounded-sm border-gray-300 accent-blue-600 focus:ring-0 outline-none dark:border-white/20"
           checked={isSelected}
           onChange={(e) => onToggle(key, e.target.checked)}
         />
-      </TableCell>
+      </TableCell> */}
 
       {showAdvancedCols && (
         <TableCell className="px-5 py-4 text-sm font-medium text-gray-800 dark:text-white/90">
@@ -74,7 +74,7 @@ export function LeadTableRow({
         {row.createdAt ? new Date(row.createdAt).toLocaleDateString() : "—"}
       </TableCell>
 
-      <TableCell className="px-5 py-4 text-center">
+      {/* <TableCell className="px-5 py-4 text-center">
         <div className="flex items-center justify-center gap-2">
           <button
             type="button"
@@ -93,7 +93,7 @@ export function LeadTableRow({
             <TrashBinIcon />
           </button>
         </div>
-      </TableCell>
+      </TableCell> */}
     </TableRow>
   );
 }

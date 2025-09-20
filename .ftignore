@@ -18,6 +18,8 @@ coverage
 *.tmp
 *.tsbuildinfo
 public
+public
+src/icons
 prisma/migrations
 *.png
 *.jpg

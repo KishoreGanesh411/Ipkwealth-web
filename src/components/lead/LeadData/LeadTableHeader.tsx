@@ -13,14 +13,14 @@ export const LeadTableHeader = memo(function LeadTableHeader({
   return (
     <TableHeader className="border-b border-gray-100 dark:border-white/[0.05]">
       <TableRow>
-        <TableCell isHeader className="w-12 px-4 py-3">
+        {/* <TableCell isHeader className="w-12 px-4 py-3">
           <input
             type="checkbox"
             className="h-3.5 w-3.5 rounded-sm border-gray-300 accent-blue-600 focus:ring-0 outline-none dark:border-white/20"
             checked={allSelected}
             onChange={(e) => toggleAll(e.target.checked)}
           />
-        </TableCell>
+        </TableCell> */}
 
         {showAdvancedCols && (
           <TableCell
@@ -53,9 +53,9 @@ export const LeadTableHeader = memo(function LeadTableHeader({
         <TableCell isHeader className="px-5 py-3 text-start text-sm font-medium text-gray-500 dark:text-gray-400">
           Lead Date
         </TableCell>
-        <TableCell isHeader className="px-5 py-3 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
+        {/* <TableCell isHeader className="px-5 py-3 text-center text-sm font-medium text-gray-500 dark:text-gray-400">
           Action
-        </TableCell>
+        </TableCell> */}
       </TableRow>
     </TableHeader>
   );
