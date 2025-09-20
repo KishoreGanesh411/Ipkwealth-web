@@ -1,3 +1,40 @@
 {
-  "recommendations": ["continue.continue", "genieai.chatgpt-vscode"]
+  "recommendations": [
+    "continue.continue",
+    "genieai.chatgpt-vscode"
+  ],
+
+  "filetree-pro.exclude": [
+    "**/node_modules/**",
+    "**/.git/**",
+    "**/.husky/**",
+    "**/.vscode/**",
+    "**/.idea/**",
+    "**/.history/**",
+    "**/.cache/**",
+    "**/.eslintcache",
+    "**/.pnpm-store/**",
+    "**/.parcel-cache/**",
+    "**/.turbo/**",
+    "**/.vite/**",
+    "**/.next/**",
+    "**/.swc/**",
+    "**/dist/**",
+    "**/build/**",
+    "**/coverage/**",
+    "**/*.log",
+    "**/*.tmp",
+    "**/*.tsbuildinfo",
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.gif",
+    "**/*.svg",
+    "**/public/**",
+    "**/prisma/migrations/**"
+  ],
+
+  "filetree-pro.showIcons": true,
+  "filetree-pro.respectGitignore": true,
+  "filetree-pro.useCopilot": false
 }
