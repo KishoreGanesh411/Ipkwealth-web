@@ -1,22 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
-;
-
-// Assume these icons are imported from an icon library
-import { useSidebar } from "../context/SidebarContext";
-import {
-  BoxCubeIcon,
-  CalenderIcon,
-  ChevronDownIcon,
-  GridIcon,
-  HorizontaLDots,
-  ListIcon,
-  // PageIcon,
-  PieChartIcon,
-  PlugInIcon,
-  TableIcon,
-} from "../icons";
+import { useSidebar } from "@/context/SidebarContext";
+import { GridIcon, CalenderIcon, ListIcon, TableIcon, UserCircleIcon, PlugInIcon, ChevronDownIcon, HorizontaLDots } from "@/icons";
 import SidebarWidget from "./SidebarWidget";
+import { Role, useAuth } from "@/context/AuthContex";
 
 type NavItem = {
   name: string;
@@ -25,77 +12,32 @@ type NavItem = {
   subItems?: { name: string; path: string; pro?: boolean; new?: boolean }[];
 };
 
-const navItems: NavItem[] = [
-  {
-    icon: <GridIcon />,
-    name: "Dashboard",
-    subItems: [{ name: "IPK-Digital", path: "/", pro: false }],
-  },
-  {
-    icon: <CalenderIcon />,
-    name: "Calendar",
-    path: "/calendar",
-  },
-  // {
-  //   icon: <UserCircleIcon />,
-  //   name: "User Profile",
-  //   path: "/profile",
-  // },
-  {
-    name: "Lead creation",
-    icon: <ListIcon />,
-    subItems: [
-      { name: "Create Lead", path: "leads/create", pro: false },
-      // { name: "Additional Details", path: "/leads/additional", pro: false },
-    ],
-  },
-  {
-    name: "Lead generate",
-    icon: <TableIcon />,
-    subItems: [{ name: "lead-table", path: "/basic-tables", pro: false }],
-  },
-  // {
-  //   name: "Pages",
-  //   icon: <PageIcon />,
-  //   subItems: [
-  //     { name: "Blank Page", path: "/blank", pro: false },
-  //     { name: "404 Error", path: "/error-404", pro: false },
-  //   ],
-  // },
+const marketingNav: NavItem[] = [
+  { icon: <GridIcon />, name: "marketing-Dashboard", subItems: [{ name: "IPK-Digital", path: "/marketing/dashboard" }] },
+  { icon: <CalenderIcon />, name: "Calendar", path: "/marketing/calendar" },
+  { icon: <ListIcon />, name: "Lead creation", subItems: [{ name: "Create Lead", path: "/marketing/leads_create" }] },
+  { icon: <TableIcon />, name: "Lead generate", subItems: [{ name: "overall-leads", path: "/marketing/overall-leads" }] },
 ];
 
-const othersItems: NavItem[] = [
-  {
-    icon: <PieChartIcon />,
-    name: "Marketing analytics",
-    // subItems: [
-    //   { name: "Line Chart", path: "/line-chart", pro: false },
-    //   { name: "Bar Chart", path: "/bar-chart", pro: false },
-    // ],
-  },
-  {
-    icon: <BoxCubeIcon />,
-    name: "UI Elements",
-    // subItems: [
-    //   { name: "Alerts", path: "/alerts", pro: false },
-    //   { name: "Avatar", path: "/avatars", pro: false },
-    //   { name: "Badge", path: "/badge", pro: false },
-    //   { name: "Buttons", path: "/buttons", pro: false },
-    //   { name: "Images", path: "/images", pro: false },
-    //   { name: "Videos", path: "/videos", pro: false },
-    // ],
-  },
-  {
-    icon: <PlugInIcon />,
-    name: "Authentication",
-    subItems: [
-      { name: "Sign In", path: "/signin", pro: false },
-      // { name: "Sign Up", path: "/signup", pro: false },
-    ],
-  },
+const salesNav: NavItem[] = [
+  { icon: <GridIcon />, name: "sales-Dashboard", subItems: [{ name: "IPK-Sales", path: "/sales/dashboard" }] },
+  { icon: <UserCircleIcon />, name: "My leads", subItems: [{ name: "latest-leads", path: "/sales/my_leads" }] },
 ];
 
+function getNav(role?: Role) {
+  if (role === "RM") return { main: salesNav, others: [] as NavItem[] };
+  if (role === "MARKETING") {
+    return {
+      main: marketingNav,
+      others: [{ icon: <PlugInIcon />, name: "Authentication", subItems: [{ name: "Sign In", path: "/signin" }] }],
+    };
+  }
+  if (role === "ADMIN") return { main: [...marketingNav, ...salesNav], others: [] as NavItem[] };
+  return { main: [] as NavItem[], others: [] as NavItem[] };
+}
 const AppSidebar: React.FC = () => {
+  const { user } = useAuth();
+  const { main: navItems, others: othersItems } = getNav(user?.role);
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
 
@@ -178,8 +120,8 @@ const AppSidebar: React.FC = () => {
             <button
               onClick={() => handleSubmenuToggle(index, menuType)}
               className={`menu-item group ${openSubmenu?.type === menuType && openSubmenu?.index === index
-                  ? "menu-item-active"
-                  : "menu-item-inactive"
+                ? "menu-item-active"
+                : "menu-item-inactive"
                 } cursor-pointer ${!isExpanded && !isHovered
                   ? "lg:justify-center"
                   : "lg:justify-start"
@@ -187,8 +129,8 @@ const AppSidebar: React.FC = () => {
             >
               <span
                 className={`menu-item-icon-size  ${openSubmenu?.type === menuType && openSubmenu?.index === index
-                    ? "menu-item-icon-active"
-                    : "menu-item-icon-inactive"
+                  ? "menu-item-icon-active"
+                  : "menu-item-icon-inactive"
                   }`}
               >
                 {nav.icon}
@@ -199,9 +141,9 @@ const AppSidebar: React.FC = () => {
               {(isExpanded || isHovered || isMobileOpen) && (
                 <ChevronDownIcon
                   className={`ml-auto w-5 h-5 transition-transform duration-200 ${openSubmenu?.type === menuType &&
-                      openSubmenu?.index === index
-                      ? "rotate-180 text-brand-500"
-                      : ""
+                    openSubmenu?.index === index
+                    ? "rotate-180 text-brand-500"
+                    : ""
                     }`}
                 />
               )}
@@ -215,8 +157,8 @@ const AppSidebar: React.FC = () => {
               >
                 <span
                   className={`menu-item-icon-size ${isActive(nav.path)
-                      ? "menu-item-icon-active"
-                      : "menu-item-icon-inactive"
+                    ? "menu-item-icon-active"
+                    : "menu-item-icon-inactive"
                     }`}
                 >
                   {nav.icon}
@@ -246,8 +188,8 @@ const AppSidebar: React.FC = () => {
                     <Link
                       to={subItem.path}
                       className={`menu-dropdown-item ${isActive(subItem.path)
-                          ? "menu-dropdown-item-active"
-                          : "menu-dropdown-item-inactive"
+                        ? "menu-dropdown-item-active"
+                        : "menu-dropdown-item-inactive"
                         }`}
                     >
                       {subItem.name}
@@ -255,8 +197,8 @@ const AppSidebar: React.FC = () => {
                         {subItem.new && (
                           <span
                             className={`ml-auto ${isActive(subItem.path)
-                                ? "menu-dropdown-badge-active"
-                                : "menu-dropdown-badge-inactive"
+                              ? "menu-dropdown-badge-active"
+                              : "menu-dropdown-badge-inactive"
                               } menu-dropdown-badge`}
                           >
                             new
@@ -265,8 +207,8 @@ const AppSidebar: React.FC = () => {
                         {subItem.pro && (
                           <span
                             className={`ml-auto ${isActive(subItem.path)
-                                ? "menu-dropdown-badge-active"
-                                : "menu-dropdown-badge-inactive"
+                              ? "menu-dropdown-badge-active"
+                              : "menu-dropdown-badge-inactive"
                               } menu-dropdown-badge`}
                           >
                             pro
@@ -336,8 +278,8 @@ const AppSidebar: React.FC = () => {
             <div>
               <h2
                 className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${!isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
+                  ? "lg:justify-center"
+                  : "justify-start"
                   }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (
@@ -351,8 +293,8 @@ const AppSidebar: React.FC = () => {
             <div className="">
               <h2
                 className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${!isExpanded && !isHovered
-                    ? "lg:justify-center"
-                    : "justify-start"
+                  ? "lg:justify-center"
+                  : "justify-start"
                   }`}
               >
                 {isExpanded || isHovered || isMobileOpen ? (

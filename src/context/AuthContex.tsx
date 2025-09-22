@@ -1,47 +1,57 @@
-// src/context/AuthContext.tsx
-import { createContext, useState, useContext, ReactNode } from "react";
+import React, { createContext, useContext, useMemo, useState } from "react";
 
-// Define the type for our context
-interface AuthContextType {
-  isAuthenticated: boolean;
-  login: () => void;
+export type Role = "MARKETING" | "RM" | "ADMIN" | "STAFF";
+
+export type User = {
+  id: string;
+  email: string;
+  role: Role;
+};
+
+type AuthCtx = {
+  user: User | null;
+  login: (email: string, password: string) => Promise<boolean>;
   logout: () => void;
-}
+};
 
-// Create context with a default value of `undefined`
-const AuthContext = createContext<AuthContextType | undefined>(undefined);
+const Ctx = createContext<AuthCtx | null>(null);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+const STORAGE_KEY = "ipk_auth_user";
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem("isAuthenticated") === "true";
+export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(() => {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as User) : null;
   });
 
-  const login = () => {
-    setIsAuthenticated(true);
-    localStorage.setItem("isAuthenticated", "true"); // ✅ Save in storage
+  const login = async (email: string, password: string) => {
+    // Dummy users for now
+    if (email === "digital@ipkmahi.com" && password === "ipk@12345") {
+      const u: User = { id: "u1", email, role: "MARKETING" };
+      setUser(u);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+      return true;
+    }
+    if (email === "sales@ipkramya.com" && password === "ipk@12345") {
+      const u: User = { id: "u2", email, role: "RM" };
+      setUser(u);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(u));
+      return true;
+    }
+    return false;
   };
 
   const logout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem("isAuthenticated"); // ✅ Remove from storage
+    setUser(null);
+    localStorage.removeItem(STORAGE_KEY);
   };
 
+  const value = useMemo(() => ({ user, login, logout }), [user]);
+  return <Ctx.Provider value={value}>{children}</Ctx.Provider>;
+};
 
-  return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-}
-
-export function useAuth(): AuthContextType {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-}
+export const useAuth = () => {
+  const v = useContext(Ctx);
+  if (!v) throw new Error("useAuth must be used within AuthProvider");
+  return v;
+};

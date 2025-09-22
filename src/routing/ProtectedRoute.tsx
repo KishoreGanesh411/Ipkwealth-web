@@ -1,21 +1,21 @@
-import { Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContex";
-import { JSX } from "react";
+import { Navigate, Outlet } from "react-router-dom";
+import { useAuth } from "@/context/AuthContex";
+import type { Role } from "@/context/AuthContex";
 
-export default function ProtectedRoute({
-  children,
-  roles,
-}: {
-  children: JSX.Element;
-  roles?: Array<"ADMIN" | "RM" | "STAFF" | "MARKETING">;
-}) {
-  const { isAuthenticated, user } = useAuth();
+type Props = {
+  roles?: Role[];          // optional allowed roles
+  children?: React.ReactNode;
+};
 
-  if (!isAuthenticated) return <Navigate to="/signin" replace />;
+export default function ProtectedRoute({ roles, children }: Props) {
+  const { user } = useAuth();
 
-  if (roles && user && !roles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+  if (!user) return <Navigate to="/signin" replace />;
+
+  if (roles && !roles.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
   }
 
-  return children;
+  // Support both wrapper usage and <Route element={<ProtectedRoute />}>
+  return children ? <>{children}</> : <Outlet />;
 }

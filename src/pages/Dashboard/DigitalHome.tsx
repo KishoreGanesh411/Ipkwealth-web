@@ -9,7 +9,7 @@ import DemographicCard from "../../components/ecommerce/DemographicCard";
 import PageMeta from "../../components/common/PageMeta";
 import Alert from "../../components/ui/alert/Alert"; // ✅ import TailAdmin alert
 
-export default function Home() {
+export default function DigitalHome() {
   const location = useLocation();
   const [showLoginAlert, setShowLoginAlert] = useState(false);
 

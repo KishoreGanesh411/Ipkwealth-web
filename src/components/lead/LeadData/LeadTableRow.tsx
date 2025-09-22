@@ -1,4 +1,4 @@
-import { PencilIcon, TrashBinIcon } from "@/icons/index";
+// import { PencilIcon, TrashBinIcon } from "@/icons/index";
 import { TableCell, TableRow } from "@/components/ui/table";
 
 export type Row = {
@@ -15,10 +15,10 @@ export type Row = {
 export function LeadTableRow({
   row,
   showAdvancedCols,
-  isSelected,
-  onToggle,
-  onEdit,
-  onDelete,
+  // isSelected,
+  // onToggle,
+  // onEdit,
+  // onDelete,
 }: {
   row: Row;
   showAdvancedCols: boolean;

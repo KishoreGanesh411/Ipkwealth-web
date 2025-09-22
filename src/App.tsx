@@ -1,30 +1,35 @@
-import {
-  Navigate,
-  Route,
-  BrowserRouter as Router,
-  Routes,
-} from "react-router-dom";
-import ProtectedRoute from "./components/common/ProtectedRoute";
-import { AuthProvider } from "./context/AuthContex";
+import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router-dom";
+import { ScrollToTop } from "@/components/common/ScrollToTop";
+import ProtectedRoute from "@/components/common/ProtectedRoute";
+import { AuthProvider, useAuth } from "@/context/AuthContex";
 
-import SignIn from "./pages/AuthPages/SignIn";
-import { ScrollToTop } from "./components/common/ScrollToTop";
-import AppLayout from "./layout/AppLayout";
-import Blank from "./pages/Blank";
-import Calendar from "./pages/Calendar";
-import BarChart from "./pages/Charts/BarChart";
-import LineChart from "./pages/Charts/LineChart";
-import Home from "./pages/Dashboard/Home";
-import NotFound from "./pages/OtherPage/NotFound";
-import LeadTable from "./pages/Tables/BasicTables";
-import Alerts from "./pages/UiElements/Alerts";
-import Avatars from "./pages/UiElements/Avatars";
-import Badges from "./pages/UiElements/Badges";
-import Buttons from "./pages/UiElements/Buttons";
-import Images from "./pages/UiElements/Images";
-import Videos from "./pages/UiElements/Videos";
-import UserProfiles from "./pages/UserProfiles";
-import LeadEntry from "./pages/Forms/LeadEntry";
+import SignIn from "@/pages/AuthPages/SignIn";
+import AppLayout from "@/layout/AppLayout";
+import Unauthorized from "@/pages/OtherPage/Unauthorized";
+
+// Marketing pages
+import DigitalHome from "@/pages/Dashboard/DigitalHome";
+import Calendar from "@/pages/Calendar";
+import LeadEntry from "@/pages/Forms/LeadEntry";
+import LeadTable from "@/pages/Tables/BasicTables";
+
+// Sales pages
+import SalesRMDashboard from "@/pages/Dashboard/salesHome";
+import MyLeadsPage from "@/pages/Mylead/MyLeadsPage";
+
+// Misc
+import NotFound from "@/pages/OtherPage/NotFound";
+import UserProfiles from "@/pages/UserProfiles";
+import Blank from "@/pages/Blank";
+
+function RootRedirect() {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/signin" replace />;
+  if (user.role === "RM") return <Navigate to="/sales/dashboard" replace />;
+  if (user.role === "MARKETING") return <Navigate to="/marketing/dashboard" replace />;
+  if (user.role === "ADMIN") return <Navigate to="/admin/dashboard" replace />; // future
+  return <Navigate to="/unauthorized" replace />;
+}
 
 export default function App() {
   return (
@@ -32,10 +37,10 @@ export default function App() {
       <Router>
         <ScrollToTop />
         <Routes>
-          {/* Auth Routes */}
           <Route path="/signin" element={<SignIn />} />
+          <Route path="/unauthorized" element={<Unauthorized />} />
 
-          {/* Protected Dashboard Routes */}
+          {/* Shared App layout */}
           <Route
             path="/"
             element={
@@ -44,26 +49,34 @@ export default function App() {
               </ProtectedRoute>
             }
           >
-            <Route index element={<Home />} />
+            {/* role-based landing */}
+            <Route index element={<RootRedirect />} />
+
+            {/* Marketing-only */}
+            <Route
+              path="marketing"
+              element={<ProtectedRoute allow={["MARKETING", "ADMIN"]}><div /></ProtectedRoute>}
+            >
+              <Route path="marketing/dashboard" element={<DigitalHome />} />
+              <Route path="calendar" element={<Calendar />} />
+              <Route path="leads_create" element={<LeadEntry />} />
+              <Route path="overall-leads" element={<LeadTable />} />
+            </Route>
+
+            {/* Sales (RM)-only */}
+            <Route
+              path="sales"
+              element={<ProtectedRoute allow={["RM", "ADMIN"]}><div /></ProtectedRoute>}
+            >
+              <Route path="dashboard" element={<SalesRMDashboard />} />
+              <Route path="my_leads" element={<MyLeadsPage />} />
+            </Route>
+
+            {/* Common pages if you need them for both roles */}
             <Route path="profile" element={<UserProfiles />} />
-            <Route path="calendar" element={<Calendar />} />
             <Route path="blank" element={<Blank />} />
-
-            <Route path="leads/create" element={<LeadEntry />} />
-
-            {/* Existing demo routes */}
-            <Route path="basic-tables" element={<LeadTable />} />
-            <Route path="alerts" element={<Alerts />} />
-            <Route path="avatars" element={<Avatars />} />
-            <Route path="badge" element={<Badges />} />
-            <Route path="buttons" element={<Buttons />} />
-            <Route path="images" element={<Images />} />
-            <Route path="videos" element={<Videos />} />
-            <Route path="line-chart" element={<LineChart />} />
-            <Route path="bar-chart" element={<BarChart />} />
           </Route>
 
-          {/* Fallback Route */}
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Router>
