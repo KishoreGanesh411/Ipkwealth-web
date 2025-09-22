@@ -1,6 +1,6 @@
-// src/components/common/ProtectedRoute.tsx
 import { ReactNode } from "react";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
+
 import { Role, useAuth } from "@/context/AuthContex";
 
 type Props = {
@@ -9,17 +9,20 @@ type Props = {
 };
 
 export default function ProtectedRoute({ children, allow }: Props) {
-  const { user } = useAuth();
+  const { firebaseUser, user, loading } = useAuth();
   const loc = useLocation();
 
-  if (!user) {
+  if (loading) {
+    return <div className="p-6 text-center">Loading...</div>;
+  }
+
+  if (!firebaseUser) {
     return <Navigate to="/signin" state={{ from: loc }} replace />;
   }
 
-  if (allow && !allow.includes(user.role)) {
+  if (allow && (!user || !allow.some((role) => role === user.role))) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // Works both for wrapper use and as a <Route element>
   return children ? <>{children}</> : <Outlet />;
 }

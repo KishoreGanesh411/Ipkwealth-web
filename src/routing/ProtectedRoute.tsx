@@ -1,21 +1,28 @@
-import { Navigate, Outlet } from "react-router-dom";
-import { useAuth } from "@/context/AuthContex";
-import type { Role } from "@/context/AuthContex";
+import { JSX } from "react";
+import { Navigate, useLocation } from "react-router-dom";
+
+import { Role, useAuth } from "@/context/AuthContex";
 
 type Props = {
-  roles?: Role[];          // optional allowed roles
-  children?: React.ReactNode;
+  children: JSX.Element;
+  allow?: Role[];
 };
 
-export default function ProtectedRoute({ roles, children }: Props) {
-  const { user } = useAuth();
+export default function ProtectedRoute({ children, allow }: Props) {
+  const { firebaseUser, user, loading } = useAuth();
+  const loc = useLocation();
 
-  if (!user) return <Navigate to="/signin" replace />;
+  if (loading) {
+    return <div className="p-6 text-center">Loading...</div>;
+  }
 
-  if (roles && !roles.includes(user.role)) {
+  if (!firebaseUser) {
+    return <Navigate to="/signin" state={{ from: loc }} replace />;
+  }
+
+  if (allow && (!user || !allow.some((role) => role === user.role))) {
     return <Navigate to="/unauthorized" replace />;
   }
 
-  // Support both wrapper usage and <Route element={<ProtectedRoute />}>
-  return children ? <>{children}</> : <Outlet />;
+  return children;
 }

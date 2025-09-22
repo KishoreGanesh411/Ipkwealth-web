@@ -22,6 +22,7 @@ const marketingNav: NavItem[] = [
 const salesNav: NavItem[] = [
   { icon: <GridIcon />, name: "sales-Dashboard", subItems: [{ name: "IPK-Sales", path: "/sales/dashboard" }] },
   { icon: <UserCircleIcon />, name: "My leads", subItems: [{ name: "latest-leads", path: "/sales/my_leads" }] },
+  { icon: <UserCircleIcon />, name: "View-Lead", subItems: [{ name: "latest-leads", path: "sales/view_lead/:id" }] },
 ];
 
 function getNav(role?: Role) {
@@ -37,7 +38,8 @@ function getNav(role?: Role) {
 }
 const AppSidebar: React.FC = () => {
   const { user } = useAuth();
-  const { main: navItems, others: othersItems } = getNav(user?.role);
+  const userRole = user?.role !== "UNKNOWN" ? user?.role : undefined;
+  const { main: navItems, others: othersItems } = getNav(userRole);
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
 

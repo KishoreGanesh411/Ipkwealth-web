@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Table,
   TableBody,
@@ -9,9 +10,6 @@ import {
 import Badge from "@/components/ui/badge/Badge";
 import LeadCodeBadge from "@/components/common/LeadCodeBadge";
 
-/* ────────────────────────────────────────────────────────────
-   Types
-   ──────────────────────────────────────────────────────────── */
 export type Lead = {
   id: string | number;
   leadCode: string | null;
@@ -22,26 +20,15 @@ export type Lead = {
 };
 
 export type MyLeadsProps = {
-  /** Optional so the component renders safely even if parent forgets to pass it */
   leads?: Lead[];
-  /** Client-side page size (simple pager) */
   pageSize?: number;
-  /** Optional callback if parent wants to handle the View More event */
-  onViewMore?: (lead: Lead) => void;
 };
 
-/* ────────────────────────────────────────────────────────────
-   Component
-   ──────────────────────────────────────────────────────────── */
-export function MyLeads({
-  leads,
-  pageSize = 8,
-  onViewMore,
-}: MyLeadsProps) {
+export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
+  const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
   const [menuFor, setMenuFor] = useState<string | number | null>(null);
-  const [selected, setSelected] = useState<Lead | null>(null);
 
   const list = Array.isArray(leads) ? leads : [];
 
@@ -65,19 +52,15 @@ export function MyLeads({
   const openMenu = (id: string | number) =>
     setMenuFor((prev) => (prev === id ? null : id));
 
-  const viewMore = (lead: Lead) => {
+  const goViewLead = (lead: Lead) => {
     setMenuFor(null);
-    if (onViewMore) onViewMore(lead);
-    setSelected(lead);
+    navigate(`/sales/view_lead/${lead.id}`, { state: { lead } }); // programmatic nav
   };
 
   return (
     <div className="rounded-lg border border-gray-100 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
-      {/* Header (search) */}
       <div className="flex items-center justify-between gap-3 px-4 py-4">
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-          latest leads
-        </h2>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">latest leads</h2>
         <input
           value={query}
           onChange={(e) => {
@@ -93,82 +76,48 @@ export function MyLeads({
         <Table className="min-w-full">
           <TableHeader className="text-left text-sm text-gray-500 dark:text-white/50">
             <TableRow>
-              <TableCell isHeader className="px-6 py-3 font-medium">
-                Name
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 font-medium">
-                Lead Code
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 font-medium">
-                Lead Source
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 font-medium">
-                Product
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 font-medium">
-                Profession
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 font-medium" children={undefined} />
+              <TableCell isHeader className="px-6 py-3 font-medium">Name</TableCell>
+              <TableCell isHeader className="px-6 py-3 font-medium">Lead Code</TableCell>
+              <TableCell isHeader className="px-6 py-3 font-medium">Lead Source</TableCell>
+              <TableCell isHeader className="px-6 py-3 font-medium">Product</TableCell>
+              <TableCell isHeader className="px-6 py-3 font-medium">Profession</TableCell>
+              <TableCell isHeader className="px-6 py-3 font-medium" />
             </TableRow>
           </TableHeader>
 
           <TableBody>
             {current.map((l) => (
-              <TableRow
-                key={l.id}
-                className="border-t border-gray-100 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/[0.03]"
-              >
-                {/* Name */}
-                <TableCell className="px-6 py-4 text-sm text-gray-900 dark:text-white">
-                  {l.name}
-                </TableCell>
+              <TableRow key={l.id} className="border-t border-gray-100 hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/[0.03]">
+                <TableCell className="px-6 py-4 text-sm text-gray-900 dark:text-white">{l.name}</TableCell>
+                <TableCell className="px-6 py-4"><LeadCodeBadge code={l.leadCode ?? "—"} /></TableCell>
+                <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{l.leadSource}</TableCell>
+                <TableCell className="px-6 py-4"><Badge className="rounded-full px-2.5 py-1 text-xs">{l.product}</Badge></TableCell>
+                <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">{l.profession}</TableCell>
 
-                {/* Lead Code (use your badge) */}
-                <TableCell className="px-6 py-4">
-                  <LeadCodeBadge code={l.leadCode ?? "—"} />
-                </TableCell>
-
-                {/* Lead Source */}
-                <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                  {l.leadSource}
-                </TableCell>
-
-                {/* Product (as a subtle badge for “pro” feel) */}
-                <TableCell className="px-6 py-4">
-                  <Badge className="rounded-full px-2.5 py-1 text-xs">
-                    {l.product}
-                  </Badge>
-                </TableCell>
-
-                {/* Profession */}
-                <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                  {l.profession}
-                </TableCell>
-
-                {/* Actions */}
                 <TableCell className="relative px-6 py-4 text-right">
                   <button
                     onClick={() => openMenu(l.id)}
                     className="rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-white/10"
+                    aria-haspopup="menu"
+                    aria-expanded={menuFor === l.id}
                     aria-label="Row actions"
                   >
-                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                      <path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
+                    <svg className="h-5 w-5" viewBox="0 0 20 20" fill="currentColor"><path d="M6 10a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0zm6 0a2 2 0 11-4 0 2 2 0 014 0z" /></svg>
                   </button>
 
                   {menuFor === l.id && (
                     <div
                       className="absolute right-4 z-20 mt-2 w-40 overflow-hidden rounded-lg border border-gray-100 bg-white shadow-lg dark:border-white/10 dark:bg-white/[0.02]"
                       onMouseLeave={() => setMenuFor(null)}
+                      role="menu"
                     >
                       <button
                         className="block w-full px-4 py-2 text-left text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.06]"
-                        onClick={() => viewMore(l)}
+                        onClick={() => goViewLead(l)}
+                        role="menuitem"
                       >
                         View More
                       </button>
-                      {/* Future: add more items here */}
                     </div>
                   )}
                 </TableCell>
@@ -186,7 +135,6 @@ export function MyLeads({
         </Table>
       </div>
 
-      {/* Footer pager */}
       <div className="flex items-center justify-between px-4 py-4">
         <button
           className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]"
@@ -204,10 +152,9 @@ export function MyLeads({
               <button
                 key={n}
                 onClick={() => setPage(n)}
-                className={
-                  isActive
-                    ? "rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white"
-                    : "rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]"
+                className={isActive
+                  ? "rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white"
+                  : "rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]"
                 }
               >
                 {n}
@@ -224,41 +171,6 @@ export function MyLeads({
           Next
         </button>
       </div>
-
-      {/* View More modal (simple inline modal to avoid coupling) */}
-      {selected && (
-        <div
-          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 p-4"
-          onClick={() => setSelected(null)}
-        >
-          <div
-            className="w-full max-w-md rounded-xl border border-gray-100 bg-white shadow-xl dark:border-white/10 dark:bg-white/[0.02]"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="border-b px-6 py-4 dark:border-white/10">
-              <h3 className="text-base font-semibold">Lead Details</h3>
-            </div>
-            <div className="space-y-2 px-6 py-4 text-sm">
-              <div><span className="font-medium">Lead Code:</span> {selected.leadCode ?? "—"}</div>
-              <div><span className="font-medium">Name:</span> {selected.name}</div>
-              <div><span className="font-medium">Lead Source:</span> {selected.leadSource}</div>
-              <div><span className="font-medium">Product:</span> {selected.product}</div>
-              <div><span className="font-medium">Profession:</span> {selected.profession}</div>
-            </div>
-            <div className="flex justify-end gap-2 border-t px-6 py-3 dark:border-white/10">
-              <button
-                className="rounded-lg border border-gray-200 px-3 py-2 text-sm dark:border-white/10"
-                onClick={() => setSelected(null)}
-              >
-                Close
-              </button>
-              {/* Future: add Edit/More actions here */}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
-
-export default MyLeads;

@@ -8,6 +8,8 @@ export default function UserDropdown() {
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const displayName = user?.name?.trim() || user?.email || "User";
+  const displayRole = user && user.role !== "UNKNOWN" ? user.role : "guest";
 
   function toggleDropdown() {
     setIsOpen(!isOpen);
@@ -26,7 +28,7 @@ export default function UserDropdown() {
           <img src="/images/user/owner.jpg" alt="User" />
         </span>
 
-        <span className="block mr-1 font-medium text-theme-sm">{user?.email ?? "User"}</span>
+        <span className="block mr-1 font-medium text-theme-sm">{displayName}</span>
         <svg
           className={`stroke-gray-500 dark:stroke-gray-400 transition-transform duration-200 ${
             isOpen ? "rotate-180" : ""
@@ -53,9 +55,9 @@ export default function UserDropdown() {
         className="absolute right-0 mt-[17px] flex w-[260px] flex-col rounded-2xl border border-gray-200 bg-white p-3 shadow-theme-lg dark:border-gray-800 dark:bg-gray-dark"
       >
         <div>
-          <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">{user?.email ?? "User"}</span>
+          <span className="block font-medium text-gray-700 text-theme-sm dark:text-gray-400">{displayName}</span>
           <span className="mt-0.5 block text-theme-xs text-gray-500 dark:text-gray-400">
-            {user ? user.role : "guest"}
+            {displayRole}
           </span>
         </div>
 
