@@ -14,9 +14,9 @@ type NavItem = {
 
 const marketingNav: NavItem[] = [
   { icon: <GridIcon />, name: "marketing-Dashboard", subItems: [{ name: "IPK-Digital", path: "/marketing/dashboard" }] },
-  { icon: <CalenderIcon />, name: "Calendar", path: "/marketing/calendar" },
+  { icon: <CalenderIcon />, name: "Marketing-event", path: "/marketing/calendar" },
   { icon: <ListIcon />, name: "Lead creation", subItems: [{ name: "Create Lead", path: "/marketing/leads_create" }] },
-  { icon: <TableIcon />, name: "Lead generate", subItems: [{ name: "overall-leads", path: "/marketing/overall-leads" }] },
+  { icon: <TableIcon />, name: "Lead generate", subItems: [{ name: "IPK-leads", path: "/marketing/overall-leads" }] },
 ];
 
 const salesNav: NavItem[] = [

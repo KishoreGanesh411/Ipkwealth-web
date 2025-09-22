@@ -9,7 +9,7 @@ import Unauthorized from "@/pages/OtherPage/Unauthorized";
 
 // Marketing pages
 import DigitalHome from "@/pages/Dashboard/DigitalHome";
-import Calendar from "@/pages/Calendar";
+import MarketingEvent from "@/pages/Calendar";
 import LeadEntry from "@/pages/Forms/LeadEntry";
 import LeadTable from "@/pages/Tables/BasicTables";
 
@@ -27,7 +27,7 @@ function RootRedirect() {
   if (!user) return <Navigate to="/signin" replace />;
   if (user.role === "RM") return <Navigate to="/sales/dashboard" replace />;
   if (user.role === "MARKETING") return <Navigate to="/marketing/dashboard" replace />;
-  if (user.role === "ADMIN") return <Navigate to="/admin/dashboard" replace />; // future
+  if (user.role === "ADMIN") return <Navigate to="/marketing/dashboard" replace />; // adjust as you add Admin
   return <Navigate to="/unauthorized" replace />;
 }
 
@@ -40,7 +40,8 @@ export default function App() {
           <Route path="/signin" element={<SignIn />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
 
-          {/* Shared App layout */}
+          {/* Shared App layout */
+          }
           <Route
             path="/"
             element={
@@ -53,23 +54,17 @@ export default function App() {
             <Route index element={<RootRedirect />} />
 
             {/* Marketing-only */}
-            <Route
-              path="marketing"
-              element={<ProtectedRoute allow={["MARKETING", "ADMIN"]}><div /></ProtectedRoute>}
-            >
+            <Route element={<ProtectedRoute allow={["MARKETING", "ADMIN"]} />}>
               <Route path="marketing/dashboard" element={<DigitalHome />} />
-              <Route path="calendar" element={<Calendar />} />
-              <Route path="leads_create" element={<LeadEntry />} />
-              <Route path="overall-leads" element={<LeadTable />} />
+              <Route path="marketing/calendar" element={<MarketingEvent />} />
+              <Route path="marketing/leads_create" element={<LeadEntry />} />
+              <Route path="marketing/overall-leads" element={<LeadTable />} />
             </Route>
 
             {/* Sales (RM)-only */}
-            <Route
-              path="sales"
-              element={<ProtectedRoute allow={["RM", "ADMIN"]}><div /></ProtectedRoute>}
-            >
-              <Route path="dashboard" element={<SalesRMDashboard />} />
-              <Route path="my_leads" element={<MyLeadsPage />} />
+            <Route element={<ProtectedRoute allow={["RM", "ADMIN"]} />}>
+              <Route path="sales/dashboard" element={<SalesRMDashboard />} />
+              <Route path="sales/my_leads" element={<MyLeadsPage />} />
             </Route>
 
             {/* Common pages if you need them for both roles */}

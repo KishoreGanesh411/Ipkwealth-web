@@ -1,13 +1,12 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom"; //  useNavigate for redirect
+import { Link, useNavigate } from "react-router-dom";
 import { ChevronLeftIcon, EyeCloseIcon, EyeIcon } from "../../../icons";
 import Label from "../../form/Label";
 import Input from "../../form/input/InputField";
 import Checkbox from "../../form/input/Checkbox";
 import Button from "../../ui/button/Button";
-import { useAuth } from "../../../context/AuthContex"; //  useAuth from context
-// import { toast, ToastContainer } from "react-toastify";  // ✅ Import toast
-// import "react-toastify/dist/ReactToastify.css"; 
+import { useAuth } from "../../../context/AuthContex";
+
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
@@ -17,15 +16,11 @@ export default function SignInForm() {
   const { login } = useAuth();
   const navigate = useNavigate();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
-    // ✅ Dummy login check
-    if (email === "digital@ipkmahi.com" && password === "ipk@12345") {
-      login();
-      // Set isAuthenticated = true
-      navigate("/", { state: { loginSuccess: true } });
-      // Redirect to dashboard
+    const ok = await login(email, password);
+    if (ok) {
+      navigate("/", { replace: true, state: { loginSuccess: true } });
     } else {
       alert("Invalid email or password!");
     }
@@ -53,7 +48,6 @@ export default function SignInForm() {
             </p>
           </div>
 
-          {/* Form */}
           <form onSubmit={handleSubmit}>
             <div className="space-y-6">
               <div>
@@ -113,21 +107,9 @@ export default function SignInForm() {
               </div>
             </div>
           </form>
-
-          {/* Signup Link */}
-          {/* <div className="mt-5">
-            <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
-              Don&apos;t have an account?{" "}
-              <Link
-                to="/signup"
-                className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
-              >
-                Sign Up
-              </Link>
-            </p>
-          </div> */}
         </div>
       </div>
     </div>
   );
 }
+
