@@ -22,6 +22,7 @@ const marketingNav: NavItem[] = [
 const salesNav: NavItem[] = [
   { icon: <GridIcon />, name: "sales-Dashboard", subItems: [{ name: "IPK-Sales", path: "/sales/dashboard" }] },
   { icon: <UserCircleIcon />, name: "My leads", subItems: [{ name: "latest-leads", path: "/sales/my_leads" }] },
+  { icon: <UserCircleIcon />, name: "Events", subItems: [{ name: "sales-event", path: "sales/events" }] },
   { icon: <UserCircleIcon />, name: "View-Lead", subItems: [{ name: "latest-leads", path: "sales/view_lead/:id" }] },
 ];
 

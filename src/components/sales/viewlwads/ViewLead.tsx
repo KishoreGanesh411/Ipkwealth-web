@@ -113,7 +113,7 @@ export default function ViewLead() {
 
       {/* GRID 2 */}
       <section className="rounded-xl border border-gray-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
-        <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-white/80">RM Interaction / Event</h2>
+        <h2 className="mb-3 text-sm font-semibold text-gray-700 dark:text-white/80">Your Interaction with lead & connected channels</h2>
 
         <div className="grid grid-cols-1 gap-4 md:grid-cols-2 text-sm">
           {/* Product explained? (radio group) */}

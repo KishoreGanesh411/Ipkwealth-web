@@ -25,6 +25,7 @@ import NotFound from "@/pages/OtherPage/NotFound";
 import UserProfiles from "@/pages/UserProfiles";
 import Blank from "@/pages/Blank";
 import ViewLead from "./components/sales/viewlwads/ViewLead";
+import SalesEvent from "./pages/Sales/Event_sales/Event_Rm";
 
 /** Decides the landing route based on backend role */
 function RoleLanding() {
@@ -77,8 +78,9 @@ export default function App() {
             {/* Sales (RM)-only */}
             <Route element={<ProtectedRoute allow={["RM", "ADMIN"]} />}>
               <Route path="sales/dashboard" element={<SalesRMDashboard />} />
-  <Route path="sales/my_leads" element={<MyLeadsPage />} />
-  <Route path="sales/view_lead/:id" element={<ViewLead />} />
+              <Route path="sales/my_leads" element={<MyLeadsPage />} />
+              <Route path="sales/events" element={<SalesEvent />} />
+              <Route path="sales/view_lead/:id" element={<ViewLead />} />
             </Route>
 
             {/* Common */}
