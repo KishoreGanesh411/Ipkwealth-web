@@ -1,4 +1,4 @@
-import Badge from "../ui/badge/Badge";
+import Badge from "@/components/ui/badge/Badge"
 import { humanize } from "@/utils/formatters";
 
 type Props = {

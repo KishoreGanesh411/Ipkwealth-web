@@ -1,4 +1,4 @@
-import { Table, TableBody, TableCell, TableHeader, TableRow } from "../ui/table";
+import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table/index"
 import LeadStatusBadge from "./LeadStatusBadge";
 import ClientTypeBadge from "./ClientTypeBadge";
 import { humanize } from "@/utils/formatters";

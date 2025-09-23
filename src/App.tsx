@@ -6,41 +6,43 @@ import { AuthProvider } from "@/context/AuthContex";
 
 import { ME } from "@/core/graphql/user/user.gql"; // expects { me { id email role status } }
 
+// Auth
 import SignIn from "@/pages/AuthPages/SignIn";
-import AppLayout from "@/layout/AppLayout";
-import Unauthorized from "@/pages/OtherPage/Unauthorized";
 
-// Marketing pages
+// Layout
+import AppLayout from "@/layout/AppLayout";
+
+// Marketing
 import DigitalHome from "@/pages/Dashboard/DigitalHome";
 import MarketingEvent from "@/pages/Calendar";
 import LeadEntry from "@/pages/Forms/LeadEntry";
 import LeadTable from "@/pages/Tables/BasicTables";
 
-// Sales pages
+// Sales (RM)
 import SalesRMDashboard from "@/pages/Dashboard/salesHome";
 import MyLeadsPage from "@/pages/Sales/Mylead/MyLeadsPage";
+import SalesEvent from "@/pages/Sales/Event_sales/Event_Rm";
+import ViewLead from "@/components/sales/viewlwads/ViewLead";
 
-// Misc
+// Common/Misc
+import Unauthorized from "@/pages/OtherPage/Unauthorized";
 import NotFound from "@/pages/OtherPage/NotFound";
 import UserProfiles from "@/pages/UserProfiles";
 import Blank from "@/pages/Blank";
-import ViewLead from "./components/sales/viewlwads/ViewLead";
-import SalesEvent from "./pages/Sales/Event_sales/Event_Rm";
+
+type Role = "ADMIN" | "RM" | "STAFF" | "MARKETING" | "ANALYST";
 
 /** Decides the landing route based on backend role */
 function RoleLanding() {
   const { data, loading, error } = useQuery(ME, { fetchPolicy: "cache-first" });
 
   if (loading) return <div className="p-6 text-center">Loading…</div>;
-
-  // If token invalid or user not found in DB → go signin
   if (error || !data?.me) return <Navigate to="/signin" replace />;
 
-  const role = data.me.role as "ADMIN" | "RM" | "STAFF" | "MARKETING" | "ANALYST";
-
+  const role = data.me.role as Role;
   if (role === "RM") return <Navigate to="/sales/dashboard" replace />;
   if (role === "MARKETING") return <Navigate to="/marketing/dashboard" replace />;
-  if (role === "ADMIN") return <Navigate to="/marketing/dashboard" replace />; // adjust ADMIN home if needed
+  if (role === "ADMIN") return <Navigate to="/marketing/dashboard" replace />; // adjust if you want a true Admin home
 
   return <Navigate to="/unauthorized" replace />;
 }
