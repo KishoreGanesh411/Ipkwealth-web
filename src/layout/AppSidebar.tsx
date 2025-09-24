@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useSidebar } from "@/context/SidebarContext";
-import { GridIcon, CalenderIcon, ListIcon, TableIcon, UserCircleIcon, PlugInIcon, ChevronDownIcon, HorizontaLDots } from "@/icons";
+import { GridIcon, CalenderIcon, ListIcon, TableIcon, UserCircleIcon, PlugInIcon, ChevronDownIcon, HorizontaLDots, ChatIcon } from "@/icons";
 import SidebarWidget from "./SidebarWidget";
 import { Role, useAuth } from "@/context/AuthContex";
 
@@ -18,12 +18,15 @@ const marketingNav: NavItem[] = [
   { icon: <ListIcon />, name: "Lead creation", subItems: [{ name: "Create Lead", path: "/marketing/leads_create" }] },
   { icon: <TableIcon />, name: "Lead generate", subItems: [{ name: "IPK-leads", path: "/marketing/overall-leads" }] },
 ];
-
 const salesNav: NavItem[] = [
   { icon: <GridIcon />, name: "sales-Dashboard", subItems: [{ name: "IPK-Sales", path: "/sales/dashboard" }] },
   { icon: <UserCircleIcon />, name: "My leads", subItems: [{ name: "latest-leads", path: "/sales/my_leads" }] },
-  { icon: <UserCircleIcon />, name: "Events", subItems: [{ name: "sales-event", path: "sales/events" }] },
-  { icon: <UserCircleIcon />, name: "View-Lead", subItems: [{ name: "latest-leads", path: "sales/view_lead/:id" }] },
+  {
+    icon: <CalenderIcon />, name: "Events", subItems:
+      [{ name: "sales-event", path: "/sales/events" }]
+  },
+  { icon: <TableIcon />, name: "View-Lead", subItems: [{ name: "latest-leads", path: "/sales/view_lead/:id" }] },
+  { icon: <ChatIcon />, name: "Chat", path: "/sales/events/chat" },
 ];
 
 function getNav(role?: Role) {
@@ -41,6 +44,7 @@ const AppSidebar: React.FC = () => {
   const { user } = useAuth();
   const userRole = user?.role !== "UNKNOWN" ? user?.role : undefined;
   const { main: navItems, others: othersItems } = getNav(userRole);
+  const hasOthers = othersItems.length > 0;
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
 
@@ -293,21 +297,23 @@ const AppSidebar: React.FC = () => {
               </h2>
               {renderMenuItems(navItems, "main")}
             </div>
-            <div className="">
-              <h2
-                className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${!isExpanded && !isHovered
-                  ? "lg:justify-center"
-                  : "justify-start"
-                  }`}
-              >
-                {isExpanded || isHovered || isMobileOpen ? (
-                  "Others"
-                ) : (
-                  <HorizontaLDots />
-                )}
-              </h2>
-              {renderMenuItems(othersItems, "others")}
-            </div>
+            {hasOthers && (
+              <div className="">
+                <h2
+                  className={`mb-4 text-xs uppercase flex leading-[20px] text-gray-400 ${!isExpanded && !isHovered
+                    ? "lg:justify-center"
+                    : "justify-start"
+                    }`}
+                >
+                  {isExpanded || isHovered || isMobileOpen ? (
+                    "Others"
+                  ) : (
+                    <HorizontaLDots />
+                  )}
+                </h2>
+                {renderMenuItems(othersItems, "others")}
+              </div>
+            )}
           </div>
         </nav>
         {isExpanded || isHovered || isMobileOpen ? <SidebarWidget /> : null}
@@ -317,3 +323,4 @@ const AppSidebar: React.FC = () => {
 };
 
 export default AppSidebar;
+

@@ -29,6 +29,7 @@ import Unauthorized from "@/pages/OtherPage/Unauthorized";
 import NotFound from "@/pages/OtherPage/NotFound";
 import UserProfiles from "@/pages/UserProfiles";
 import Blank from "@/pages/Blank";
+import ChatPage from "./pages/Sales/Support/ChatPage";
 
 type Role = "ADMIN" | "RM" | "STAFF" | "MARKETING" | "ANALYST";
 
@@ -82,6 +83,7 @@ export default function App() {
               <Route path="sales/dashboard" element={<SalesRMDashboard />} />
               <Route path="sales/my_leads" element={<MyLeadsPage />} />
               <Route path="sales/events" element={<SalesEvent />} />
+              <Route path="sales/events/chat" element={<ChatPage />} />
               <Route path="sales/view_lead/:id" element={<ViewLead />} />
             </Route>
 
