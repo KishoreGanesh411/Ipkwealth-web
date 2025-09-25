@@ -23,6 +23,7 @@ import SalesRMDashboard from "@/pages/Dashboard/salesHome";
 import MyLeadsPage from "@/pages/Sales/Mylead/MyLeadsPage";
 import SalesEvent from "@/pages/Sales/Event_sales/Event_Rm";
 import ViewLead from "@/components/sales/viewlwads/ViewLead";
+import AdminDashboard from "@/pages/Admin/AdminDashboard";
 
 // Common/Misc
 import Unauthorized from "@/pages/OtherPage/Unauthorized";
@@ -37,13 +38,13 @@ type Role = "ADMIN" | "RM" | "STAFF" | "MARKETING" | "ANALYST";
 function RoleLanding() {
   const { data, loading, error } = useQuery(ME, { fetchPolicy: "cache-first" });
 
-  if (loading) return <div className="p-6 text-center">Loading…</div>;
+  if (loading) return <div className="p-6 text-center">Loading...</div>;
   if (error || !data?.me) return <Navigate to="/signin" replace />;
 
   const role = data.me.role as Role;
   if (role === "RM") return <Navigate to="/sales/dashboard" replace />;
   if (role === "MARKETING") return <Navigate to="/marketing/dashboard" replace />;
-  if (role === "ADMIN") return <Navigate to="/marketing/dashboard" replace />; // adjust if you want a true Admin home
+  if (role === "ADMIN") return <Navigate to="/admin/dashboard" replace />; // adjust if you want a true Admin home
 
   return <Navigate to="/unauthorized" replace />;
 }
@@ -69,6 +70,11 @@ export default function App() {
           >
             {/* role-based landing */}
             <Route index element={<RoleLanding />} />
+
+            {/* Admin-only */}
+            <Route element={<ProtectedRoute allow={["ADMIN"]} />}>
+              <Route path="admin/dashboard" element={<AdminDashboard />} />
+            </Route>
 
             {/* Marketing-only */}
             <Route element={<ProtectedRoute allow={["MARKETING", "ADMIN"]} />}>

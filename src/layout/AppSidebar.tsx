@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useSidebar } from "@/context/SidebarContext";
-import { GridIcon, CalenderIcon, ListIcon, TableIcon, UserCircleIcon, PlugInIcon, ChevronDownIcon, HorizontaLDots, ChatIcon } from "@/icons";
+import { GridIcon, CalenderIcon, ListIcon, TableIcon, UserCircleIcon, PlugInIcon, ChevronDownIcon, HorizontaLDots, ChatIcon, PieChartIcon } from "@/icons";
 import SidebarWidget from "./SidebarWidget";
 import { Role, useAuth } from "@/context/AuthContex";
 
@@ -28,6 +28,12 @@ const salesNav: NavItem[] = [
   { icon: <TableIcon />, name: "View-Lead", subItems: [{ name: "latest-leads", path: "/sales/view_lead/:id" }] },
   { icon: <ChatIcon />, name: "Chat", path: "/sales/events/chat" },
 ];
+const adminNav: NavItem[] = [
+  {
+    icon: <PieChartIcon />, name: "IPK-user", subItems: [{ name: "Admin Dashboard", path: "/admin/dashboard" }]
+  },
+];
+
 
 function getNav(role?: Role) {
   if (role === "RM") return { main: salesNav, others: [] as NavItem[] };
@@ -37,7 +43,7 @@ function getNav(role?: Role) {
       others: [{ icon: <PlugInIcon />, name: "Authentication", subItems: [{ name: "Sign In", path: "/signin" }] }],
     };
   }
-  if (role === "ADMIN") return { main: [...marketingNav, ...salesNav], others: [] as NavItem[] };
+  if (role === "ADMIN") return { main: [...adminNav, ...marketingNav, ...salesNav], others: [] as NavItem[] };
   return { main: [] as NavItem[], others: [] as NavItem[] };
 }
 const AppSidebar: React.FC = () => {
@@ -323,4 +329,3 @@ const AppSidebar: React.FC = () => {
 };
 
 export default AppSidebar;
-
