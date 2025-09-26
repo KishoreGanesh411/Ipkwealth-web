@@ -1,17 +1,13 @@
 import { useLocation, useParams } from "react-router-dom";
-import { useMemo, useState } from "react";
-import LeadCodeBadge from "@/components/common/LeadCodeBadge";
+import { useMemo, useState, type ReactNode } from "react";
 import Badge from "@/components/ui/badge/Badge";
 
-/* ────────────────────────────────────────────────────────────
-   Types
-   ──────────────────────────────────────────────────────────── */
 type LeadRow = {
   id: string | number;
   leadCode: string | null;
   name: string;
   phone?: string;
-  assignedAt?: string; // ISO
+  assignedAt?: string;
   leadSource: string;
   product: string;
   profession?: string;
@@ -23,12 +19,14 @@ type EventForm = {
   reasonIfNo: string;
   channel: "whatsapp" | "call" | "zoom" | null;
   status:
-    | "PENDING"
-    | "SPOKEN_FOLLOWUP"
-    | "EXPLAINED_FOLLOWUP"
-    | "ATTENDED"
-    | "DND_REQUEST"
-    | "NOT_INTERESTED";
+    | "FIRST_TALK_DONE"
+    | "FOLLOWING_UP"
+    | "CLIENT_INTERESTED"
+    | "ACCOUNT_OPENED"
+    | "NO_RESPONSE_DORMANT"
+    | "NOT_INTERESTED_DORMANT"
+    | "RISKY_CLIENT_DORMANT"
+    | "HIBERNATED";
   nextFollowAt?: string;
   notes: string;
   altPhone?: string;
@@ -38,9 +36,17 @@ type EventForm = {
   businessOrCompany?: string;
 };
 
-/* ────────────────────────────────────────────────────────────
-   Component
-   ──────────────────────────────────────────────────────────── */
+const STATUS_OPTIONS: [EventForm["status"], string][] = [
+  ["FIRST_TALK_DONE", "First talk done"],
+  ["FOLLOWING_UP", "Following up"],
+  ["CLIENT_INTERESTED", "Client interested"],
+  ["ACCOUNT_OPENED", "Account opened"],
+  ["NO_RESPONSE_DORMANT", "No response - dormant"],
+  ["NOT_INTERESTED_DORMANT", "Not interested - dormant"],
+  ["RISKY_CLIENT_DORMANT", "Risky client - dormant"],
+  ["HIBERNATED", "Hibernated"],
+];
+
 export default function ViewLead() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
@@ -52,7 +58,7 @@ export default function ViewLead() {
     explained: null,
     reasonIfNo: "",
     channel: null,
-    status: "PENDING",
+    status: STATUS_OPTIONS[0][0],
     nextFollowAt: "",
     notes: "",
     altPhone: "",
@@ -62,8 +68,8 @@ export default function ViewLead() {
     businessOrCompany: "",
   });
 
-  const set = <K extends keyof EventForm>(k: K, v: EventForm[K]) =>
-    setForm((s) => ({ ...s, [k]: v }));
+  const set = <K extends keyof EventForm>(key: K, value: EventForm[K]) =>
+    setForm((state) => ({ ...state, [key]: value }));
 
   const copyLeadCode = async () => {
     const code = lead?.leadCode ?? "";
@@ -80,252 +86,229 @@ export default function ViewLead() {
     alert("Saved (dummy). Wire to API later.");
   };
 
-  /* Accessible group label ids */
   const explainedId = "rg-explained";
   const channelId = "rg-channel";
+  const fallbackValue = "--";
+  const selectedStatusLabel =
+    STATUS_OPTIONS.find(([value]) => value === form.status)?.[1] ?? "Status";
 
   return (
     <div className="space-y-6">
-      {/* Page Title */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white">
           View Lead
         </h1>
-        {lead?.product && (
-          <Badge className="rounded-full px-3 py-1 text-xs">{lead.product}</Badge>
-        )}
-      </div>
 
-      {/* Center note banner */}
-      <div className="relative mx-auto max-w-3xl overflow-hidden rounded-2xl border border-indigo-200/60 bg-gradient-to-r from-indigo-600 to-blue-600 p-5 text-white shadow-md dark:border-white/10">
-        <div className="pointer-events-none absolute -top-24 right-0 h-48 w-48 rounded-full bg-white/10 blur-3xl" />
-        <div className="flex flex-col items-center gap-3 text-center md:flex-row md:justify-center">
-          <InfoIcon className="h-6 w-6 shrink-0 opacity-90" />
-          <div className="space-y-1">
-            <div className="text-sm font-medium">Note</div>
-            <p className="text-sm/6 opacity-90">
-              Basic lead facts are locked. Use the lower card to add interaction details,
-              schedule follow-ups, and store notes.
-            </p>
-          </div>
+        <div className="flex flex-wrap items-center gap-2">
+          {lead?.product && (
+            <Badge size="sm" color="info">
+              {lead.product}
+            </Badge>
+          )}
+          <Badge size="sm" color="success">
+            {selectedStatusLabel}
+          </Badge>
         </div>
       </div>
 
-      {/* GRID 1: Facts + Additional details */}
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        {/* Facts - not changeable */}
-        <Card>
-          <SectionTitle>Facts (read-only)</SectionTitle>
-          <div className="space-y-3 text-sm">
-            <Field label="Lead Code">
-              <div className="flex items-center gap-3">
-                <LeadCodeBadge code={lead?.leadCode ?? "—"} />
-                {lead?.leadCode && (
-                  <button
-                    onClick={copyLeadCode}
-                    className="rounded-lg border border-white/20 bg-white/70 px-2.5 py-1 text-xs font-medium text-gray-700 shadow-sm hover:bg-white"
-                    title="Copy lead code"
-                  >
-                    Copy
-                  </button>
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
+          <Card>
+            <SectionTitle>Lead snapshot</SectionTitle>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <DetailBlock label="Lead code">
+                {lead?.leadCode ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-lg bg-emerald-50 px-3 py-1 text-sm font-semibold text-emerald-700">
+                      {lead.leadCode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={copyLeadCode}
+                      className="rounded-lg border border-emerald-200 px-2.5 py-1 text-xs font-medium text-emerald-700 hover:bg-emerald-100 focus:outline-hidden focus:ring-2 focus:ring-emerald-200"
+                      title="Copy lead code"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                ) : (
+                  fallbackValue
                 )}
-              </div>
-            </Field>
-            <Field label="Lead Name">{lead?.name ?? "—"}</Field>
-            <Field label="Mobile No">{lead?.phone ?? "—"}</Field>
-            <Field label="Assigned Date">
-              {lead?.assignedAt
-                ? new Date(lead.assignedAt).toLocaleString()
-                : "—"}
-            </Field>
-            <Field label="Lead Source">{lead?.leadSource ?? "—"}</Field>
-          </div>
-        </Card>
-
-        {/* Additional details (editable) */}
-        <Card>
-          <SectionTitle>Additional details</SectionTitle>
-          <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
-            <LabeledInput
-              label="Product"
-              value={lead?.product ?? ""}
-              disabled
-            />
-            <LabeledInput
-              label="Investment range"
-              value={form.investmentRange ?? ""}
-              onChange={(v) => set("investmentRange", v)}
-              placeholder="e.g., ₹10k–25k"
-            />
-            <LabeledInput
-              label="Business / Company"
-              value={form.businessOrCompany ?? lead?.company ?? ""}
-              onChange={(v) => set("businessOrCompany", v)}
-              placeholder="Company name"
-            />
-            <LabeledInput
-              label="Profession details"
-              value={form.professionDetails ?? lead?.profession ?? ""}
-              onChange={(v) => set("professionDetails", v)}
-              placeholder="Designation / domain"
-            />
-            <LabeledSelect
-              label="Type of client"
-              value={form.clientType ?? "employee"}
-              onChange={(v) => set("clientType", v as EventForm["clientType"])}
-              options={[
-                ["employee", "Employee"],
-                ["business", "Business"],
-                ["student", "Student"],
-                ["retired", "Retired"],
-                ["other", "Other"],
-              ]}
-            />
-            <LabeledInput
-              label="Alternate mobile number"
-              value={form.altPhone ?? ""}
-              onChange={(v) => set("altPhone", v)}
-              placeholder="Optional"
-            />
-          </div>
-        </Card>
-      </div>
-
-      {/* GRID 2: Interaction */}
-      <Card>
-        <SectionTitle>Your interaction & connected channels</SectionTitle>
-
-        <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
-          {/* Product explained? (radio group) */}
-          <div role="radiogroup" aria-labelledby={explainedId} className="space-y-2">
-            <div id={explainedId} className="text-xs font-medium text-gray-600 dark:text-white/70">
-              Product explained?
+              </DetailBlock>
+              <DetailBlock label="Lead name">{lead?.name ?? fallbackValue}</DetailBlock>
+              <DetailBlock label="Product">{lead?.product ?? fallbackValue}</DetailBlock>
+              <DetailBlock label="Mobile number">{lead?.phone ?? fallbackValue}</DetailBlock>
+              <DetailBlock label="Lead source">{lead?.leadSource ?? fallbackValue}</DetailBlock>
+              <DetailBlock label="Assigned date">
+                {lead?.assignedAt ? new Date(lead.assignedAt).toLocaleString() : fallbackValue}
+              </DetailBlock>
+              <DetailBlock label="Company">{lead?.company ?? fallbackValue}</DetailBlock>
+              <DetailBlock label="Profession">{lead?.profession ?? fallbackValue}</DetailBlock>
             </div>
-            <div className="flex flex-wrap gap-4">
-              <Radio
-                name="explained"
-                checked={form.explained === "yes"}
-                onChange={() => set("explained", "yes")}
-                label="Yes"
-              />
-              <Radio
-                name="explained"
-                checked={form.explained === "no"}
-                onChange={() => set("explained", "no")}
-                label="No"
-              />
-            </div>
-          </div>
+          </Card>
 
-          {/* Channel (only if yes) */}
-          {form.explained === "yes" && (
-            <div role="radiogroup" aria-labelledby={channelId} className="space-y-2">
-              <div id={channelId} className="text-xs font-medium text-gray-600 dark:text-white/70">
-                Channel
-              </div>
-              <div className="flex flex-wrap gap-4">
-                {(["whatsapp", "call", "zoom"] as const).map((ch) => (
+          <Card>
+            <SectionTitle>Your interaction & connected channels</SectionTitle>
+
+            <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+              <div role="radiogroup" aria-labelledby={explainedId} className="space-y-2 md:col-span-2">
+                <div id={explainedId} className="text-xs font-medium text-gray-600 dark:text-white/70">
+                  Product explained?
+                </div>
+                <div className="flex flex-wrap gap-4">
                   <Radio
-                    key={ch}
-                    name="channel"
-                    checked={form.channel === ch}
-                    onChange={() => set("channel", ch)}
-                    label={ch === "zoom" ? "Zoom/Meet" : ch}
+                    name="explained"
+                    checked={form.explained === "yes"}
+                    onChange={() => set("explained", "yes")}
+                    label="Yes"
                   />
-                ))}
+                  <Radio
+                    name="explained"
+                    checked={form.explained === "no"}
+                    onChange={() => set("explained", "no")}
+                    label="No"
+                  />
+                </div>
               </div>
+
+              {form.explained === "yes" && (
+                <div role="radiogroup" aria-labelledby={channelId} className="space-y-2 md:col-span-2">
+                  <div id={channelId} className="text-xs font-medium text-gray-600 dark:text-white/70">
+                    Channel
+                  </div>
+                  <div className="flex flex-wrap gap-4">
+                    {(["whatsapp", "call", "zoom"] as const).map((ch) => (
+                      <Radio
+                        key={ch}
+                        name="channel"
+                        checked={form.channel === ch}
+                        onChange={() => set("channel", ch)}
+                        label={ch === "zoom" ? "Zoom/Meet" : ch}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {form.explained === "no" && (
+                <LabeledTextArea
+                  label="Reason"
+                  value={form.reasonIfNo}
+                  onChange={(v) => set("reasonIfNo", v)}
+                  placeholder="Why was the product not explained?"
+                  className="md:col-span-2"
+                />
+              )}
+
+              <LabeledSelect
+                label="Event status"
+                value={form.status}
+                onChange={(v) => set("status", v as EventForm["status"])}
+                options={STATUS_OPTIONS}
+                className="md:col-span-2"
+              />
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:col-span-2">
+                <LabeledInput
+                  type="datetime-local"
+                  label="Next follow-up date"
+                  value={form.nextFollowAt ?? ""}
+                  onChange={(v) => set("nextFollowAt", v)}
+                />
+                <LabeledInput
+                  label="Lead code"
+                  value={lead?.leadCode ?? ""}
+                  disabled
+                  placeholder="Not available"
+                  inputClassName="border-emerald-300 bg-emerald-50 text-emerald-700 font-semibold disabled:opacity-100"
+                />
+              </div>
+
+              <LabeledTextArea
+                className="md:col-span-2"
+                label="Notes"
+                value={form.notes}
+                onChange={(v) => set("notes", v)}
+                placeholder="Any remarks from the conversation"
+              />
             </div>
-          )}
 
-          {/* Reason if No */}
-          {form.explained === "no" && (
-            <LabeledTextArea
-              label="Reason"
-              value={form.reasonIfNo}
-              onChange={(v) => set("reasonIfNo", v)}
-              placeholder="Why not explained?"
-              className="md:col-span-2"
-            />
-          )}
-
-          {/* Status */}
-          <LabeledSelect
-            label="Event status"
-            value={form.status}
-            onChange={(v) => set("status", v as EventForm["status"])}
-            options={[
-              ["PENDING", "Pending"],
-              ["SPOKEN_FOLLOWUP", "Spoken – follow up"],
-              ["EXPLAINED_FOLLOWUP", "Explained – follow up"],
-              ["ATTENDED", "Attended"],
-              ["DND_REQUEST", "DND Request"],
-              ["NOT_INTERESTED", "Not interested"],
-            ]}
-          />
-
-          {/* Next follow-up + code */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <LabeledInput
-              type="datetime-local"
-              label="Next follow-up date"
-              value={form.nextFollowAt ?? ""}
-              onChange={(v) => set("nextFollowAt", v)}
-            />
-            <LabeledInput label="Lead code" value={lead?.leadCode ?? "—"} disabled />
-          </div>
-
-          {/* Notes */}
-          <LabeledTextArea
-            className="sm:col-span-2"
-            label="Notes"
-            value={form.notes}
-            onChange={(v) => set("notes", v)}
-            placeholder="Any remarks from the conversation"
-          />
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={save}
+                className="h-11 rounded-xl bg-emerald-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[.99]"
+              >
+                Save
+              </button>
+            </div>
+          </Card>
         </div>
 
-        <div className="mt-5 flex justify-end">
-          <button
-            onClick={save}
-            className="h-11 rounded-xl bg-indigo-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 active:scale-[.99]"
-          >
-            Save
-          </button>
+        <div className="space-y-6">
+          <Card>
+            <SectionTitle>Additional details</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+              <LabeledInput label="Product" value={lead?.product ?? ""} disabled />
+              <LabeledInput
+                label="Investment range"
+                value={form.investmentRange ?? ""}
+                onChange={(v) => set("investmentRange", v)}
+                placeholder="e.g., 10k-25k"
+              />
+              <LabeledSelect
+                label="Type of client"
+                value={form.clientType ?? "employee"}
+                onChange={(v) => set("clientType", v as EventForm["clientType"])}
+                options={[
+                  ["employee", "Employee"],
+                  ["business", "Business"],
+                  ["student", "Student"],
+                  ["retired", "Retired"],
+                  ["other", "Other"],
+                ]}
+              />
+              <LabeledInput
+                label="Alternate mobile number"
+                value={form.altPhone ?? ""}
+                onChange={(v) => set("altPhone", v)}
+                placeholder="Optional"
+              />
+              <LabeledInput
+                label="Business / Company"
+                value={form.businessOrCompany || lead?.company || ""}
+                onChange={(v) => set("businessOrCompany", v)}
+                placeholder="Company name"
+                className="sm:col-span-2"
+              />
+              <LabeledInput
+                label="Profession details"
+                value={form.professionDetails || lead?.profession || ""}
+                onChange={(v) => set("professionDetails", v)}
+                placeholder="Designation or domain"
+                className="sm:col-span-2"
+              />
+            </div>
+          </Card>
         </div>
-      </Card>
+      </div>
     </div>
   );
 }
 
-/* ────────────────────────────────────────────────────────────
-   Small atoms / helpers (kept local to this file)
-   ──────────────────────────────────────────────────────────── */
-
-function Card({ children }: { children: React.ReactNode }) {
+function Card({ children, className = "" }: { children: ReactNode; className?: string }) {
   return (
-    <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-black/0 transition dark:border-white/10 dark:bg-white/[0.02]">
+    <section className={`rounded-2xl border border-gray-100 bg-white p-5 shadow-sm ring-1 ring-black/0 transition dark:border-white/10 dark:bg-white/[0.02] ${className}`}>
       {children}
     </section>
   );
 }
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
+function SectionTitle({ children }: { children: ReactNode }) {
   return (
     <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-700 dark:text-white/80">
-      <DotIcon className="h-4 w-4 text-indigo-500" />
+      <DotIcon className="h-4 w-4 text-emerald-500" />
       {children}
     </h2>
-  );
-}
-
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="min-w-32 shrink-0 text-xs font-medium text-gray-500 dark:text-white/60">
-        {label}
-      </div>
-      <div className="flex-1">{children}</div>
-    </div>
   );
 }
 
@@ -337,6 +320,7 @@ function LabeledInput({
   type = "text",
   disabled,
   className = "",
+  inputClassName = "",
 }: {
   label: string;
   value: string;
@@ -345,6 +329,7 @@ function LabeledInput({
   type?: string;
   disabled?: boolean;
   className?: string;
+  inputClassName?: string;
 }) {
   return (
     <div className={className}>
@@ -357,7 +342,7 @@ function LabeledInput({
         value={value}
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
-        className="h-10 w-full rounded-xl border border-gray-200 bg-transparent px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-300 focus:outline-hidden focus:ring-3 focus:ring-indigo-500/10 disabled:opacity-70 dark:border-white/10 dark:text-white"
+        className={`h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-70 dark:border-white/10 dark:bg-white/[0.06] dark:text-white ${inputClassName}`}
       />
     </div>
   );
@@ -386,7 +371,7 @@ function LabeledTextArea({
         onChange={(e) => onChange?.(e.target.value)}
         placeholder={placeholder}
         rows={4}
-        className="w-full rounded-xl border border-gray-200 bg-transparent px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-indigo-300 focus:outline-hidden focus:ring-3 focus:ring-indigo-500/10 dark:border-white/10 dark:text-white"
+        className="w-full rounded-xl border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
       />
     </div>
   );
@@ -397,21 +382,23 @@ function LabeledSelect({
   value,
   onChange,
   options,
+  className = "",
 }: {
   label: string;
   value: string;
   onChange: (v: string) => void;
   options: [string, string][];
+  className?: string;
 }) {
   return (
-    <div>
+    <div className={className}>
       <div className="mb-1 text-xs font-medium text-gray-600 dark:text-white/70">
         {label}
       </div>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="h-10 w-full rounded-xl border border-gray-200 bg-transparent px-3 text-sm text-gray-900 focus:border-indigo-300 focus:outline-hidden focus:ring-3 focus:ring-indigo-500/10 dark:border-white/10 dark:text-white"
+        className="h-10 w-full rounded-xl border border-gray-200 bg-gray-50 px-3 text-sm text-gray-900 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
       >
         {options.map(([val, lab]) => (
           <option key={val} value={val}>
@@ -439,7 +426,7 @@ function Radio({
       <input
         type="radio"
         name={name}
-        className="h-4 w-4 accent-indigo-600"
+        className="h-4 w-4 accent-emerald-600"
         checked={checked}
         onChange={onChange}
       />
@@ -448,15 +435,15 @@ function Radio({
   );
 }
 
-/* icons */
-function InfoIcon({ className = "" }: { className?: string }) {
+function DetailBlock({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <svg viewBox="0 0 24 24" fill="none" className={className} aria-hidden="true">
-      <path d="M12 22a10 10 0 1 0-10-10 10 10 0 0 0 10 10Z" fill="currentColor" opacity=".12" />
-      <path d="M12 8h.01m-.01 3v5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-    </svg>
+    <div className="rounded-xl border border-gray-100 bg-gray-50 px-3 py-2 dark:border-white/10 dark:bg-white/[0.04]">
+      <div className="text-xs font-medium text-gray-500 dark:text-white/60">{label}</div>
+      <div className="mt-1 text-sm font-semibold text-gray-900 dark:text-white">{children}</div>
+    </div>
   );
 }
+
 function DotIcon({ className = "" }: { className?: string }) {
   return (
     <svg viewBox="0 0 20 20" fill="currentColor" className={className} aria-hidden="true">

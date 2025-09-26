@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { PhoneCall, ArrowRight } from "lucide-react";
+
 import {
   Table,
   TableBody,
@@ -7,14 +9,64 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import Badge from "@/components/ui/badge/Badge";
-import LeadCodeBadge from "@/components/common/LeadCodeBadge";
-import { Lead, MyLeadsProps } from "./interface/type";
+import type { Lead, MyLeadsProps, ClientStatus } from "./interface/type";
 
+const STATUS_SEQUENCE: ClientStatus[] = [
+  "FIRST_TALK_DONE",
+  "FOLLOWING_UP",
+  "CLIENT_INTERESTED",
+  "ACCOUNT_OPENED",
+  "NO_RESPONSE_DORMANT",
+  "NOT_INTERESTED_DORMANT",
+  "RISKY_CLIENT_DORMANT",
+  "HIBERNATED",
+];
 
-/* ────────────────────────────────────────────────────────────
-   Component
-   ──────────────────────────────────────────────────────────── */
+const STATUS_META: Record<ClientStatus, { label: string; pillClass: string; barClass: string }> = {
+  FIRST_TALK_DONE: {
+    label: "First talk done",
+    pillClass: "bg-sky-50 text-sky-700",
+    barClass: "bg-sky-400",
+  },
+  FOLLOWING_UP: {
+    label: "Following up",
+    pillClass: "bg-indigo-50 text-indigo-700",
+    barClass: "bg-indigo-400",
+  },
+  CLIENT_INTERESTED: {
+    label: "Client interested",
+    pillClass: "bg-emerald-50 text-emerald-700",
+    barClass: "bg-emerald-400",
+  },
+  ACCOUNT_OPENED: {
+    label: "Account opened",
+    pillClass: "bg-teal-50 text-teal-700",
+    barClass: "bg-teal-400",
+  },
+  NO_RESPONSE_DORMANT: {
+    label: "No response - dormant",
+    pillClass: "bg-amber-50 text-amber-700",
+    barClass: "bg-amber-400",
+  },
+  NOT_INTERESTED_DORMANT: {
+    label: "Not interested - dormant",
+    pillClass: "bg-orange-50 text-orange-700",
+    barClass: "bg-orange-400",
+  },
+  RISKY_CLIENT_DORMANT: {
+    label: "Risky client - dormant",
+    pillClass: "bg-rose-50 text-rose-700",
+    barClass: "bg-rose-400",
+  },
+  HIBERNATED: {
+    label: "Hibernated",
+    pillClass: "bg-slate-100 text-slate-600",
+    barClass: "bg-slate-400",
+  },
+};
+
+const FALLBACK_STATUS_BADGE = "inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500";
+
 export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
@@ -25,21 +77,28 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
   const filtered = useMemo(() => {
     if (!query.trim()) return list;
     const q = query.toLowerCase();
-    return list.filter((l) =>
-      [
-        l.email ?? "",
-        l.name,
-        l.leadCode ?? "",
-        l.leadSource,
-        l.gender ?? "",
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(q),
-    );
+    return list.filter((lead) => {
+      const statusLabel = lead.status ? STATUS_META[lead.status]?.label ?? "" : "";
+      return (
+        [
+          lead.name,
+          lead.email ?? "",
+          lead.leadCode ?? "",
+          lead.mobile ?? "",
+          lead.location ?? "",
+          lead.leadSource,
+          String(lead.agingDays ?? ""),
+          statusLabel,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(q)
+      );
+    });
   }, [list, query]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+
   const current = useMemo(() => {
     const start = (page - 1) * pageSize;
     return filtered.slice(start, start + pageSize);
@@ -49,118 +108,106 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
     navigate(`/sales/view_lead/${lead.id}`, { state: { lead } });
   };
 
+  const goCallLead = (lead: Lead) => {
+    navigate(`/sales/call/${lead.id}`, { state: { lead } });
+  };
+
   return (
     <div className="rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-3 px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
         <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            Recent Leads
-          </h2>
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Assigned Leads</h2>
           <span className="text-xs text-gray-400">({list.length})</span>
         </div>
-
-        <div className="flex items-center gap-2">
-          {/* optional: Filter/See all buttons can be added later */}
-          <div role="search" aria-label="Search leads">
-            <input
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-              placeholder="Search…"
-              className="h-10 w-[18rem] rounded-xl border border-gray-200 bg-transparent px-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-indigo-300 focus:outline-hidden focus:ring-3 focus:ring-indigo-500/10 dark:border-white/10 dark:text-white/90 dark:placeholder:text-white/30"
-            />
-          </div>
+        <div role="search" aria-label="Search leads">
+          <input
+            value={query}
+            onChange={(event) => {
+              setQuery(event.target.value);
+              setPage(1);
+            }}
+            placeholder="Search by name, mobile, status..."
+            className="h-10 w-72 rounded-xl border border-gray-200 bg-transparent px-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 dark:border-white/10 dark:text-white/90 dark:placeholder:text-white/30"
+          />
         </div>
       </div>
 
       <div className="overflow-x-auto">
         <Table className="min-w-full">
-          {/* Helpful for screen readers */}
-          <caption className="sr-only">List of recently assigned leads</caption>
-
-          <TableHeader className="text-left text-sm text-gray-500 dark:text-white/60">
+          <caption className="sr-only">Assigned leads with status and actions</caption>
+          <TableHeader className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-white/[0.04] dark:text-white/50">
             <TableRow>
-              <TableCell isHeader className="px-6 py-3 font-medium">
-                Customer
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 font-medium">
-                Lead Code
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 font-medium">
-                Lead Source
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 font-medium">
-                Gender
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 font-medium text-right">
-                Action
-              </TableCell>
+              <TableCell isHeader className="px-6 py-3">Name</TableCell>
+              <TableCell isHeader className="px-6 py-3">Lead ID</TableCell>
+              <TableCell isHeader className="px-6 py-3">Mobile No</TableCell>
+              <TableCell isHeader className="px-6 py-3">Location</TableCell>
+              <TableCell isHeader className="px-6 py-3">Aging Days</TableCell>
+              <TableCell isHeader className="px-6 py-3">Client status</TableCell>
+              <TableCell isHeader className="px-6 py-3 text-center">View more</TableCell>
+              <TableCell isHeader className="px-6 py-3 text-right">Actions</TableCell>
             </TableRow>
           </TableHeader>
 
-          <TableBody>
-            {current.map((l) => (
+          <TableBody className="divide-y divide-gray-100 dark:divide-white/10">
+            {current.map((lead) => (
               <TableRow
-                key={l.id}
-                className="border-t border-gray-100 transition hover:bg-gray-50 dark:border-white/10 dark:hover:bg-white/[0.03]"
+                key={lead.id}
+                className="bg-white transition hover:bg-emerald-50/40 dark:bg-white/[0.02] dark:hover:bg-white/[0.06]"
               >
-                {/* Customer cell: email on top, name under it */}
                 <TableCell className="px-6 py-4">
                   <div className="flex items-center gap-3">
-                    {/* Simple initial avatar */}
-                    <div className="grid h-9 w-9 place-items-center rounded-full bg-indigo-100 text-xs font-semibold text-indigo-700">
-                      {initials(l.name)}
+                    <div className="grid h-9 w-9 place-items-center rounded-full bg-emerald-100 text-xs font-semibold uppercase text-emerald-700">
+                      {initials(lead.name)}
                     </div>
                     <div className="min-w-0">
-                      <div className="truncate text-sm text-gray-500 dark:text-gray-300">
-                        {l.email ?? "—"}
-                      </div>
                       <div className="truncate text-sm font-medium text-gray-900 dark:text-white">
-                        {l.name}
+                        {lead.name}
+                      </div>
+                      <div className="truncate text-xs text-gray-500 dark:text-gray-300">
+                        {lead.email ?? "-"}
                       </div>
                     </div>
                   </div>
                 </TableCell>
 
-                {/* Lead code as your badge */}
+                <TableCell className="px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-200">
+                  {lead.leadCode ?? "-"}
+                </TableCell>
+
+                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                  {lead.mobile ?? "-"}
+                </TableCell>
+
+                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                  {lead.location ?? lead.leadSource ?? "-"}
+                </TableCell>
+
+                <TableCell className="px-6 py-4 text-sm font-semibold text-gray-700 dark:text-gray-200">
+                  {formatAgingDays(lead.agingDays)}
+                </TableCell>
+
                 <TableCell className="px-6 py-4">
-                  <LeadCodeBadge code={l.leadCode ?? "—"} />
+                  <StatusCell status={lead.status} />
                 </TableCell>
 
-                {/* Lead source as a subtle badge */}
-                <TableCell className="px-6 py-4">
-                  <Badge className="rounded-full px-2.5 py-1 text-xs">
-                    {l.leadSource}
-                  </Badge>
-                </TableCell>
-
-                {/* Gender */}
-                <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-gray-300">
-                  {l.gender ?? "—"}
-                </TableCell>
-
-                {/* Action: direct View button */}
-                <TableCell className="px-6 py-4 text-right">
+                <TableCell className="px-6 py-4 text-center">
                   <button
-                    onClick={() => goViewLead(l)}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]"
+                    onClick={() => goViewLead(lead)}
+                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:text-gray-200 dark:hover:border-emerald-300 dark:hover:text-emerald-200"
                   >
                     View
-                    <svg
-                      className="h-4 w-4"
-                      viewBox="0 0 20 20"
-                      fill="currentColor"
-                      aria-hidden="true"
-                    >
-                      <path
-                        fillRule="evenodd"
-                        d="M10.293 3.293a1 1 0 011.414 0l5 5a1 1 0 010 1.414l-5 5a1 1 0 11-1.414-1.414L13.586 11H4a1 1 0 110-2h9.586l-3.293-3.293a1 1 0 010-1.414z"
-                        clipRule="evenodd"
-                      />
-                    </svg>
+                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                </TableCell>
+
+                <TableCell className="px-6 py-4 text-right">
+                  <button
+                    onClick={() => goCallLead(lead)}
+                    className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 focus:outline-hidden focus:ring-4 focus:ring-emerald-200"
+                    title="Call this lead"
+                  >
+                    <PhoneCall className="h-4 w-4" aria-hidden="true" />
+                    Call
                   </button>
                 </TableCell>
               </TableRow>
@@ -168,10 +215,7 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
 
             {current.length === 0 && (
               <TableRow>
-                <TableCell
-                  colSpan={5}
-                  className="px-6 py-10 text-center text-sm text-gray-500 dark:text-white/50"
-                >
+                <TableCell colSpan={8} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-white/60">
                   No leads to show
                 </TableCell>
               </TableRow>
@@ -180,40 +224,39 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
         </Table>
       </div>
 
-      {/* Pagination */}
-      <div className="flex items-center justify-between px-5 py-4">
+      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
         <button
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]"
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]"
           disabled={page <= 1}
-          onClick={() => setPage((p) => Math.max(1, p - 1))}
+          onClick={() => setPage((currentPage) => Math.max(1, currentPage - 1))}
         >
           Previous
         </button>
 
         <div className="flex items-center gap-2">
-          {Array.from({ length: totalPages }).map((_, i) => {
-            const n = i + 1;
-            const isActive = n === page;
+          {Array.from({ length: totalPages }).map((_, index) => {
+            const pageNumber = index + 1;
+            const isActive = pageNumber === page;
             return (
               <button
-                key={n}
-                onClick={() => setPage(n)}
+                key={pageNumber}
+                onClick={() => setPage(pageNumber)}
                 className={
                   isActive
-                    ? "rounded-lg bg-indigo-600 px-3 py-2 text-sm text-white"
-                    : "rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]"
+                    ? "rounded-lg bg-emerald-500 px-3 py-2 text-sm font-semibold text-white shadow"
+                    : "rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]"
                 }
               >
-                {n}
+                {pageNumber}
               </button>
             );
           })}
         </div>
 
         <button
-          className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]"
+          className="rounded-lg border border-gray-200 px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 disabled:opacity-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]"
           disabled={page >= totalPages}
-          onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+          onClick={() => setPage((currentPage) => Math.min(totalPages, currentPage + 1))}
         >
           Next
         </button>
@@ -222,14 +265,52 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
   );
 }
 
-/* ────────────────────────────────────────────────────────────
-   local helpers
-   ──────────────────────────────────────────────────────────── */
+function StatusCell({ status }: { status?: ClientStatus }) {
+  if (!status) {
+    return <span className={FALLBACK_STATUS_BADGE}>Status pending</span>;
+  }
+
+  const meta = STATUS_META[status];
+  const currentIndex = STATUS_SEQUENCE.indexOf(status);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-1">
+        {STATUS_SEQUENCE.map((step, index) => {
+          const tone = STATUS_META[step];
+          const isActive = index <= currentIndex;
+          let base = "bg-emerald-200/60";
+          if (index >= 4 && index <= 6) base = "bg-rose-200/40";
+          if (index === STATUS_SEQUENCE.length - 1) base = "bg-slate-200/60";
+          return (
+            <span
+              key={step}
+              className={`h-2 w-8 rounded-full transition ${isActive ? tone.barClass : base}`}
+            />
+          );
+        })}
+      </div>
+      <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${meta.pillClass}`}>
+        {meta.label}
+      </span>
+    </div>
+  );
+}
+
+function formatAgingDays(value?: number) {
+  if (value === undefined || Number.isNaN(value)) return "-";
+  if (value <= 0) return "Today";
+  if (value === 1) return "1 day";
+  return `${value} days`;
+}
+
 function initials(name: string) {
   return name
     .split(" ")
     .filter(Boolean)
     .slice(0, 2)
-    .map((s) => s[0]?.toUpperCase())
+    .map((part) => part[0]?.toUpperCase())
     .join("");
 }
+
+export type { Lead } from "./interface/type";

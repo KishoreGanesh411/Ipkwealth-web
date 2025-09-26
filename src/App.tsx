@@ -22,6 +22,7 @@ import LeadTable from "@/pages/Tables/BasicTables";
 import SalesRMDashboard from "@/pages/Dashboard/salesHome";
 import MyLeadsPage from "@/pages/Sales/Mylead/MyLeadsPage";
 import SalesEvent from "@/pages/Sales/Event_sales/Event_Rm";
+import CallConnectPage from "@/pages/Sales/Call/CallConnectPage";
 import ViewLead from "@/components/sales/viewlwads/ViewLead";
 import AdminDashboard from "@/pages/Admin/AdminDashboard";
 
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="sales/my_leads" element={<MyLeadsPage />} />
               <Route path="sales/events" element={<SalesEvent />} />
               <Route path="sales/events/chat" element={<ChatPage />} />
+              <Route path="sales/call/:id" element={<CallConnectPage />} />
               <Route path="sales/view_lead/:id" element={<ViewLead />} />
             </Route>
 
