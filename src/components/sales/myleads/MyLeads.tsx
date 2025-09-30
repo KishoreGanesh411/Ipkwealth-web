@@ -9,61 +9,9 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import type { Lead, MyLeadsProps, ClientStatus } from "./interface/type";
-
-const STATUS_SEQUENCE: ClientStatus[] = [
-  "FIRST_TALK_DONE",
-  "FOLLOWING_UP",
-  "CLIENT_INTERESTED",
-  "ACCOUNT_OPENED",
-  "NO_RESPONSE_DORMANT",
-  "NOT_INTERESTED_DORMANT",
-  "RISKY_CLIENT_DORMANT",
-  "HIBERNATED",
-];
-
-const STATUS_META: Record<ClientStatus, { label: string; pillClass: string; barClass: string }> = {
-  FIRST_TALK_DONE: {
-    label: "First talk done",
-    pillClass: "bg-sky-50 text-sky-700",
-    barClass: "bg-sky-400",
-  },
-  FOLLOWING_UP: {
-    label: "Following up",
-    pillClass: "bg-indigo-50 text-indigo-700",
-    barClass: "bg-indigo-400",
-  },
-  CLIENT_INTERESTED: {
-    label: "Client interested",
-    pillClass: "bg-emerald-50 text-emerald-700",
-    barClass: "bg-emerald-400",
-  },
-  ACCOUNT_OPENED: {
-    label: "Account opened",
-    pillClass: "bg-teal-50 text-teal-700",
-    barClass: "bg-teal-400",
-  },
-  NO_RESPONSE_DORMANT: {
-    label: "No response - dormant",
-    pillClass: "bg-amber-50 text-amber-700",
-    barClass: "bg-amber-400",
-  },
-  NOT_INTERESTED_DORMANT: {
-    label: "Not interested - dormant",
-    pillClass: "bg-orange-50 text-orange-700",
-    barClass: "bg-orange-400",
-  },
-  RISKY_CLIENT_DORMANT: {
-    label: "Risky client - dormant",
-    pillClass: "bg-rose-50 text-rose-700",
-    barClass: "bg-rose-400",
-  },
-  HIBERNATED: {
-    label: "Hibernated",
-    pillClass: "bg-slate-100 text-slate-600",
-    barClass: "bg-slate-400",
-  },
-};
+import type { Lead, MyLeadsProps } from "./interface/type";
+import { LeadStage } from "./interface/type";
+import { STAGE_META, STAGE_SEQUENCE } from "./stageMeta";
 
 const FALLBACK_STATUS_BADGE = "inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500";
 
@@ -72,13 +20,13 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
-  const list = Array.isArray(leads) ? leads : [];
+  const list = useMemo(() => (Array.isArray(leads) ? leads : []), [leads]);
 
   const filtered = useMemo(() => {
     if (!query.trim()) return list;
     const q = query.toLowerCase();
     return list.filter((lead) => {
-      const statusLabel = lead.status ? STATUS_META[lead.status]?.label ?? "" : "";
+      const statusLabel = lead.status ? STAGE_META[lead.status]?.label ?? "" : "";
       return (
         [
           lead.name,
@@ -105,11 +53,11 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
   }, [filtered, page, pageSize]);
 
   const goViewLead = (lead: Lead) => {
-    navigate(`/sales/view_lead/${lead.id}`, { state: { lead } });
+    navigate(`/sales/leads/${lead.id}`, { state: { lead } });
   };
 
   const goCallLead = (lead: Lead) => {
-    navigate(`/sales/call/${lead.id}`, { state: { lead } });
+    navigate('/sales/call', { state: { lead } });
   };
 
   return (
@@ -152,7 +100,16 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
             {current.map((lead) => (
               <TableRow
                 key={lead.id}
-                className="bg-white transition hover:bg-emerald-50/40 dark:bg-white/[0.02] dark:hover:bg-white/[0.06]"
+                onClick={() => goViewLead(lead)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    goViewLead(lead);
+                  }
+                }}
+                role="button"
+                tabIndex={0}
+                className="bg-white cursor-pointer transition hover:bg-emerald-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:bg-white/[0.02] dark:hover:bg-white/[0.06]"
               >
                 <TableCell className="px-6 py-4">
                   <div className="flex items-center gap-3">
@@ -192,7 +149,10 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
 
                 <TableCell className="px-6 py-4 text-center">
                   <button
-                    onClick={() => goViewLead(lead)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      goViewLead(lead);
+                    }}
                     className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:text-gray-200 dark:hover:border-emerald-300 dark:hover:text-emerald-200"
                   >
                     View
@@ -202,7 +162,10 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
 
                 <TableCell className="px-6 py-4 text-right">
                   <button
-                    onClick={() => goCallLead(lead)}
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      goCallLead(lead);
+                    }}
                     className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 focus:outline-hidden focus:ring-4 focus:ring-emerald-200"
                     title="Call this lead"
                   >
@@ -265,23 +228,23 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
   );
 }
 
-function StatusCell({ status }: { status?: ClientStatus }) {
+function StatusCell({ status }: { status?: LeadStage }) {
   if (!status) {
     return <span className={FALLBACK_STATUS_BADGE}>Status pending</span>;
   }
 
-  const meta = STATUS_META[status];
-  const currentIndex = STATUS_SEQUENCE.indexOf(status);
+  const meta = STAGE_META[status];
+  const currentIndex = STAGE_SEQUENCE.indexOf(status);
 
   return (
     <div className="flex flex-col gap-2">
       <div className="flex gap-1">
-        {STATUS_SEQUENCE.map((step, index) => {
-          const tone = STATUS_META[step];
+        {STAGE_SEQUENCE.map((step, index) => {
+          const tone = STAGE_META[step];
           const isActive = index <= currentIndex;
           let base = "bg-emerald-200/60";
           if (index >= 4 && index <= 6) base = "bg-rose-200/40";
-          if (index === STATUS_SEQUENCE.length - 1) base = "bg-slate-200/60";
+          if (index === STAGE_SEQUENCE.length - 1) base = "bg-slate-200/60";
           return (
             <span
               key={step}

@@ -13,7 +13,11 @@ export default function ProtectedRoute({ children, allow }: Props) {
 
   // While auth bootstraps, don't redirect
   if (loading) {
-    return <div className="p-6 text-center">Loading…</div>;
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm font-medium text-gray-600">
+        Loading…
+      </div>
+    );
   }
 
   // Not signed in → go to signin

@@ -1,4 +1,4 @@
-import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useLocation, useNavigate } from "react-router-dom";
 import { PhoneCall, PhoneForwarded } from "lucide-react";
 
 import ComponentCard from "@/components/common/ComponentCard";
@@ -12,7 +12,6 @@ interface LocationState {
 
 export default function CallConnectPage() {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const state = (location.state as LocationState | null) ?? {};
   const lead = state.lead;
@@ -22,7 +21,7 @@ export default function CallConnectPage() {
   return (
     <>
       <PageMeta title="Call connect" description="Engage the customer directly" />
-      <PageBreadcrumb pageTitle="Call Connect" items={[{ label: "Assigned Leads", href: "/sales/my_leads" }]} />
+      <PageBreadcrumb pageTitle="Call Connect" items={[{ label: "Assigned Leads", href: "/sales/assigned" }]} />
 
       <ComponentCard title="Connection details">
         <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">
@@ -31,7 +30,7 @@ export default function CallConnectPage() {
               <div>
                 <p className="text-xs uppercase tracking-wide text-emerald-500">Lead</p>
                 <h2 className="text-xl font-semibold text-gray-900 dark:text-white">
-                  {lead?.name ?? "Lead #" + (id ?? "-")}
+                  {lead?.name ?? (lead?.leadCode ?? `Lead #${lead?.id ?? '-'}`)}
                 </h2>
                 <p className="text-sm text-gray-600 dark:text-gray-300">
                   {lead?.leadCode ?? "Lead reference unavailable"}

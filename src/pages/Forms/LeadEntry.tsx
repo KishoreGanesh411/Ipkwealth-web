@@ -18,6 +18,7 @@ import { RemarkIcon } from "@/icons";
 export default function LeadEntry() {
   const [lead, setLead] = useState({
     firstName: "", lastName: "", email: "", phone: "", leadSource: "",
+    leadSourceOther: "",
     referralName: "", gender: "", age: "" as number | "", profession: "",
     companyName: "", designation: "", location: "", product: "",
     investmentRange: "", sipAmount: "" as number | "", clientType: "", remark: "",
@@ -68,12 +69,17 @@ export default function LeadEntry() {
   const handleConfirmSave = async () => {
     setSubmitting(true);
     try {
+      const normalizedLeadSource =
+        lead.leadSource === "others"
+          ? lead.leadSourceOther?.trim()
+          : lead.leadSource?.trim();
+
       const payload = {
         firstName: lead.firstName || undefined,
         lastName: lead.lastName || undefined,
         email: lead.email || undefined,
         phone: lead.phone,
-        leadSource: lead.leadSource,
+        leadSource: normalizedLeadSource || undefined,
         referralCode: lead.referralName || undefined,
         gender: lead.gender || undefined,
         age: lead.age ? Number(lead.age) : undefined,
@@ -91,6 +97,7 @@ export default function LeadEntry() {
       toast.success(created?.leadCode ? `Lead created: ${created.leadCode}` : "Lead created");
       setLead({
         firstName: "", lastName: "", email: "", phone: "", leadSource: "",
+        leadSourceOther: "",
         referralName: "", gender: "", age: "" as number | "", profession: "",
         companyName: "", designation: "", location: "", product: "",
         investmentRange: "", sipAmount: "" as number | "", clientType: "", remark: "",

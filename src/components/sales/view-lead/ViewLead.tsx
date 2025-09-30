@@ -1,6 +1,7 @@
 import { useLocation, useParams } from "react-router-dom";
 import { useMemo, useState, type ReactNode } from "react";
 import Badge from "@/components/ui/badge/Badge";
+import { LeadStage } from "@/components/sales/myleads/interface/type";
 
 type LeadRow = {
   id: string | number;
@@ -18,15 +19,7 @@ type EventForm = {
   explained: "yes" | "no" | null;
   reasonIfNo: string;
   channel: "whatsapp" | "call" | "zoom" | null;
-  status:
-    | "FIRST_TALK_DONE"
-    | "FOLLOWING_UP"
-    | "CLIENT_INTERESTED"
-    | "ACCOUNT_OPENED"
-    | "NO_RESPONSE_DORMANT"
-    | "NOT_INTERESTED_DORMANT"
-    | "RISKY_CLIENT_DORMANT"
-    | "HIBERNATED";
+  status: LeadStage;
   nextFollowAt?: string;
   notes: string;
   altPhone?: string;
@@ -36,15 +29,15 @@ type EventForm = {
   businessOrCompany?: string;
 };
 
-const STATUS_OPTIONS: [EventForm["status"], string][] = [
-  ["FIRST_TALK_DONE", "First talk done"],
-  ["FOLLOWING_UP", "Following up"],
-  ["CLIENT_INTERESTED", "Client interested"],
-  ["ACCOUNT_OPENED", "Account opened"],
-  ["NO_RESPONSE_DORMANT", "No response - dormant"],
-  ["NOT_INTERESTED_DORMANT", "Not interested - dormant"],
-  ["RISKY_CLIENT_DORMANT", "Risky client - dormant"],
-  ["HIBERNATED", "Hibernated"],
+const STATUS_OPTIONS: [LeadStage, string][] = [
+  [LeadStage.FIRST_TALK_DONE, "First talk done"],
+  [LeadStage.FOLLOWING_UP, "Following up"],
+  [LeadStage.CLIENT_INTERESTED, "Client interested"],
+  [LeadStage.ACCOUNT_OPENED, "Account opened"],
+  [LeadStage.NO_RESPONSE_DORMANT, "No response - dormant"],
+  [LeadStage.NOT_INTERESTED_DORMANT, "Not interested - dormant"],
+  [LeadStage.RISKY_CLIENT_DORMANT, "Risky client - dormant"],
+  [LeadStage.HIBERNATED, "Hibernated"],
 ];
 
 export default function ViewLead() {

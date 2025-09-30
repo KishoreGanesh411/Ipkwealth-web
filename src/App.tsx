@@ -23,7 +23,8 @@ import SalesRMDashboard from "@/pages/Dashboard/salesHome";
 import MyLeadsPage from "@/pages/Sales/Mylead/MyLeadsPage";
 import SalesEvent from "@/pages/Sales/Event_sales/Event_Rm";
 import CallConnectPage from "@/pages/Sales/Call/CallConnectPage";
-import ViewLead from "@/components/sales/viewlwads/ViewLead";
+import LeadStagesPage from "@/pages/Sales/LeadStagesPage";
+import ViewLeadPage from "@/pages/Sales/ViewLeadPage";
 import AdminDashboard from "@/pages/Admin/AdminDashboard";
 
 // Common/Misc
@@ -31,7 +32,7 @@ import Unauthorized from "@/pages/OtherPage/Unauthorized";
 import NotFound from "@/pages/OtherPage/NotFound";
 import UserProfiles from "@/pages/UserProfiles";
 import Blank from "@/pages/Blank";
-import ChatPage from "./pages/Sales/Support/ChatPage";
+import ChatPage from "@/pages/Sales/Support/ChatPage";
 
 type Role = "ADMIN" | "RM" | "STAFF" | "MARKETING" | "ANALYST";
 
@@ -39,7 +40,12 @@ type Role = "ADMIN" | "RM" | "STAFF" | "MARKETING" | "ANALYST";
 function RoleLanding() {
   const { data, loading, error } = useQuery(ME, { fetchPolicy: "cache-first" });
 
-  if (loading) return <div className="p-6 text-center">Loading...</div>;
+  if (loading)
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm font-medium text-gray-600">
+        Loading...
+      </div>
+    );
   if (error || !data?.me) return <Navigate to="/signin" replace />;
 
   const role = data.me.role as Role;
@@ -88,11 +94,12 @@ export default function App() {
             {/* Sales (RM)-only */}
             <Route element={<ProtectedRoute allow={["RM", "ADMIN"]} />}>
               <Route path="sales/dashboard" element={<SalesRMDashboard />} />
-              <Route path="sales/my_leads" element={<MyLeadsPage />} />
+              <Route path="sales/assigned" element={<MyLeadsPage />} />
+              <Route path="sales/stages" element={<LeadStagesPage />} />
+              <Route path="sales/leads/:id" element={<ViewLeadPage />} />
               <Route path="sales/events" element={<SalesEvent />} />
-              <Route path="sales/events/chat" element={<ChatPage />} />
-              <Route path="sales/call/:id" element={<CallConnectPage />} />
-              <Route path="sales/view_lead/:id" element={<ViewLead />} />
+              <Route path="sales/call" element={<CallConnectPage />} />
+              <Route path="sales/chat" element={<ChatPage />} />
             </Route>
 
             {/* Common */}

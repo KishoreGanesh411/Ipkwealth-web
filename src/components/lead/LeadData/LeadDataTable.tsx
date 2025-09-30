@@ -11,6 +11,12 @@ import { LeadTableRow, Row } from "./LeadTableRow";
 import { LeadTableFooter } from "./LeadTableFooter";
 import { PAGE_SIZE, TopCenterLoader, useDebounced } from "./leadHelpers";
 import * as XLSX from "xlsx";
+import {
+  titleCaseWords,
+  valueToLabel,
+  leadOptions,
+  humanizeEnum,
+} from "@/components/lead/types";
 
 /* ----------------------------- GQL shapes ----------------------------- */
 type LeadItemGql = {
@@ -64,6 +70,33 @@ type Notice =
   | null;
 
 type ViewMode = "pending" | "all" | "dormant";
+
+/* ------------------------------ Formatters ------------------------------ */
+
+const toTitleOrNull = (value?: string | null): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return titleCaseWords(trimmed);
+};
+
+const toDisplayName = (lead: LeadItemGql): string => {
+  const composed = lead.name || [lead.firstName, lead.lastName].filter(Boolean).join(" ");
+  const trimmed = composed.trim();
+  if (!trimmed) return "—";
+  return titleCaseWords(trimmed);
+};
+
+const toLeadSource = (value?: string | null): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return valueToLabel(trimmed, leadOptions, true);
+};
+
+const toStatus = (value?: string | null): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return humanizeEnum(trimmed);
+};
 
 /* ------------------------ Search (memo + ref) ------------------------ */
 type SearchBarProps = { value: string; onChange: (v: string) => void; onReset: () => void };
@@ -202,12 +235,12 @@ export default function LeadDataTable() {
       items.map((l) => ({
         id: l.id ?? "",
         leadCode: l.leadCode ?? null,
-        name: l.name || [l.firstName, l.lastName].filter(Boolean).join(" ") || "—",
+        name: toDisplayName(l),
         phone: l.phone ?? null,
-        source: l.leadSource ?? null,
+        source: toLeadSource(l.leadSource),
         createdAt: l.createdAt ?? null,
-        assignedRm: l.assignedRM ?? l.assignedRm?.name ?? null,
-        status: l.status ?? null,
+        assignedRm: toTitleOrNull(l.assignedRM ?? l.assignedRm?.name ?? null),
+        status: toStatus(l.status),
         firstSeenAt: l.firstSeenAt ?? null,
         lastSeenAt: l.lastSeenAt ?? null,
         reenterCount: l.reenterCount ?? 0,

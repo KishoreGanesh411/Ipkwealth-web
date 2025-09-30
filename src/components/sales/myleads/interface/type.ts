@@ -1,12 +1,15 @@
-export type ClientStatus =
-  | "FIRST_TALK_DONE"
-  | "FOLLOWING_UP"
-  | "CLIENT_INTERESTED"
-  | "ACCOUNT_OPENED"
-  | "NO_RESPONSE_DORMANT"
-  | "NOT_INTERESTED_DORMANT"
-  | "RISKY_CLIENT_DORMANT"
-  | "HIBERNATED";
+export enum LeadStage {
+  FIRST_TALK_DONE = 'FIRST_TALK_DONE',
+  FOLLOWING_UP = 'FOLLOWING_UP',
+  CLIENT_INTERESTED = 'CLIENT_INTERESTED',
+  ACCOUNT_OPENED = 'ACCOUNT_OPENED',
+  NO_RESPONSE_DORMANT = 'NO_RESPONSE_DORMANT',
+  NOT_INTERESTED_DORMANT = 'NOT_INTERESTED_DORMANT',
+  RISKY_CLIENT_DORMANT = 'RISKY_CLIENT_DORMANT',
+  HIBERNATED = 'HIBERNATED',
+}
+
+export type ClientStatus = LeadStage;
 
 export type Lead = {
   id: string | number;
@@ -17,8 +20,8 @@ export type Lead = {
   location?: string | null;
   agingDays?: number;
   leadSource: string;
-  status?: ClientStatus;
-  gender?: "Male" | "Female" | "Other" | string;
+  status?: LeadStage;
+  gender?: 'Male' | 'Female' | 'Other' | string;
   product?: string;
   profession?: string;
 };

@@ -68,7 +68,7 @@ const sampleRows: LeadRow[] = [
   },
 ];
 
-export default function SalesrmTable({ rows = sampleRows }: { rows?: LeadRow[] }) {
+export default function MyLeadsTable({ rows = sampleRows }: { rows?: LeadRow[] }) {
   const fmtDate = (d?: string | null) => (d ? String(d).slice(0, 10) : "-");
   const firstType = (v?: string | string[] | null) =>
     Array.isArray(v) ? v[0] : v || undefined;
