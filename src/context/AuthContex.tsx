@@ -237,6 +237,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
       try {
         const token = await current.getIdToken(/* forceRefresh */ false);
         setIdToken(token);
+        console.log("Firebase Token" ,token)
       } catch (error) {
         console.error("Failed to retrieve ID token", error);
         await signOut(auth);
