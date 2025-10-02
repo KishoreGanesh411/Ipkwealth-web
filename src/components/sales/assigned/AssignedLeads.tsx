@@ -117,12 +117,12 @@ export default function AssignedLeads({
           <caption className="sr-only">Assigned leads with basic details and actions</caption>
           <TableHeader className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-white/[0.04] dark:text-white/50">
             <TableRow>
-              <TableCell isHeader className="px-6 py-3">Name</TableCell>
-              <TableCell isHeader className="px-6 py-3">Lead ID</TableCell>
-              <TableCell isHeader className="px-6 py-3">Mobile No</TableCell>
-              <TableCell isHeader className="hidden px-6 py-3 md:table-cell">Location</TableCell>
-              <TableCell isHeader className="hidden px-6 py-3 md:table-cell">Aging Days</TableCell>
-              <TableCell isHeader className="px-6 py-3 text-right">Actions</TableCell>
+              <TableCell isHeader className="px-6 py-3 align-middle">Name</TableCell>
+              <TableCell isHeader className="px-6 py-3 align-middle">Lead ID</TableCell>
+              <TableCell isHeader className="px-6 py-3 align-middle">Mobile No</TableCell>
+              <TableCell isHeader className="hidden px-6 py-3 align-middle md:table-cell">Location</TableCell>
+              <TableCell isHeader className="hidden px-6 py-3 align-middle md:table-cell">Aging Days</TableCell>
+              <TableCell isHeader className="px-6 py-3 text-right align-middle">Actions</TableCell>
             </TableRow>
           </TableHeader>
 
@@ -133,7 +133,7 @@ export default function AssignedLeads({
                 className="bg-white transition hover:bg-emerald-50/40 dark:bg-white/[0.02] dark:hover:bg-white/[0.06]"
               >
                 {/* Name */}
-                <TableCell className="px-6 py-4">
+                <TableCell className="px-6 py-4 align-middle">
                   <div className="flex items-center gap-3">
                     <div className="grid h-9 w-9 place-items-center rounded-full bg-emerald-100 text-xs font-semibold uppercase text-emerald-700">
                       {initials(lead.name)}
@@ -148,27 +148,27 @@ export default function AssignedLeads({
                 </TableCell>
 
                 {/* Lead ID */}
-                <TableCell className="px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-200">
+                <TableCell className="px-6 py-4 align-middle text-sm font-medium text-gray-700 dark:text-gray-200">
                   {lead.leadCode ?? "-"}
                 </TableCell>
 
                 {/* Mobile */}
-                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
+                <TableCell className="px-6 py-4 align-middle text-sm text-gray-600 dark:text-gray-300">
                   {lead.mobile ?? "-"}
                 </TableCell>
 
                 {/* Location – hidden on small */}
-                <TableCell className="hidden px-6 py-4 text-sm text-gray-600 md:table-cell dark:text-gray-300">
+                <TableCell className="hidden px-6 py-4 align-middle text-sm text-gray-600 md:table-cell dark:text-gray-300">
                   {lead.location ?? "-"}
                 </TableCell>
 
                 {/* Aging – hidden on small */}
-                <TableCell className="hidden px-6 py-4 text-sm font-semibold text-gray-700 md:table-cell dark:text-gray-200">
+                <TableCell className="hidden px-6 py-4 align-middle text-sm font-semibold text-gray-700 md:table-cell dark:text-gray-200">
                   {formatAgingDays(lead.agingDays)}
                 </TableCell>
 
                 {/* Actions */}
-                <TableCell className="px-6 py-4">
+                <TableCell className="px-6 py-4 align-middle">
                   <div className="flex items-center justify-end gap-2">
                     {/* View */}
                     <button
@@ -273,7 +273,7 @@ function RefreshButton({ onClick }: { onClick: () => void }) {
       size="sm"
       onClick={onClick}
       startIcon={<RefreshCcw className="h-4 w-4" />}
-      className="dropdown-toggle"
+      className="dropdown-toggle h-10"
     >
       Refresh
     </Button>
@@ -287,7 +287,7 @@ function ExportButton({ onClick }: { onClick: () => void }) {
       size="sm"
       onClick={onClick}
       startIcon={<Download className="h-4 w-4" />}
-      className="dropdown-toggle"
+      className="dropdown-toggle h-10"
     >
       Export
     </Button>

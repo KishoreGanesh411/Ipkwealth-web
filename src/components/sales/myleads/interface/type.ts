@@ -29,4 +29,8 @@ export type Lead = {
 export type MyLeadsProps = {
   leads?: Lead[];
   pageSize?: number;
+  /** Show the built-in header (title + search). Defaults to true. */
+  showHeader?: boolean;
+  /** Optional external search query when using showHeader=false. */
+  query?: string;
 };

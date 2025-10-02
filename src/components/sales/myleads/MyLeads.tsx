@@ -15,16 +15,18 @@ import { STAGE_META, STAGE_SEQUENCE } from "./stageMeta";
 
 const FALLBACK_STATUS_BADGE = "inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500";
 
-export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
+export default function MyLeads({ leads, pageSize = 8, showHeader = true, query: externalQuery = "" }: MyLeadsProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
   const list = useMemo(() => (Array.isArray(leads) ? leads : []), [leads]);
 
+  const activeQuery = showHeader ? query : externalQuery;
+
   const filtered = useMemo(() => {
-    if (!query.trim()) return list;
-    const q = query.toLowerCase();
+    if (!activeQuery.trim()) return list;
+    const q = activeQuery.toLowerCase();
     return list.filter((lead) => {
       const statusLabel = lead.status ? STAGE_META[lead.status]?.label ?? "" : "";
       return (
@@ -43,7 +45,7 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
           .includes(q)
       );
     });
-  }, [list, query]);
+  }, [list, activeQuery]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
 
@@ -62,23 +64,25 @@ export default function MyLeads({ leads, pageSize = 8 }: MyLeadsProps) {
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
-      <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <div className="flex items-center gap-2">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">Assigned Leads</h2>
-          <span className="text-xs text-gray-400">({list.length})</span>
+      {showHeader && (
+        <div className="flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+          <div className="flex items-center gap-2">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">Assigned Leads</h2>
+            <span className="text-xs text-gray-400">({list.length})</span>
+          </div>
+          <div role="search" aria-label="Search leads">
+            <input
+              value={query}
+              onChange={(event) => {
+                setQuery(event.target.value);
+                setPage(1);
+              }}
+              placeholder="Search by name, mobile, status..."
+              className="h-10 w-72 rounded-xl border border-gray-200 bg-transparent px-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 dark:border-white/10 dark:text-white/90 dark:placeholder:text-white/30"
+            />
+          </div>
         </div>
-        <div role="search" aria-label="Search leads">
-          <input
-            value={query}
-            onChange={(event) => {
-              setQuery(event.target.value);
-              setPage(1);
-            }}
-            placeholder="Search by name, mobile, status..."
-            className="h-10 w-72 rounded-xl border border-gray-200 bg-transparent px-3 text-sm text-gray-800 placeholder:text-gray-400 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 dark:border-white/10 dark:text-white/90 dark:placeholder:text-white/30"
-          />
-        </div>
-      </div>
+      )}
 
       <div className="overflow-x-auto">
         <Table className="min-w-full">
