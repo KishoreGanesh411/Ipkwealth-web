@@ -113,7 +113,7 @@ export default function MyLeads({ leads, pageSize = 8, showHeader = true, query:
                 }}
                 role="button"
                 tabIndex={0}
-                className="bg-white cursor-pointer transition hover:bg-emerald-50/40 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-300 dark:bg-white/[0.02] dark:hover:bg-white/[0.06]"
+                className="cursor-pointer transition bg-white hover:bg-emerald-100 focus:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 dark:bg-white/[0.02] dark:hover:bg-emerald-500/15 dark:focus:bg-emerald-500/15"
               >
                 <TableCell className="px-6 py-4">
                   <div className="flex items-center gap-3">
@@ -131,7 +131,7 @@ export default function MyLeads({ leads, pageSize = 8, showHeader = true, query:
                   </div>
                 </TableCell>
 
-                <TableCell className="px-6 py-4 text-sm font-medium text-gray-700 dark:text-gray-200">
+                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
                   {lead.leadCode ?? "-"}
                 </TableCell>
 
@@ -281,3 +281,4 @@ function initials(name: string) {
 }
 
 export type { Lead } from "./interface/type";
+

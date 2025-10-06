@@ -1,4 +1,3 @@
-// src/core/graphql/lead/lead.gql.ts
 import { gql } from "@apollo/client";
 
 export const LEAD_FIELDS = gql`
@@ -8,6 +7,7 @@ export const LEAD_FIELDS = gql`
     firstName
     lastName
     name
+    email
     phone
     leadSource
     assignedRM
@@ -23,6 +23,18 @@ export const LEAD_FIELDS = gql`
 export const LEADS_PAGED = gql`
   query Leads($args: LeadListArgs!) {
     leads(args: $args) {
+      items { ...LeadFields }
+      page
+      pageSize
+      total
+    }
+  }
+  ${LEAD_FIELDS}
+`;
+
+export const MY_ASSIGNED_LEADS = gql`
+  query MyAssignedLeads($args: LeadListArgs!) {
+    myAssignedLeads(args: $args) {
       items { ...LeadFields }
       page
       pageSize

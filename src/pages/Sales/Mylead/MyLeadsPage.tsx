@@ -1,17 +1,158 @@
+import { useMemo, useState } from "react";
+import { NetworkStatus, useQuery } from "@apollo/client";
+
 import ComponentCard from "@/components/common/ComponentCard";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import PageMeta from "@/components/common/PageMeta";
 import AssignedLeads from "@/components/sales/assigned/AssignedLeads";
-import { SAMPLE_LEADS } from "@/components/sales/myleads/mockData";
+import type { Lead } from "@/components/sales/myleads/interface/type";
+import { LeadStage } from "@/components/sales/myleads/interface/type";
+import { MY_ASSIGNED_LEADS } from "@/core/graphql/lead/lead.gql";
+
+const DEFAULT_PAGE_SIZE = 10;
+
+type MyAssignedLeadsData = {
+  myAssignedLeads: {
+    items: MyAssignedLeadNode[];
+    page: number;
+    pageSize: number;
+    total: number;
+  };
+};
+
+type MyAssignedLeadsVariables = {
+  args: {
+    page: number;
+    pageSize: number;
+    search?: string;
+  };
+};
+
+type MyAssignedLeadNode = {
+  id: string;
+  leadCode?: string | null;
+  name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  email?: string | null;
+  phone?: string | null;
+  mobile?: string | null;
+  location?: string | null;
+  city?: string | null;
+  leadSource?: string | null;
+  status?: LeadStage | null;
+  createdAt?: string | null;
+  agingDays?: number | null;
+};
 
 export default function MyLeadsPage() {
+  const [page, setPage] = useState(1);
+  const [search, setSearch] = useState("");
+
+  const variables = useMemo<MyAssignedLeadsVariables>(() => {
+    const args: MyAssignedLeadsVariables["args"] = {
+      page,
+      pageSize: DEFAULT_PAGE_SIZE,
+    };
+    const trimmed = search.trim();
+    if (trimmed) {
+      args.search = trimmed;
+    }
+    return { args };
+  }, [page, search]);
+
+  const { data, previousData, loading, networkStatus, error, refetch } = useQuery<
+    MyAssignedLeadsData,
+    MyAssignedLeadsVariables
+  >(MY_ASSIGNED_LEADS, {
+    variables,
+    fetchPolicy: "cache-and-network",
+    notifyOnNetworkStatusChange: true,
+  });
+
+  const pagePayload = data?.myAssignedLeads ?? previousData?.myAssignedLeads;
+
+  const leads = useMemo<Lead[]>(() => {
+    if (!pagePayload?.items) return [];
+    return pagePayload.items.map(normalizeLead);
+  }, [pagePayload]);
+
+  const total = pagePayload?.total ?? 0;
+  const pageFromServer = pagePayload?.page ?? page;
+  const pageSizeFromServer = pagePayload?.pageSize ?? DEFAULT_PAGE_SIZE;
+
+  const isRefetching =
+    networkStatus === NetworkStatus.refetch || networkStatus === NetworkStatus.setVariables;
+  const isFetching = loading || isRefetching;
+
+  const handlePageChange = (nextPage: number) => {
+    setPage(nextPage);
+  };
+
+  const handleSearchChange = (value: string) => {
+    setSearch(value);
+    setPage(1);
+  };
+
+  const handleRefresh = () => {
+    refetch(variables);
+  };
+
   return (
     <>
       <PageMeta title="Assigned Leads" description="Leads assigned to you" />
       <PageBreadcrumb pageTitle="Assigned Leads" />
-      <ComponentCard title="Assigned Leads">
-        <AssignedLeads rows={SAMPLE_LEADS} pageSize={10} />
+      <ComponentCard title="IPK-wealth Assigned Leads">
+        {error ? (
+          <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-100">
+            <p className="font-semibold">Unable to load your leads.</p>
+            <p className="mt-1 text-xs opacity-80">{error.message}</p>
+          </div>
+        ) : (
+          <AssignedLeads
+            rows={leads}
+            pageSize={pageSizeFromServer}
+            page={pageFromServer}
+            totalCount={total}
+            loading={isFetching}
+            searchValue={search}
+            onSearchChange={handleSearchChange}
+            onRefresh={handleRefresh}
+            onPageChange={handlePageChange}
+          />
+        )}
       </ComponentCard>
     </>
   );
+}
+
+function normalizeLead(node: MyAssignedLeadNode): Lead {
+  const fallbackName = node.name ?? [node.firstName, node.lastName].filter(Boolean).join(" ").trim();
+  const name = fallbackName && fallbackName.length > 0 ? fallbackName : "Unnamed lead";
+  const mobile = node.mobile ?? node.phone ?? null;
+  const location = node.location ?? node.city ?? null;
+  const rawAging = node.agingDays ?? computeAgingDays(node.createdAt);
+  const agingDays =
+    typeof rawAging === "number" && Number.isFinite(rawAging) ? Math.max(0, Math.floor(rawAging)) : undefined;
+
+  return {
+    id: node.id,
+    leadCode: node.leadCode ?? null,
+    name,
+    email: node.email ?? null,
+    mobile,
+    location,
+    agingDays,
+    leadSource: node.leadSource ?? "—",
+    status: (node.status ?? undefined) as LeadStage | undefined,
+  };
+}
+
+function computeAgingDays(createdAt?: string | null) {
+  if (!createdAt) return undefined;
+  const timestamp = Date.parse(createdAt);
+  if (Number.isNaN(timestamp)) return undefined;
+  const diffMs = Date.now() - timestamp;
+  if (diffMs < 0) return 0;
+  return Math.floor(diffMs / (1000 * 60 * 60 * 24));
 }
