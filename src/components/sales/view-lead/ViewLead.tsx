@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import Badge from "@/components/ui/badge/Badge";
 import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
 import { LeadStage } from "@/components/sales/myleads/interface/type";
+import { pushRecentLead } from "@/features/leads/profile/recentLeads";
 
 type LeadRow = {
   id: string | number;
@@ -83,6 +84,10 @@ export default function ViewLead() {
 
   useEffect(() => {
     if (!lead) return;
+    // Remember in recent profiles list
+    try {
+      pushRecentLead({ id: String(lead.id ?? id ?? ""), leadCode: lead.leadCode ?? undefined, name: lead.name, phone: lead.phone });
+    } catch {}
     setForm((state) => ({
       ...state,
       product: state.product || lead.product || "",
@@ -178,7 +183,7 @@ export default function ViewLead() {
       {prompt && <PromptOverlay prompt={prompt} onDismiss={() => setPrompt(null)} />}
 
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white">View Lead</h1>
+        {/* <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white">View Lead</h1> */}
 
         <div className="flex flex-wrap items-center gap-2">
           {heroProduct && (
@@ -217,7 +222,7 @@ export default function ViewLead() {
               <DetailBlock label="Lead name">{lead?.name ?? fallbackValue}</DetailBlock>
               <DetailBlock label="Current stage">{selectedStatusLabel}</DetailBlock>
               <DetailBlock label="Product">{summaryProduct}</DetailBlock>
-              <DetailBlock label="Mobile number">{lead?.phone ?? fallbackValue}</DetailBlock>
+              <DetailBlock label="Mobile number">{lead?.phone || (lead as any)?.mobile || fallbackValue}</DetailBlock>
               <DetailBlock label="Lead source">{lead?.leadSource ?? fallbackValue}</DetailBlock>
               <DetailBlock label="Assigned date">{snapshotAssignedAt ?? fallbackValue}</DetailBlock>
               <DetailBlock label="Company">{summaryCompany ?? fallbackValue}</DetailBlock>
