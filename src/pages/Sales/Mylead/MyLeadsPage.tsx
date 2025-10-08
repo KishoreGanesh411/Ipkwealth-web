@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+ï»¿import { useMemo, useState } from "react";
 import { NetworkStatus, useQuery } from "@apollo/client";
 
 import ComponentCard from "@/components/common/ComponentCard";
@@ -6,7 +6,8 @@ import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import PageMeta from "@/components/common/PageMeta";
 import AssignedLeads from "@/components/sales/assigned/AssignedLeads";
 import type { Lead } from "@/components/sales/myleads/interface/type";
-import { LeadStage } from "@/components/sales/myleads/interface/type";
+import { LeadStage, LeadStatus } from "@/components/sales/myleads/interface/type";
+import { STAGE_SEQUENCE } from "@/components/sales/myleads/stageMeta";
 import { MY_ASSIGNED_LEADS } from "@/core/graphql/lead/lead.gql";
 
 const DEFAULT_PAGE_SIZE = 10;
@@ -40,9 +41,14 @@ type MyAssignedLeadNode = {
   location?: string | null;
   city?: string | null;
   leadSource?: string | null;
-  status?: LeadStage | null;
+  status?: string | null;
+  clientStage?: string | null;
   createdAt?: string | null;
+  assignedAt?: string | null;
+  assignedRM?: string | null;
+  lastContactedAt?: string | null;
   agingDays?: number | null;
+  remark?: string | null;
 };
 
 export default function MyLeadsPage() {
@@ -135,6 +141,17 @@ function normalizeLead(node: MyAssignedLeadNode): Lead {
   const agingDays =
     typeof rawAging === "number" && Number.isFinite(rawAging) ? Math.max(0, Math.floor(rawAging)) : undefined;
 
+  const assignedAt = node.assignedAt ?? node.createdAt ?? null;
+  const isNew = assignedAt ? isRecentAssignment(assignedAt) : false;
+
+  const statusRaw = typeof node.status === "string" ? node.status : undefined;
+  const clientStageRaw = typeof node.clientStage === "string" ? node.clientStage : undefined;
+
+  const stageFromStatus = statusRaw && isLeadStage(statusRaw) ? (statusRaw as LeadStage) : undefined;
+  const stageValue = (clientStageRaw && isLeadStage(clientStageRaw) ? clientStageRaw : undefined) ?? stageFromStatus;
+  const statusValue =
+    statusRaw && !isLeadStage(statusRaw) ? (statusRaw as LeadStatus) : undefined;
+
   return {
     id: node.id,
     leadCode: node.leadCode ?? null,
@@ -143,8 +160,14 @@ function normalizeLead(node: MyAssignedLeadNode): Lead {
     mobile,
     location,
     agingDays,
-    leadSource: node.leadSource ?? "—",
-    status: (node.status ?? undefined) as LeadStage | undefined,
+    leadSource: node.leadSource ?? "-",
+    status: statusValue,
+    clientStage: stageValue,
+    assignedAt,
+    lastContactedAt: node.lastContactedAt ?? null,
+    remark: node.remark ?? null,
+    assignedRm: node.assignedRM ?? null,
+    isNew,
   };
 }
 
@@ -155,4 +178,15 @@ function computeAgingDays(createdAt?: string | null) {
   const diffMs = Date.now() - timestamp;
   if (diffMs < 0) return 0;
   return Math.floor(diffMs / (1000 * 60 * 60 * 24));
+}
+
+function isRecentAssignment(assignedAt: string, thresholdHours = 24) {
+  const timestamp = Date.parse(assignedAt);
+  if (Number.isNaN(timestamp)) return false;
+  const hours = (Date.now() - timestamp) / (1000 * 60 * 60);
+  return hours >= 0 && hours <= thresholdHours;
+}
+
+function isLeadStage(value: string): value is LeadStage {
+  return STAGE_SEQUENCE.includes(value as LeadStage);
 }

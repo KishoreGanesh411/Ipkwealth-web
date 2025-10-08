@@ -1,6 +1,7 @@
-import { useMemo, useState } from "react";
+﻿import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { PhoneCall, ArrowRight } from "lucide-react";
+import { ArrowRight, PhoneCall, Sparkles } from "lucide-react";
+import { formatDistanceToNow, isValid as isValidDate, parseISO } from "date-fns";
 
 import {
   Table,
@@ -9,13 +10,19 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import LeadStatusBadge from "./LeadStatusBadge";
 import type { Lead, MyLeadsProps } from "./interface/type";
-import { LeadStage } from "./interface/type";
+import { LeadStage, LeadStatus } from "./interface/type";
 import { STAGE_META, STAGE_SEQUENCE } from "./stageMeta";
 
-const FALLBACK_STATUS_BADGE = "inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500";
+const FALLBACK_STAGE_BADGE = "inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500";
 
-export default function MyLeads({ leads, pageSize = 8, showHeader = true, query: externalQuery = "" }: MyLeadsProps) {
+export default function MyLeads({
+  leads,
+  pageSize = 8,
+  showHeader = true,
+  query: externalQuery = "",
+}: MyLeadsProps) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -28,7 +35,8 @@ export default function MyLeads({ leads, pageSize = 8, showHeader = true, query:
     if (!activeQuery.trim()) return list;
     const q = activeQuery.toLowerCase();
     return list.filter((lead) => {
-      const statusLabel = lead.status ? STAGE_META[lead.status]?.label ?? "" : "";
+      const stageLabel = lead.clientStage ? STAGE_META[lead.clientStage]?.label ?? "" : "";
+      const statusLabel = lead.status ? formatLeadStatus(lead.status) : "";
       return (
         [
           lead.name,
@@ -36,8 +44,9 @@ export default function MyLeads({ leads, pageSize = 8, showHeader = true, query:
           lead.leadCode ?? "",
           lead.mobile ?? "",
           lead.location ?? "",
-          lead.leadSource,
+          lead.leadSource ?? "",
           String(lead.agingDays ?? ""),
+          stageLabel,
           statusLabel,
         ]
           .join(" ")
@@ -59,7 +68,7 @@ export default function MyLeads({ leads, pageSize = 8, showHeader = true, query:
   };
 
   const goCallLead = (lead: Lead) => {
-    navigate('/sales/call', { state: { lead } });
+    navigate("/sales/call", { state: { lead } });
   };
 
   return (
@@ -86,99 +95,114 @@ export default function MyLeads({ leads, pageSize = 8, showHeader = true, query:
 
       <div className="overflow-x-auto">
         <Table className="min-w-full">
-          <caption className="sr-only">Assigned leads with status and actions</caption>
+          <caption className="sr-only">Assigned leads with status, stage, and actions</caption>
           <TableHeader className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-white/[0.04] dark:text-white/50">
             <TableRow>
               <TableCell isHeader className="px-6 py-3">Name</TableCell>
               <TableCell isHeader className="px-6 py-3">Lead ID</TableCell>
               <TableCell isHeader className="px-6 py-3">Mobile No</TableCell>
-              <TableCell isHeader className="px-6 py-3">Location</TableCell>
-              <TableCell isHeader className="px-6 py-3">Aging Days</TableCell>
-              <TableCell isHeader className="px-6 py-3">Client status</TableCell>
+              <TableCell isHeader className="px-6 py-3">Stage</TableCell>
+              <TableCell isHeader className="px-6 py-3">Status</TableCell>
+              <TableCell isHeader className="px-6 py-3">Last contact</TableCell>
               <TableCell isHeader className="px-6 py-3 text-center">View more</TableCell>
               <TableCell isHeader className="px-6 py-3 text-right">Actions</TableCell>
             </TableRow>
           </TableHeader>
 
           <TableBody className="divide-y divide-gray-100 dark:divide-white/10">
-            {current.map((lead) => (
-              <TableRow
-                key={lead.id}
-                onClick={() => goViewLead(lead)}
-                onKeyDown={(event) => {
-                  if (event.key === "Enter" || event.key === " ") {
-                    event.preventDefault();
-                    goViewLead(lead);
-                  }
-                }}
-                role="button"
-                tabIndex={0}
-                className="cursor-pointer transition bg-white hover:bg-emerald-100 focus:bg-emerald-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 dark:bg-white/[0.02] dark:hover:bg-emerald-500/15 dark:focus:bg-emerald-500/15"
-              >
-                <TableCell className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 place-items-center rounded-full bg-emerald-100 text-xs font-semibold uppercase text-emerald-700">
-                      {initials(lead.name)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-gray-900 dark:text-white">
-                        {lead.name}
-                      </div>
-                      <div className="truncate text-xs text-gray-500 dark:text-gray-300">
-                        {lead.email ?? "-"}
-                      </div>
-                    </div>
-                  </div>
-                </TableCell>
+            {current.map((lead) => {
+              const rowBase = lead.isNew
+                ? "bg-emerald-50/70 hover:bg-emerald-100 focus:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/15"
+                : "bg-white hover:bg-emerald-100 focus:bg-emerald-100 dark:bg-white/[0.02] dark:hover:bg-emerald-500/15";
 
-                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                  {lead.leadCode ?? "-"}
-                </TableCell>
-
-                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                  {lead.mobile ?? "-"}
-                </TableCell>
-
-                <TableCell className="px-6 py-4 text-sm text-gray-600 dark:text-gray-300">
-                  {lead.location ?? lead.leadSource ?? "-"}
-                </TableCell>
-
-                <TableCell className="px-6 py-4 text-sm font-semibold text-gray-700 dark:text-gray-200">
-                  {formatAgingDays(lead.agingDays)}
-                </TableCell>
-
-                <TableCell className="px-6 py-4">
-                  <StatusCell status={lead.status} />
-                </TableCell>
-
-                <TableCell className="px-6 py-4 text-center">
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
+              return (
+                <TableRow
+                  key={lead.id}
+                  onClick={() => goViewLead(lead)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
                       goViewLead(lead);
-                    }}
-                    className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:text-gray-200 dark:hover:border-emerald-300 dark:hover:text-emerald-200"
-                  >
-                    View
-                    <ArrowRight className="h-4 w-4" aria-hidden="true" />
-                  </button>
-                </TableCell>
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  className={`cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${rowBase}`}
+                >
+                  <TableCell className="px-6 py-4">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-9 w-9 place-items-center rounded-full bg-emerald-500/10 text-sm font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
+                          {initials(lead.name)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{lead.name}</span>
+                            {lead.isNew && <NewBadge />}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-white/60">{lead.leadSource || "-"}</div>
+                        </div>
+                      </div>
+                      {lead.location && (
+                        <div className="text-xs text-gray-500 dark:text-white/50">{lead.location}</div>
+                      )}
+                    </div>
+                  </TableCell>
 
-                <TableCell className="px-6 py-4 text-right">
-                  <button
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      goCallLead(lead);
-                    }}
-                    className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 focus:outline-hidden focus:ring-4 focus:ring-emerald-200"
-                    title="Call this lead"
-                  >
-                    <PhoneCall className="h-4 w-4" aria-hidden="true" />
-                    Call
-                  </button>
-                </TableCell>
-              </TableRow>
-            ))}
+                  <TableCell className="px-6 py-4">
+                    <div className="text-sm font-medium text-gray-800 dark:text-white/80">{lead.leadCode ?? "-"}</div>
+                    {lead.agingDays !== undefined && (
+                      <div className="text-xs text-gray-500 dark:text-white/60">{formatAgingDays(lead.agingDays)}</div>
+                    )}
+                  </TableCell>
+
+                  <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-white/80">
+                    {lead.mobile ?? "-"}
+                  </TableCell>
+
+                  <TableCell className="px-6 py-4">
+                    <StageCell stage={lead.clientStage} />
+                  </TableCell>
+
+                  <TableCell className="px-6 py-4">
+                    <LeadStatusBadge status={lead.status} />
+                  </TableCell>
+
+                  <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-white/80">
+                    {formatLastContact(lead.lastContactedAt)}
+                  </TableCell>
+
+                  <TableCell className="px-6 py-4 text-center">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        goViewLead(lead);
+                      }}
+                      className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:text-gray-200 dark:hover:border-emerald-300 dark:hover:text-emerald-200"
+                    >
+                      View
+                      <ArrowRight className="h-4 w-4" aria-hidden="true" />
+                    </button>
+                  </TableCell>
+
+                  <TableCell className="px-6 py-4 text-right">
+                    <button
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        goCallLead(lead);
+                      }}
+                      className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 focus:outline-hidden focus:ring-4 focus:ring-emerald-200"
+                      title="Call this lead"
+                    >
+                      <PhoneCall className="h-4 w-4" aria-hidden="true" />
+                      Call
+                    </button>
+                  </TableCell>
+                </TableRow>
+              );
+            })}
 
             {current.length === 0 && (
               <TableRow>
@@ -232,13 +256,13 @@ export default function MyLeads({ leads, pageSize = 8, showHeader = true, query:
   );
 }
 
-function StatusCell({ status }: { status?: LeadStage }) {
-  if (!status) {
-    return <span className={FALLBACK_STATUS_BADGE}>Status pending</span>;
+function StageCell({ stage }: { stage?: LeadStage }) {
+  if (!stage) {
+    return <span className={FALLBACK_STAGE_BADGE}>Stage pending</span>;
   }
 
-  const meta = STAGE_META[status];
-  const currentIndex = STAGE_SEQUENCE.indexOf(status);
+  const meta = STAGE_META[stage];
+  const currentIndex = STAGE_SEQUENCE.indexOf(stage);
 
   return (
     <div className="flex flex-col gap-2">
@@ -264,6 +288,35 @@ function StatusCell({ status }: { status?: LeadStage }) {
   );
 }
 
+function NewBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-200">
+      <Sparkles className="h-3 w-3" aria-hidden="true" />
+      New
+    </span>
+  );
+}
+
+function formatLastContact(value?: string | null) {
+  if (!value) return "No contact yet";
+  try {
+    const date = parseISO(value);
+    if (!isValidDate(date)) return value;
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch (error) {
+    return value;
+  }
+}
+
+function formatLeadStatus(status?: LeadStatus) {
+  if (!status) return "Pending";
+  return status
+    .toLowerCase()
+    .split("_")
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(" ");
+}
+
 function formatAgingDays(value?: number) {
   if (value === undefined || Number.isNaN(value)) return "-";
   if (value <= 0) return "Today";
@@ -281,4 +334,3 @@ function initials(name: string) {
 }
 
 export type { Lead } from "./interface/type";
-

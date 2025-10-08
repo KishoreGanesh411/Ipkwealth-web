@@ -1,12 +1,24 @@
-import { useEffect, useMemo, useState } from "react";
+﻿import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowRight, Download, Loader2, PhoneCall, RefreshCcw, Search } from "lucide-react";
+import {
+  ArrowRight,
+  Download,
+  Loader2,
+  PhoneCall,
+  RefreshCcw,
+  Search,
+  Sparkles,
+} from "lucide-react";
+import { formatDistanceToNow, isValid as isValidDate, parseISO } from "date-fns";
 
 import Button from "@/components/ui/button/Button";
 import { Dropdown } from "@/components/ui/dropdown/Dropdown";
 import { DropdownItem } from "@/components/ui/dropdown/DropdownItem";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
+import LeadStatusBadge from "@/components/sales/myleads/LeadStatusBadge";
 import type { Lead } from "@/components/sales/myleads/interface/type";
+import { LeadStage, LeadStatus } from "@/components/sales/myleads/interface/type";
+import { STAGE_META, STAGE_SEQUENCE } from "@/components/sales/myleads/stageMeta";
 
 type ExportFormat = "csv" | "xlsx";
 
@@ -22,6 +34,8 @@ type AssignedLeadsProps = {
   onSearchChange?: (value: string) => void;
   onPageChange?: (page: number) => void;
 };
+
+const FALLBACK_STAGE_BADGE = "inline-flex items-center rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-500";
 
 export default function AssignedLeads({
   rows = [],
@@ -56,19 +70,26 @@ export default function AssignedLeads({
     if (isRemote) return list;
     if (!query.trim()) return list;
     const q = query.toLowerCase();
-    return list.filter((lead) =>
-      [
-        lead.name,
-        lead.email ?? "",
-        lead.leadCode ?? "",
-        lead.mobile ?? "",
-        lead.location ?? "",
-        String(lead.agingDays ?? ""),
-      ]
-        .join(" ")
-        .toLowerCase()
-        .includes(q),
-    );
+    return list.filter((lead) => {
+      const stageLabel = lead.clientStage ? STAGE_META[lead.clientStage]?.label ?? "" : "";
+      const statusLabel = lead.status ? formatLeadStatus(lead.status) : "";
+      return (
+        [
+          lead.name,
+          lead.email ?? "",
+          lead.leadCode ?? "",
+          lead.mobile ?? "",
+          lead.location ?? "",
+          lead.leadSource ?? "",
+          String(lead.agingDays ?? ""),
+          stageLabel,
+          statusLabel,
+        ]
+          .join(" ")
+          .toLowerCase()
+          .includes(q)
+      );
+    });
   }, [isRemote, list, query]);
 
   const effectivePage = isRemote ? Math.max(1, page ?? 1) : localPage;
@@ -99,13 +120,11 @@ export default function AssignedLeads({
   const handleRefresh = () => {
     if (loading) return;
     onRefresh?.();
-    console.log("AssignedLeads:onRefresh");
   };
 
   const handleExport = (format: ExportFormat) => {
     if (loading) return;
     onExport?.(format);
-    console.log("AssignedLeads:onExport", format);
     setExportOpen(false);
   };
 
@@ -128,22 +147,16 @@ export default function AssignedLeads({
     }
   };
 
-  const goPrevPage = () => {
-    const target = Math.max(1, effectivePage - 1);
-    if (target !== effectivePage) {
-      handlePageChangeInternal(target);
-    }
+  const goPrevPage = () => handlePageChangeInternal(Math.max(1, effectivePage - 1));
+  const goNextPage = () => handlePageChangeInternal(Math.min(totalPages, effectivePage + 1));
+
+  const goViewLead = (lead: Lead) => {
+    navigate(`/sales/leads/${lead.id}`, { state: { lead } });
   };
 
-  const goNextPage = () => {
-    const target = Math.min(totalPages, effectivePage + 1);
-    if (target !== effectivePage) {
-      handlePageChangeInternal(target);
-    }
+  const goCallLead = (lead: Lead) => {
+    navigate("/sales/call", { state: { lead } });
   };
-
-  const goViewLead = (lead: Lead) => navigate(`/sales/leads/${lead.id}`, { state: { lead } });
-  const goCallLead = (lead: Lead) => navigate("/sales/call", { state: { lead } });
 
   return (
     <div className="rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
@@ -159,24 +172,18 @@ export default function AssignedLeads({
           <RefreshButton onClick={handleRefresh} disabled={loading} />
 
           <div className="relative">
-            <ExportButton
-              onClick={() => {
-                if (loading || !canExport) return;
-                setExportOpen((v) => !v);
-              }}
-              disabled={loading || !canExport}
-            />
+            <ExportButton onClick={() => setExportOpen((v) => !v)} disabled={!canExport} />
             <Dropdown isOpen={exportOpen} onClose={() => setExportOpen(false)}>
               <div className="min-w-44 py-1">
                 <DropdownItem
                   onClick={() => handleExport("csv")}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.06]"
+                  className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.06]"
                 >
                   Download CSV
                 </DropdownItem>
                 <DropdownItem
                   onClick={() => handleExport("xlsx")}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.06]"
+                  className="px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:text-gray-200 dark:hover:bg-white/[0.06]"
                 >
                   Download Excel (.xlsx)
                 </DropdownItem>
@@ -186,94 +193,120 @@ export default function AssignedLeads({
         </div>
       </div>
 
-      <div className="custom-scrollbar overflow-x-auto">
+      <div className="overflow-x-auto custom-scrollbar">
         <Table className="min-w-full">
-          <caption className="sr-only">Assigned leads with basic details and actions</caption>
+          <caption className="sr-only">Assigned leads with pipeline context and actions</caption>
           <TableHeader className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-white/[0.04] dark:text-white/50">
             <TableRow>
-              <TableCell isHeader className="px-6 py-3 align-middle">
-                Name
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 align-middle">
-                Lead ID
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 align-middle">
-                Mobile No
-              </TableCell>
-              <TableCell isHeader className="hidden px-6 py-3 align-middle md:table-cell">
-                Location
-              </TableCell>
-              <TableCell isHeader className="hidden px-6 py-3 align-middle md:table-cell">
-                Aging Days
-              </TableCell>
-              <TableCell isHeader className="px-6 py-3 align-middle text-right">
-                Actions
-              </TableCell>
+              <TableCell isHeader className="px-6 py-3">Name</TableCell>
+              <TableCell isHeader className="px-6 py-3">Lead ID</TableCell>
+              <TableCell isHeader className="px-6 py-3">Mobile No</TableCell>
+              <TableCell isHeader className="px-6 py-3">Stage</TableCell>
+              <TableCell isHeader className="px-6 py-3">Status</TableCell>
+              <TableCell isHeader className="px-6 py-3">Last contact</TableCell>
+              <TableCell isHeader className="px-6 py-3 text-center">View more</TableCell>
+              <TableCell isHeader className="px-6 py-3 text-right">Actions</TableCell>
             </TableRow>
           </TableHeader>
 
           <TableBody className="divide-y divide-gray-100 dark:divide-white/10">
-            {displayedRows.map((lead) => (
-              <TableRow
-                key={lead.id}
-                className="bg-white transition hover:bg-emerald-50/40 dark:bg-white/[0.02] dark:hover:bg-white/[0.06]"
-              >
-                <TableCell className="px-6 py-4 align-middle">
-                  <div className="flex items-center gap-3">
-                    <div className="grid h-9 w-9 place-items-center rounded-full bg-emerald-100 text-xs font-semibold uppercase text-emerald-700">
-                      {initials(lead.name)}
-                    </div>
-                    <div className="min-w-0">
-                      <div className="truncate text-sm font-medium text-gray-900 dark:text-white/90">{lead.name}</div>
-                      {lead.email && (
-                        <div className="truncate text-xs text-gray-500 dark:text-white/60">{lead.email}</div>
+            {displayedRows.map((lead) => {
+              const rowBase = lead.isNew
+                ? "bg-emerald-50/70 hover:bg-emerald-100 focus:bg-emerald-100 dark:bg-emerald-500/10 dark:hover:bg-emerald-500/15"
+                : "bg-white hover:bg-emerald-100 focus:bg-emerald-100 dark:bg-white/[0.02] dark:hover:bg-emerald-500/15";
+
+              return (
+                <TableRow
+                  key={lead.id}
+                  onClick={() => goViewLead(lead)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      goViewLead(lead);
+                    }
+                  }}
+                  role="button"
+                  tabIndex={0}
+                  className={`cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${rowBase}`}
+                >
+                  <TableCell className="px-6 py-4">
+                    <div className="flex flex-col gap-2">
+                      <div className="flex items-center gap-3">
+                        <div className="grid h-9 w-9 place-items-center rounded-full bg-emerald-500/10 text-sm font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
+                          {initials(lead.name)}
+                        </div>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm font-semibold text-gray-900 dark:text-white">{lead.name}</span>
+                            {lead.isNew && <NewBadge />}
+                          </div>
+                          <div className="text-xs text-gray-500 dark:text-white/60">{lead.leadSource || "-"}</div>
+                        </div>
+                      </div>
+                      {lead.location && (
+                        <div className="text-xs text-gray-500 dark:text-white/50">{lead.location}</div>
                       )}
                     </div>
-                  </div>
-                </TableCell>
+                  </TableCell>
 
-                <TableCell className="px-6 py-4 align-middle text-sm font-medium text-gray-700 dark:text-gray-200">
-                  {lead.leadCode ?? "-"}
-                </TableCell>
+                  <TableCell className="px-6 py-4">
+                    <div className="text-sm font-medium text-gray-800 dark:text-white/80">{lead.leadCode ?? "-"}</div>
+                    {lead.agingDays !== undefined && (
+                      <div className="text-xs text-gray-500 dark:text-white/60">{formatAgingDays(lead.agingDays)}</div>
+                    )}
+                  </TableCell>
 
-                <TableCell className="px-6 py-4 align-middle text-sm text-gray-600 dark:text-gray-300">
-                  {lead.mobile ?? "-"}
-                </TableCell>
+                  <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-white/80">
+                    {lead.mobile ?? "-"}
+                  </TableCell>
 
-                <TableCell className="hidden px-6 py-4 align-middle text-sm text-gray-600 dark:text-gray-300 md:table-cell">
-                  {lead.location ?? "-"}
-                </TableCell>
+                  <TableCell className="px-6 py-4">
+                    <StageCell stage={lead.clientStage} />
+                  </TableCell>
 
-                <TableCell className="hidden px-6 py-4 align-middle text-sm font-semibold text-gray-700 dark:text-gray-200 md:table-cell">
-                  {formatAgingDays(lead.agingDays)}
-                </TableCell>
+                  <TableCell className="px-6 py-4">
+                    <LeadStatusBadge status={lead.status} />
+                  </TableCell>
 
-                <TableCell className="px-6 py-4 align-middle">
-                  <div className="flex items-center justify-end gap-2">
+                  <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-white/80">
+                    {formatLastContact(lead.lastContactedAt)}
+                  </TableCell>
+
+                  <TableCell className="px-6 py-4 text-center">
                     <button
-                      onClick={() => goViewLead(lead)}
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        goViewLead(lead);
+                      }}
                       className="inline-flex items-center gap-2 rounded-lg border border-gray-200 px-3 py-2 text-sm font-medium text-gray-700 transition hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:text-gray-200 dark:hover:border-emerald-300 dark:hover:text-emerald-200"
                     >
-                      <span className="hidden sm:inline">View</span>
+                      View
                       <ArrowRight className="h-4 w-4" aria-hidden="true" />
                     </button>
+                  </TableCell>
 
+                  <TableCell className="px-6 py-4 text-right">
                     <button
-                      onClick={() => goCallLead(lead)}
-                      className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-3 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 focus:outline-hidden focus:ring-4 focus:ring-emerald-200"
+                      type="button"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        goCallLead(lead);
+                      }}
+                      className="inline-flex items-center gap-2 rounded-full bg-emerald-500 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-600 focus:outline-hidden focus:ring-4 focus:ring-emerald-200"
                       title="Call this lead"
                     >
                       <PhoneCall className="h-4 w-4" aria-hidden="true" />
-                      <span className="hidden xsm:inline sm:inline">Call</span>
+                      Call
                     </button>
-                  </div>
-                </TableCell>
-              </TableRow>
-            ))}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
 
             {loading && displayedRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="px-6 py-10">
+                <TableCell colSpan={8} className="px-6 py-10">
                   <div className="flex flex-col items-center justify-center gap-2 text-center text-sm text-gray-500 dark:text-white/60" role="status">
                     <Loader2 className="h-5 w-5 animate-spin text-emerald-500 dark:text-emerald-400" aria-hidden="true" />
                     <span className="font-medium text-gray-600 dark:text-white/70">Loading leads...</span>
@@ -284,7 +317,7 @@ export default function AssignedLeads({
 
             {!loading && displayedRows.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-white/60">
+                <TableCell colSpan={8} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-white/60">
                   No leads to show
                 </TableCell>
               </TableRow>
@@ -376,6 +409,67 @@ function ExportButton({ onClick, disabled }: { onClick: () => void; disabled?: b
       Export
     </Button>
   );
+}
+
+function StageCell({ stage }: { stage?: LeadStage }) {
+  if (!stage) {
+    return <span className={FALLBACK_STAGE_BADGE}>Stage pending</span>;
+  }
+
+  const meta = STAGE_META[stage];
+  const currentIndex = STAGE_SEQUENCE.indexOf(stage);
+
+  return (
+    <div className="flex flex-col gap-2">
+      <div className="flex gap-1">
+        {STAGE_SEQUENCE.map((step, index) => {
+          const tone = STAGE_META[step];
+          const isActive = index <= currentIndex;
+          let base = "bg-emerald-200/60";
+          if (index >= 4 && index <= 6) base = "bg-rose-200/40";
+          if (index === STAGE_SEQUENCE.length - 1) base = "bg-slate-200/60";
+          return (
+            <span
+              key={step}
+              className={`h-2 w-8 rounded-full transition ${isActive ? tone.barClass : base}`}
+            />
+          );
+        })}
+      </div>
+      <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${meta.pillClass}`}>
+        {meta.label}
+      </span>
+    </div>
+  );
+}
+
+function NewBadge() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-200">
+      <Sparkles className="h-3 w-3" aria-hidden="true" />
+      New
+    </span>
+  );
+}
+
+function formatLastContact(value?: string | null) {
+  if (!value) return "No contact yet";
+  try {
+    const date = parseISO(value);
+    if (!isValidDate(date)) return value;
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch (error) {
+    return value;
+  }
+}
+
+function formatLeadStatus(status?: LeadStatus) {
+  if (!status) return "Pending";
+  return status
+    .toLowerCase()
+    .split("_")
+    .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))
+    .join(" ");
 }
 
 function formatAgingDays(value?: number) {

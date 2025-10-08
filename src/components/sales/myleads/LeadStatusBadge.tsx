@@ -1,8 +1,9 @@
-import Badge from "@/components/ui/badge/Badge"
+﻿import Badge from "@/components/ui/badge/Badge";
 import { humanize } from "@/utils/formatters";
+import type { LeadStatus } from "./interface/type";
 
 type Props = {
-  status?: string | null;
+  status?: string | LeadStatus | null;
   size?: "sm" | "md";
 };
 
@@ -12,11 +13,13 @@ export default function LeadStatusBadge({ status, size = "sm" }: Props) {
   const color: React.ComponentProps<typeof Badge>["color"] =
     s === "PENDING"
       ? "warning"
-      : s === "ACTIVE" || s === "WON" || s === "COMPLETE" || s === "COMPLETED"
+      : s === "ACTIVE" || s === "OPEN" || s === "WON" || s === "COMPLETE" || s === "COMPLETED" || s === "IN_PROGRESS"
       ? "success"
       : s === "CANCEL" || s === "CANCELLED" || s === "LOST"
       ? "error"
-      : "info";
+      : s === "ON_HOLD"
+      ? "info"
+      : "secondary";
 
   return (
     <Badge size={size} color={color}>
@@ -24,4 +27,3 @@ export default function LeadStatusBadge({ status, size = "sm" }: Props) {
     </Badge>
   );
 }
-

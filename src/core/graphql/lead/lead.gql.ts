@@ -1,4 +1,4 @@
-import { gql } from "@apollo/client";
+﻿import { gql } from "@apollo/client";
 
 export const LEAD_FIELDS = gql`
   fragment LeadFields on IpkLeaddEntity {
@@ -44,8 +44,49 @@ export const MY_ASSIGNED_LEADS = gql`
   ${LEAD_FIELDS}
 `;
 
-// keep existing import naming in your components
-export { LEADS_PAGED as LEADS_OPEN };
+export const MY_ASSIGNED_LEAD_SUMMARY = gql`
+  query MyAssignedLeadSummary {
+    myAssignedLeadSummary {
+      totalAssigned
+      newToday
+      inProgress
+      hotLeads
+      dormant
+      closed
+      followUpsDueToday
+      followUpsOverdue
+    }
+  }
+`;
+
+export const LEAD_DETAIL_WITH_TIMELINE = gql`
+  query LeadDetailWithTimeline($id: ID!) {
+    lead(id: $id) {
+      ...LeadFields
+      assignedRM
+    }
+    leadEvents(leadId: $id) {
+      id
+      type
+      occurredAt
+      note
+      summary
+      prevStatus
+      nextStatus
+      prevStage
+      nextStage
+      followUpOn
+      createdAt
+      author {
+        id
+        name
+        initials
+        avatarUrl
+      }
+    }
+  }
+  ${LEAD_FIELDS}
+`;
 
 export const CREATE_LEAD = gql`
   mutation CreateIpkLeadd($input: CreateIpkLeaddInput!) {
@@ -68,7 +109,47 @@ export const ASSIGN_LEADS = gql`
   ${LEAD_FIELDS}
 `;
 
-/** 
+export const UPDATE_LEAD_PROGRESS = gql`
+  mutation UpdateLeadProgress($id: ID!, $input: UpdateLeadProgressInput!) {
+    updateLeadProgress(id: $id, input: $input) {
+      id
+      status
+      clientStage
+      remark
+      lastContactedAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_LEAD_EVENT = gql`
+  mutation CreateLeadEvent($input: CreateLeadEventInput!) {
+    createLeadEvent(input: $input) {
+      id
+      type
+      occurredAt
+      note
+      summary
+      prevStatus
+      nextStatus
+      prevStage
+      nextStage
+      followUpOn
+      createdAt
+      author {
+        id
+        name
+        initials
+        avatarUrl
+      }
+    }
+  }
+`;
+
+// keep existing import naming in your components
+export { LEADS_PAGED as LEADS_OPEN };
+
+/**
  * If/when your server adds the autoAssign flag,
  * switch this to:
  *
