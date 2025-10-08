@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Download, RefreshCcw, Search } from 'lucide-react';
+import { ArrowLeft, Download, RefreshCcw, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 import ComponentCard from '@/components/common/ComponentCard';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
@@ -21,6 +22,7 @@ type StageCardInfo = {
 };
 
 export default function LeadStagesPage() {
+  const navigate = useNavigate();
   const [selectedStage, setSelectedStage] = useState<StageFilter>('ALL');
   const [q, setQ] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
@@ -89,7 +91,15 @@ export default function LeadStagesPage() {
   return (
     <>
       <PageMeta title='Lead stages' description='Track pipeline health by stage' />
-      <PageBreadcrumb pageTitle='Lead Stages' items={[{ label: 'Assigned Leads', href: '/sales/assigned' }]} />
+      <div className='mb-2 flex items-center gap-3'>
+        <button
+          onClick={() => navigate('/sales/assigned')}
+          className='inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]'
+        >
+          <ArrowLeft className='h-4 w-4' /> Back to Lead Management
+        </button>
+      </div>
+      <PageBreadcrumb pageTitle='Lead Stages' items={[{ label: 'Lead Management', href: '/sales/assigned' }]} />
 
       <section className='mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
         {stageCards.map((card) => {

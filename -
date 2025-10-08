@@ -116,9 +116,6 @@ const AppSidebar: React.FC = () => {
     {}
   );
   const subMenuRefs = useRef<Record<string, HTMLDivElement | null>>({});
-  const [openChild, setOpenChild] = useState<Record<string, boolean>>({});
-  const childRefs = useRef<Record<string, HTMLUListElement | null>>({});
-  const [childHeights, setChildHeights] = useState<Record<string, number>>({});
 
   // const isActive = (path: string) => location.pathname === path;
   const isActive = useCallback(
@@ -147,17 +144,6 @@ const AppSidebar: React.FC = () => {
               });
               submenuMatched = true;
             }
-            if (subItem.children) {
-              subItem.children.forEach((child) => {
-                if (isActive(child.path)) {
-                  setOpenSubmenu({
-                    type: menuType as "main" | "others",
-                    index,
-                  });
-                  submenuMatched = true;
-                }
-              });
-            }
           });
         }
       });
@@ -179,15 +165,6 @@ const AppSidebar: React.FC = () => {
       }
     }
   }, [openSubmenu]);
-
-  // measure heights of child lists for smooth animation
-  useEffect(() => {
-    const next: Record<string, number> = {};
-    Object.keys(childRefs.current).forEach((k) => {
-      next[k] = childRefs.current[k]?.scrollHeight || 0;
-    });
-    setChildHeights(next);
-  }, [openSubmenu, openChild, isExpanded, isHovered, isMobileOpen]);
 
   const handleSubmenuToggle = (index: number, menuType: "main" | "others") => {
     setOpenSubmenu((prevOpenSubmenu) => {
@@ -279,88 +256,44 @@ const AppSidebar: React.FC = () => {
               }}
             >
               <ul className="mt-2 space-y-1 ml-9">
-                {nav.subItems.map((subItem, subIndex) => {
-                  const key = `${menuType}-${index}-${subIndex}`;
-                  const hasChildren = Boolean(subItem.children && subItem.children.length > 0);
-                  const isOpen = hasChildren ? openChild[key] !== false : true; // default open
-                  return (
-                    <li key={subItem.name}>
-                      <div className="flex items-center gap-2">
-                        <Link
-                          to={subItem.path}
-                          className={`flex-1 menu-dropdown-item ${
-                            isActive(subItem.path)
-                              ? "menu-dropdown-item-active"
-                              : "menu-dropdown-item-inactive"
-                          }`}
-                        >
-                          {subItem.name}
-                          <span className="flex items-center gap-1 ml-auto">
-                            {subItem.new && (
-                              <span
-                                className={`ml-auto ${
-                                  isActive(subItem.path)
-                                    ? "menu-dropdown-badge-active"
-                                    : "menu-dropdown-badge-inactive"
-                                } menu-dropdown-badge`}
-                              >
-                                new
-                              </span>
-                            )}
-                            {subItem.pro && (
-                              <span
-                                className={`ml-auto ${
-                                  isActive(subItem.path)
-                                    ? "menu-dropdown-badge-active"
-                                    : "menu-dropdown-badge-inactive"
-                                } menu-dropdown-badge`}
-                              >
-                                pro
-                              </span>
-                            )}
-                          </span>
-                        </Link>
-                        {hasChildren && (
-                          <button
-                            aria-label="Toggle submenu"
-                            className={`p-1 rounded hover:bg-gray-50 dark:hover:bg-white/[0.06] ${
-                              isOpen ? 'rotate-180' : ''
-                            }`}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              e.stopPropagation();
-                              setOpenChild((s) => ({ ...s, [key]: !isOpen }));
-                            }}
+                {nav.subItems.map((subItem) => (
+                  <li key={subItem.name}>
+                    <Link
+                      to={subItem.path}
+                      className={`menu-dropdown-item ${
+                        isActive(subItem.path)
+                          ? "menu-dropdown-item-active"
+                          : "menu-dropdown-item-inactive"
+                      }`}
+                    >
+                      {subItem.name}
+                      <span className="flex items-center gap-1 ml-auto">
+                        {subItem.new && (
+                          <span
+                            className={`ml-auto ${
+                              isActive(subItem.path)
+                                ? "menu-dropdown-badge-active"
+                                : "menu-dropdown-badge-inactive"
+                            } menu-dropdown-badge`}
                           >
-                            <ChevronDownIcon className="h-4 w-4" />
-                          </button>
+                            new
+                          </span>
                         )}
-                      </div>
-                      {hasChildren && (
-                        <ul
-                          ref={(el) => (childRefs.current[key] = el)}
-                          className="mt-1 ml-5 space-y-1 overflow-hidden transition-all duration-300"
-                          style={{ height: isOpen ? `${childHeights[key] || 0}px` : '0px' }}
-                        >
-                          {subItem.children!.map((child) => (
-                            <li key={child.path}>
-                              <Link
-                                to={child.path}
-                                className={`menu-dropdown-item pl-7 text-sm ${
-                                  isActive(child.path)
-                                    ? "menu-dropdown-item-active"
-                                    : "menu-dropdown-item-inactive"
-                                }`}
-                              >
-                                {child.name}
-                              </Link>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </li>
-                  );
-                })}
+                        {subItem.pro && (
+                          <span
+                            className={`ml-auto ${
+                              isActive(subItem.path)
+                                ? "menu-dropdown-badge-active"
+                                : "menu-dropdown-badge-inactive"
+                            } menu-dropdown-badge`}
+                          >
+                            pro
+                          </span>
+                        )}
+                      </span>
+                    </Link>
+                  </li>
+                ))}
               </ul>
             </div>
           )}

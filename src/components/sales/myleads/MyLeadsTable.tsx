@@ -14,61 +14,8 @@ type LeadRow = {
   createdAt?: string | null;
 };
 
-// Temporary sample data. Replace with GraphQL rows later.
-const sampleRows: LeadRow[] = [
-  {
-    id: 1,
-    leadCode: "DE124321",
-    name: "John Doe",
-    leadSource: "referral",
-    product: "SIP",
-    clientTypes: "Interested",
-    status: "PENDING",
-    createdAt: "2024-06-15T10:10:10Z",
-  },
-  {
-    id: 2,
-    leadCode: "DE124322",
-    name: "Jane Smith",
-    leadSource: "website",
-    product: "IAP",
-    clientTypes: "Enquiry",
-    status: "PENDING",
-    createdAt: "2024-06-18T09:00:00Z",
-  },
-  {
-    id: 3,
-    leadCode: "DE124323",
-    name: "Michael Brown",
-    leadSource: "youtube",
-    product: "SIP",
-    clientTypes: "Important",
-    status: "CANCEL",
-    createdAt: "2024-06-20T09:00:00Z",
-  },
-  {
-    id: 4,
-    leadCode: "DE124324",
-    name: "Alice Johnson",
-    leadSource: "referral",
-    product: "IAP",
-    clientTypes: "Enquiry",
-    status: "PENDING",
-    createdAt: "2024-06-25T09:00:00Z",
-  },
-  {
-    id: 5,
-    leadCode: "DE124325",
-    name: "Robert Lee",
-    leadSource: "meta",
-    product: "SIP",
-    clientTypes: "Interested",
-    status: "ACTIVE",
-    createdAt: "2024-06-30T09:00:00Z",
-  },
-];
 
-export default function MyLeadsTable({ rows = sampleRows }: { rows?: LeadRow[] }) {
+export default function MyLeadsTable( rows?: LeadRow[] ) {
   const fmtDate = (d?: string | null) => (d ? String(d).slice(0, 10) : "-");
   const firstType = (v?: string | string[] | null) =>
     Array.isArray(v) ? v[0] : v || undefined;

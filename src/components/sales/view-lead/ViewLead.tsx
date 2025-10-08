@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 ﻿import { useLocation, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "@apollo/client";
@@ -24,6 +25,14 @@ import {
 } from "lucide-react";
 import { format, formatDistanceToNow, parseISO } from "date-fns";
 import { toast } from "react-toastify";
+=======
+import { useLocation, useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import Badge from "@/components/ui/badge/Badge";
+import { AlertCircle, CheckCircle2, Info, X } from "lucide-react";
+import { LeadStage } from "@/components/sales/myleads/interface/type";
+import { pushRecentLead } from "@/features/leads/profile/recentLeads";
+>>>>>>> 50797a49eecc78417ae2cf172a4b7220bc6bc280
 
 import { useAuth } from "@/context/AuthContex";
 
@@ -240,9 +249,25 @@ export default function ViewLead() {
   const [eventForm, setEventForm] = useState<EventFormState>({ type: "NOTE", note: "", followUpOn: "" });
 
   useEffect(() => {
+<<<<<<< HEAD
     setStatusValue(normalizedLead?.status);
     setStageValue(normalizedLead?.clientStage);
   }, [normalizedLead?.status, normalizedLead?.clientStage]);
+=======
+    if (!lead) return;
+    // Remember in recent profiles list
+    try {
+      pushRecentLead({ id: String(lead.id ?? id ?? ""), leadCode: lead.leadCode ?? undefined, name: lead.name, phone: lead.phone });
+    } catch {}
+    setForm((state) => ({
+      ...state,
+      product: state.product || lead.product || "",
+      professionDetails: state.professionDetails || lead.profession || "",
+      businessOrCompany: state.businessOrCompany || lead.company || "",
+      status: state.status ?? lead.status ?? null,
+    }));
+  }, [lead]);
+>>>>>>> 50797a49eecc78417ae2cf172a4b7220bc6bc280
 
   const handleEditField = (field: EditableLeadField) => {
     const label = FIELD_LABELS[field] ?? humanize(field);
@@ -331,19 +356,257 @@ export default function ViewLead() {
     }
   };
 
+<<<<<<< HEAD
   if (!leadId) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-800 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
         Missing lead id. Use the Assigned Leads list to open a lead profile.
+=======
+  const save = () => {
+    console.log("Dummy save for lead", id, form);
+    showPrompt({
+      tone: "success",
+      title: "Changes staged",
+      message: "Preview only. Connect the API to persist updates.",
+    });
+  };
+
+  const explainedId = "rg-explained";
+  const channelId = "rg-channel";
+  const fallbackValue = "--";
+
+  const statusSelectOptions = useMemo<[string, string][]>(() => {
+    return [["", "Select stage"], ...STATUS_OPTIONS.map(([value, label]) => [value, label])];
+  }, []);
+
+  const productSelectOptions = useMemo<[string, string][]>(() => {
+    const base = [...PRODUCT_OPTIONS];
+    const leadProduct = (lead?.product ?? "").trim();
+    if (leadProduct && !base.some(([value]) => value === leadProduct)) {
+      base.push([leadProduct, leadProduct]);
+    }
+    return base;
+  }, [lead?.product]);
+
+  const selectedStatusLabel = form.status
+    ? STATUS_OPTIONS.find(([value]) => value === form.status)?.[1] ?? "Status"
+    : "Stage not selected";
+  const statusBadgeColor = form.status ? "success" : "warning";
+  const heroProduct = form.product || lead?.product || null;
+  const summaryProduct = heroProduct ?? fallbackValue;
+  const summaryCompany = form.businessOrCompany?.trim() || lead?.company || null;
+  const snapshotAssignedAt = lead?.assignedAt ? new Date(lead.assignedAt).toLocaleString() : null;
+
+  return (
+    <div className="relative space-y-6">
+      {prompt && <PromptOverlay prompt={prompt} onDismiss={() => setPrompt(null)} />}
+
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        {/* <h1 className="text-xl font-semibold tracking-tight text-gray-900 dark:text-white">View Lead</h1> */}
+
+        <div className="flex flex-wrap items-center gap-2">
+          {heroProduct && (
+            <Badge size="sm" color="info">{heroProduct}</Badge>
+          )}
+          <Badge size="sm" color={statusBadgeColor}>
+            {selectedStatusLabel}
+          </Badge>
+        </div>
+>>>>>>> 50797a49eecc78417ae2cf172a4b7220bc6bc280
       </div>
     );
   }
 
+<<<<<<< HEAD
   if (loading && !normalizedLead) {
     return (
       <div className="flex min-h-[240px] items-center justify-center text-sm font-medium text-gray-500 dark:text-white/70">
         <Loader2 className="mr-2 h-5 w-5 animate-spin text-emerald-500" aria-hidden="true" />
         Loading lead details...
+=======
+      <div className="grid gap-6 xl:grid-cols-3">
+        <div className="space-y-6 xl:col-span-2">
+          <Card className="border-emerald-100/70 bg-gradient-to-br from-white/95 via-white/95 to-emerald-50/70 shadow-lg shadow-emerald-100/60 backdrop-blur dark:border-emerald-400/20 dark:from-white/[0.08] dark:via-white/[0.05] dark:to-emerald-500/10">
+            <SectionTitle>Lead snapshot</SectionTitle>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <DetailBlock label="Lead code">
+                {lead?.leadCode ? (
+                  <div className="flex items-center gap-2">
+                    <span className="inline-flex items-center rounded-xl bg-emerald-100/80 px-3 py-1 text-sm font-semibold text-emerald-700">
+                      {lead.leadCode}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={copyLeadCode}
+                      className="rounded-xl border border-emerald-200/70 bg-white/80 px-3 py-1 text-xs font-medium text-emerald-700 shadow-sm transition hover:bg-emerald-100 focus:outline-hidden focus:ring-2 focus:ring-emerald-200 dark:border-emerald-400/40 dark:bg-white/10 dark:text-emerald-100 dark:hover:bg-emerald-500/20"
+                      title="Copy lead code"
+                    >
+                      Copy
+                    </button>
+                  </div>
+                ) : (
+                  fallbackValue
+                )}
+              </DetailBlock>
+              <DetailBlock label="Lead name">{lead?.name ?? fallbackValue}</DetailBlock>
+              <DetailBlock label="Current stage">{selectedStatusLabel}</DetailBlock>
+              <DetailBlock label="Product">{summaryProduct}</DetailBlock>
+              <DetailBlock label="Mobile number">{lead?.phone || (lead as any)?.mobile || fallbackValue}</DetailBlock>
+              <DetailBlock label="Lead source">{lead?.leadSource ?? fallbackValue}</DetailBlock>
+              <DetailBlock label="Assigned date">{snapshotAssignedAt ?? fallbackValue}</DetailBlock>
+              <DetailBlock label="Company">{summaryCompany ?? fallbackValue}</DetailBlock>
+            </div>
+          </Card>
+
+          <Card className="border-sky-100/60 bg-white/95 shadow-md dark:border-sky-400/20 dark:bg-white/[0.08]">
+            <SectionTitle>Your interaction & connected channels</SectionTitle>
+
+            <div className="grid grid-cols-1 gap-4 text-sm md:grid-cols-2">
+              <div role="radiogroup" aria-labelledby={explainedId} className="space-y-2 md:col-span-2">
+                <div id={explainedId} className="text-xs font-medium text-gray-600 dark:text-white/70">
+                  Product explained?
+                </div>
+                <div className="flex flex-wrap gap-3">
+                  <Radio
+                    name="explained"
+                    checked={form.explained === "yes"}
+                    onChange={() => set("explained", "yes")}
+                    label="Yes"
+                  />
+                  <Radio
+                    name="explained"
+                    checked={form.explained === "no"}
+                    onChange={() => set("explained", "no")}
+                    label="No"
+                  />
+                </div>
+              </div>
+
+              {form.explained === "yes" && (
+                <div role="radiogroup" aria-labelledby={channelId} className="space-y-2 md:col-span-2">
+                  <div id={channelId} className="text-xs font-medium text-gray-600 dark:text-white/70">
+                    Channel
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    {(["whatsapp", "call", "zoom"] as const).map((ch) => (
+                      <Radio
+                        key={ch}
+                        name="channel"
+                        checked={form.channel === ch}
+                        onChange={() => set("channel", ch)}
+                        label={ch === "zoom" ? "Zoom/Meet" : ch}
+                      />
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {form.explained === "no" && (
+                <LabeledTextArea
+                  label="Reason"
+                  value={form.reasonIfNo}
+                  onChange={(v) => set("reasonIfNo", v)}
+                  placeholder="Why was the product not explained?"
+                  className="md:col-span-2"
+                />
+              )}
+
+              <LabeledSelect
+                label="Event status"
+                value={form.status ?? ""}
+                onChange={(v) => set("status", v ? (v as LeadStage) : null)}
+                options={statusSelectOptions}
+                className="md:col-span-2"
+              />
+
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:col-span-2">
+                <LabeledInput
+                  type="datetime-local"
+                  label="Next follow-up date"
+                  value={form.nextFollowAt ?? ""}
+                  onChange={(v) => set("nextFollowAt", v)}
+                />
+                <LabeledInput
+                  label="Lead code"
+                  value={lead?.leadCode ?? ""}
+                  disabled
+                  placeholder="Not available"
+                  inputClassName="border-emerald-300 bg-emerald-50 text-emerald-700 font-semibold disabled:opacity-100"
+                />
+              </div>
+
+              <LabeledTextArea
+                className="md:col-span-2"
+                label="Notes"
+                value={form.notes}
+                onChange={(v) => set("notes", v)}
+                placeholder="Any remarks from the conversation"
+              />
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <button
+                onClick={save}
+                className="h-11 rounded-xl bg-emerald-600 px-6 text-sm font-semibold text-white shadow-sm transition hover:bg-emerald-700 active:scale-[.99]"
+              >
+                Save
+              </button>
+            </div>
+          </Card>
+        </div>
+
+        <div className="space-y-6">
+          <Card className="border-emerald-100/60 bg-white/95 shadow-md dark:border-emerald-400/20 dark:bg-white/[0.08]">
+            <SectionTitle>Additional details</SectionTitle>
+            <div className="grid grid-cols-1 gap-4 text-sm sm:grid-cols-2">
+              <LabeledSelect
+                label="Product"
+                value={form.product || ""}
+                onChange={(v) => set("product", v)}
+                options={productSelectOptions}
+              />
+              <LabeledInput
+                label="Investment range"
+                value={form.investmentRange ?? ""}
+                onChange={(v) => set("investmentRange", v)}
+                placeholder="e.g., 10k-25k"
+              />
+              <LabeledSelect
+                label="Type of client"
+                value={form.clientType ?? "employee"}
+                onChange={(v) => set("clientType", v as EventForm["clientType"])}
+                options={[
+                  ["employee", "Employee"],
+                  ["business", "Business"],
+                  ["student", "Student"],
+                  ["retired", "Retired"],
+                  ["other", "Other"],
+                ]}
+              />
+              <LabeledInput
+                label="Alternate mobile number"
+                value={form.altPhone ?? ""}
+                onChange={(v) => set("altPhone", v)}
+                placeholder="Optional"
+              />
+              <LabeledInput
+                label="Business / Company"
+                value={form.businessOrCompany || lead?.company || ""}
+                onChange={(v) => set("businessOrCompany", v)}
+                placeholder="Company name"
+                className="sm:col-span-2"
+              />
+              <LabeledInput
+                label="Profession details"
+                value={form.professionDetails || lead?.profession || ""}
+                onChange={(v) => set("professionDetails", v)}
+                placeholder="Designation or domain"
+                className="sm:col-span-2"
+              />
+            </div>
+          </Card>
+        </div>
+>>>>>>> 50797a49eecc78417ae2cf172a4b7220bc6bc280
       </div>
     );
   }
