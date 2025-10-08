@@ -126,7 +126,7 @@ Root path: `d:\IPK WorkSapce\New folder\Ipkwealth-web`
 │   │   │   │   ├── mockData.ts
 │   │   │   │   ├── stageMeta.ts
 │   │   │   │   └── types.ts
-│   │   │   └── view-lead/
+│   │   │   └── view_lead/
 │   │   │       └── ViewLead.tsx
 │   │   ├── sales_dashboard/
 │   │   │   ├── EstimatedTarget.tsx

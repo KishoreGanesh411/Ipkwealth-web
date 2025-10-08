@@ -1,13 +1,9 @@
 import ComponentCard from "@/components/common/ComponentCard";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import PageMeta from "@/components/common/PageMeta";
-<<<<<<< HEAD
 import ViewLead from "@/components/sales/view_lead/ViewLead";
-=======
-import ViewLead from "@/components/sales/view-lead/ViewLead";
 import { ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router-dom";
->>>>>>> 50797a49eecc78417ae2cf172a4b7220bc6bc280
 
 export default function ViewLeadPage() {
   const navigate = useNavigate();

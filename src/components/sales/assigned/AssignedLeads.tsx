@@ -306,14 +306,15 @@ export default function AssignedLeads({
 
             {loading && displayedRows.length === 0 && (
               <TableRow>
-<<<<<<< HEAD
                 <TableCell colSpan={8} className="px-6 py-10">
-                  <div className="flex flex-col items-center justify-center gap-2 text-center text-sm text-gray-500 dark:text-white/60" role="status">
-=======
-                <TableCell colSpan={6} className="px-6 py-10 text-center">
-                  <div className="w-full flex flex-col items-center justify-center gap-2 text-center text-sm text-gray-500 dark:text-white/60" role="status">
->>>>>>> 50797a49eecc78417ae2cf172a4b7220bc6bc280
-                    <Loader2 className="h-5 w-5 animate-spin text-emerald-500 dark:text-emerald-400" aria-hidden="true" />
+                  <div
+                    className="flex flex-col items-center justify-center gap-2 text-center text-sm text-gray-500 dark:text-white/60"
+                    role="status"
+                  >
+                    <Loader2
+                      className="h-5 w-5 animate-spin text-emerald-500 dark:text-emerald-400"
+                      aria-hidden="true"
+                    />
                     <span className="font-medium text-gray-600 dark:text-white/70">Loading leads...</span>
                   </div>
                 </TableCell>
