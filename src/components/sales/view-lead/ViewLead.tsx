@@ -244,6 +244,11 @@ export default function ViewLead() {
     setStageValue(normalizedLead?.clientStage);
   }, [normalizedLead?.status, normalizedLead?.clientStage]);
 
+  const handleEditField = (field: EditableLeadField) => {
+    const label = FIELD_LABELS[field] ?? humanize(field);
+    toast.info(`Update ${label} from the profile header`);
+  };
+
   const handleStatusChange = async (next: string) => {
     if (!normalizedLead || !leadId) return;
     const previous = statusValue;
@@ -373,7 +378,14 @@ export default function ViewLead() {
 
   return (
     <div className="space-y-6">
-      <LeadProfileHeader lead={normalizedLead} stageMeta={stageMeta} loading={loading} />
+      <LeadProfileHeader
+        lead={normalizedLead}
+        stageMeta={stageMeta}
+        loading={loading}
+        isAdmin={isAdmin}
+        canEditProfile={canEditProfile}
+        onEditField={handleEditField}
+      />
 
       <div className="grid gap-6 lg:grid-cols-[320px,minmax(0,1fr)]">
         <aside className="flex flex-col gap-6">
@@ -422,6 +434,27 @@ export default function ViewLead() {
   );
 }
 
+type EditableLeadField =
+  | "email"
+  | "phone"
+  | "location"
+  | "product"
+  | "investmentRange"
+  | "designation"
+  | "referral"
+  | "assignedRm";
+
+const FIELD_LABELS: Record<EditableLeadField, string> = {
+  email: "Email",
+  phone: "Mobile number",
+  location: "Location",
+  product: "Product",
+  investmentRange: "Investment range",
+  designation: "Designation",
+  referral: "Referral person",
+  assignedRm: "Assigned RM",
+};
+
 type LeadProfile = {
   id: string;
   name: string;
@@ -431,6 +464,11 @@ type LeadProfile = {
   mobile: string | null | undefined;
   location: string | null | undefined;
   leadSource: string | null | undefined;
+  product?: string | null;
+  investmentRange?: string | null;
+  designation?: string | null;
+  referralName?: string | null;
+  referralCode?: string | null;
   status?: LeadStatus;
   clientStage?: LeadStage;
   remark?: string | null;
@@ -445,9 +483,12 @@ type LeadProfileHeaderProps = {
   lead: LeadProfile;
   stageMeta: (typeof STAGE_META)[LeadStage] | null;
   loading: boolean;
+  isAdmin: boolean;
+  canEditProfile: boolean;
+  onEditField: (field: EditableLeadField) => void;
 };
 
-function LeadProfileHeader({ lead, stageMeta, loading }: LeadProfileHeaderProps) {
+function LeadProfileHeader({ lead, stageMeta, loading, isAdmin, canEditProfile, onEditField }: LeadProfileHeaderProps) {
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
       <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
@@ -466,7 +507,13 @@ function LeadProfileHeader({ lead, stageMeta, loading }: LeadProfileHeaderProps)
                 </span>
               )}
             </div>
-            <LeadMeta lead={lead} loading={loading} />
+            <LeadMeta
+              lead={lead}
+              loading={loading}
+              isAdmin={isAdmin}
+              canEdit={canEditProfile}
+              onEditField={onEditField}
+            />
           </div>
         </div>
         {lead.leadCode && (
@@ -487,43 +534,131 @@ function LeadProfileHeader({ lead, stageMeta, loading }: LeadProfileHeaderProps)
 type LeadMetaProps = {
   lead: LeadProfile;
   loading: boolean;
+  isAdmin: boolean;
+  canEdit: boolean;
+  onEditField: (field: EditableLeadField) => void;
 };
 
-function LeadMeta({ lead, loading }: LeadMetaProps) {
-  const items = [
+function LeadMeta({ lead, loading, isAdmin, canEdit, onEditField }: LeadMetaProps) {
+  const showReferral = (lead.leadSource ?? "").toLowerCase() === "referral";
+  const referralValue =
+    lead.referralName?.trim() || lead.referralCode?.trim() || "No referral provided";
+
+  type MetaRow = {
+    key: string;
+    icon: typeof Mail;
+    label: string;
+    value: string;
+    field?: EditableLeadField;
+    editable?: boolean;
+    visible?: boolean;
+  };
+
+  const rows: MetaRow[] = [
     {
+      key: "email",
       icon: Mail,
-      label: lead.email ?? "No email",
+      label: "Email",
+      value: lead.email ?? "No email",
+      field: "email",
+      editable: canEdit,
     },
     {
+      key: "phone",
       icon: PhoneCall,
-      label: lead.mobile ?? lead.phone ?? "No phone",
+      label: "Mobile number",
+      value: lead.mobile ?? lead.phone ?? "No phone",
+      field: "phone",
+      editable: canEdit,
     },
     {
+      key: "location",
       icon: MapPin,
-      label: lead.location ?? "Location unknown",
+      label: "Location",
+      value: lead.location ?? "Location unknown",
+      field: "location",
+      editable: canEdit,
     },
     {
+      key: "assignedRm",
       icon: UserRound,
-      label: lead.assignedRmDetails?.name ?? lead.assignedRm ?? "Unassigned",
+      label: "Assigned RM",
+      value: lead.assignedRmDetails?.name ?? lead.assignedRm ?? "Unassigned",
+      field: "assignedRm",
+      editable: isAdmin,
+      visible: isAdmin,
     },
     {
+      key: "product",
+      icon: Package,
+      label: "Product",
+      value: lead.product?.trim() || "Not specified",
+      field: "product",
+      editable: canEdit,
+    },
+    {
+      key: "investmentRange",
+      icon: CircleDollarSign,
+      label: "Investment range",
+      value: formatInvestmentRange(lead.investmentRange),
+      field: "investmentRange",
+      editable: canEdit,
+      visible: !!lead.investmentRange || canEdit,
+    },
+    {
+      key: "designation",
+      icon: Briefcase,
+      label: "Designation",
+      value: lead.designation?.trim() || "Not provided",
+      field: "designation",
+      editable: canEdit,
+      visible: !!lead.designation || canEdit,
+    },
+    {
+      key: "referral",
+      icon: UserPlus,
+      label: "Referral person",
+      value: referralValue,
+      field: "referral",
+      editable: canEdit,
+      visible: showReferral,
+    },
+    {
+      key: "lastContact",
       icon: Clock,
-      label: lead.lastContactedAt ? `Last contact ${formatRelative(lead.lastContactedAt)}` : "No contact logged",
+      label: "Last contact",
+      value: lead.lastContactedAt
+        ? `Last contact ${formatRelative(lead.lastContactedAt)}`
+        : "No contact logged",
     },
   ];
 
   return (
     <div className="mt-3 grid gap-3 sm:grid-cols-2">
-      {items.map(({ icon: Icon, label }) => (
-        <div
-          key={label}
-          className={`flex items-center gap-2 rounded-xl border border-gray-100 bg-white/70 px-3 py-2 text-sm text-gray-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70 ${loading ? "opacity-70" : ""}`}
-        >
-          <Icon className="h-4 w-4 text-emerald-500" aria-hidden="true" />
-          <span className="truncate" title={label ?? undefined}>{label}</span>
-        </div>
-      ))}
+      {rows
+        .filter((row) => row.visible !== false)
+        .map(({ key, icon: Icon, label, value, field, editable }) => (
+          <div
+            key={key}
+            className={`flex items-center gap-2 rounded-xl border border-gray-100 bg-white/70 px-3 py-2 text-sm text-gray-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70 ${loading ? "opacity-70" : ""}`}
+          >
+            <Icon className="h-4 w-4 text-emerald-500" aria-hidden="true" />
+            <span className="truncate text-left text-sm font-medium text-gray-700 dark:text-white/70" title={value}>
+              {value}
+            </span>
+            {editable && field && (
+              <button
+                type="button"
+                onClick={() => onEditField(field)}
+                className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-gray-400 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600 focus:outline-hidden focus:ring-2 focus:ring-emerald-200 dark:text-white/40 dark:hover:border-emerald-400/40 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-200"
+                title={`Edit ${label.toLowerCase()}`}
+              >
+                <PencilLine className="h-4 w-4" aria-hidden="true" />
+                <span className="sr-only">Edit {label}</span>
+              </button>
+            )}
+          </div>
+        ))}
     </div>
   );
 }
@@ -780,6 +915,11 @@ function formatRelative(value?: string | null) {
   } catch (error) {
     return value;
   }
+}
+
+function formatInvestmentRange(value?: string | null) {
+  if (!value) return "Not captured";
+  return value;
 }
 
 function pickLeadStage(value?: string | null): LeadStage | undefined {

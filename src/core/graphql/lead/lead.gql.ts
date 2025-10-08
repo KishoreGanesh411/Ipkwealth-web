@@ -63,7 +63,20 @@ export const LEAD_DETAIL_WITH_TIMELINE = gql`
   query LeadDetailWithTimeline($id: ID!) {
     lead(id: $id) {
       ...LeadFields
-      assignedRM
+      location
+      city
+      product
+      investmentRange
+      designation
+      referralName
+      referralCode
+      remark
+      assignedRmDetails {
+        id
+        name
+        email
+        phone
+      }
     }
     leadEvents(leadId: $id) {
       id
