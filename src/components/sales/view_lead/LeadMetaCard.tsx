@@ -1,4 +1,5 @@
 import {
+  Building,
   Building2,
   CircleDollarSign,
   Clock,
@@ -11,6 +12,7 @@ import {
   Briefcase,
   UserPlus,
   UserRound,
+  User,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import {
@@ -18,6 +20,7 @@ import {
   formatRelative,
   formatSipAmount,
   resolveStageDisplay,
+  humanize,
 } from "./interface/utils";
 import type { EditableLeadField, LeadProfile } from "./interface/types";
 
@@ -47,10 +50,6 @@ type Row = {
 };
 
 export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditField }: Props) {
-  const showReferral = (lead.leadSource ?? "").toLowerCase() === "referral";
-  const referralValue =
-    lead.referralName?.trim() || lead.referralCode?.trim() || "No referral provided";
-
   const stageInfo = resolveStageDisplay({
     rawStage: lead.clientStageRaw,
     normalizedStage: lead.clientStage,
@@ -64,8 +63,33 @@ export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditFi
       ? "text-rose-600 dark:text-rose-200"
       : "text-gray-500 dark:text-white/60";
 
-  const occupation = lead.profession?.trim() || lead.designation?.trim();
-  const company = lead.companyName?.trim();
+  const profession = lead.profession?.trim() || "";
+  const designation = lead.designation?.trim() || "";
+  const company = lead.companyName?.trim() || "";
+  const occupationPrimary = profession || designation || company;
+  const occupationKey = occupationPrimary ? occupationPrimary.toLowerCase() : "";
+  const occupationSecondaryParts: string[] = [];
+  if (designation && designation.toLowerCase() !== occupationKey) {
+    occupationSecondaryParts.push(designation);
+  }
+  if (company && company.toLowerCase() !== occupationKey) {
+    occupationSecondaryParts.push(company);
+  }
+  const occupationSecondary =
+    occupationSecondaryParts.length > 0 ? occupationSecondaryParts.join(" | ") : null;
+
+  const genderRaw = lead.gender?.trim() || "";
+  const genderDisplay = genderRaw ? humanize(genderRaw) : "Unknown";
+
+  const location = lead.location?.trim() || "";
+  const product = lead.product?.trim() || "";
+
+  const referralName = lead.referralName?.trim() || "";
+  const referralCode = lead.referralCode?.trim() || "";
+  const hasReferral = Boolean(referralName || referralCode);
+  const referralValue = hasReferral ? referralName || referralCode : "No referral provided";
+  const referralSecondary = referralName && referralCode ? `Code: ${referralCode}` : undefined;
+  const showReferral = hasReferral;
 
   const hasInvestmentRange = !!lead.investmentRange?.trim();
   const hasSipAmount = lead.sipAmount !== null && lead.sipAmount !== undefined;
@@ -125,10 +149,10 @@ export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditFi
       key: "location",
       icon: MapPin,
       label: "Location",
-      value: lead.location ?? "Location unknown",
+      value: location || "Location unknown",
       field: "location",
       editable: canEdit,
-      muted: !lead.location,
+      muted: !location,
     },
     {
       key: "assignedRm",
@@ -144,21 +168,37 @@ export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditFi
       key: "occupation",
       icon: Briefcase,
       label: "Occupation",
-      value: occupation || "Not captured",
-      secondary: company || null,
-      field: lead.profession ? "profession" : "designation",
+      value: occupationPrimary || "Not captured",
+      secondary: occupationSecondary,
+      field: profession ? "profession" : designation ? "designation" : undefined,
       editable: canEdit,
-      visible: !!occupation || !!company || canEdit,
-      muted: !(occupation || company),
+      visible: Boolean(occupationPrimary || occupationSecondary || canEdit),
+      muted: !(occupationPrimary || occupationSecondary),
     },
     {
       key: "product",
       icon: Package,
       label: "Product",
-      value: lead.product?.trim() || "Not specified",
+      value: product || "Not specified",
       field: "product",
       editable: canEdit,
-      muted: !lead.product,
+      muted: !product,
+    },
+    {
+      key: "gender",
+      icon: User,
+      label: "Gender",
+      value: genderDisplay,
+      muted: !genderRaw,
+    },
+    {
+      key: "company",
+      icon: Building,
+      label: "Company",
+      value: company || "Not captured",
+      secondary: designation && designation.toLowerCase() !== occupationKey ? designation : null,
+      visible: Boolean(company || designation || canEdit),
+      muted: !(company || designation),
     },
     {
       key: "investmentRange",
@@ -182,11 +222,13 @@ export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditFi
     {
       key: "referral",
       icon: UserPlus,
-      label: "Referral person",
+      label: "Referral",
       value: referralValue,
-      field: "referralName",
+      secondary: referralSecondary ?? null,
+      field: referralName ? "referralName" : referralCode ? "referralCode" : undefined,
       editable: canEdit,
       visible: showReferral,
+      muted: !hasReferral,
     },
     {
       key: "lastContact",

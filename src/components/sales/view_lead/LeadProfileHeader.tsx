@@ -28,6 +28,9 @@ import {
   resolveStageDisplay,
   formatDateDisplay,
   formatAgingDays,
+  formatInvestmentRange,
+  formatSipAmount,
+  humanize,
 } from "./interface/utils";
 import type { LeadProfile, LeadEditFormValues } from "./interface/types";
 import LeadEditModal from "./LeadEditModal";
@@ -50,6 +53,16 @@ type Props = {
   canEditProfile: boolean;
   /** callback invoked after a successful update to refresh parent data */
   onProfileRefresh?: () => void;
+};
+
+type HeaderMetaField = {
+  key: string;
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  secondary?: string | null;
+  muted?: boolean;
+  visible?: boolean;
 };
 
 export default function LeadProfileHeader({ lead, loading, canEditProfile, onProfileRefresh }: Props) {
@@ -79,6 +92,126 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       : stageDisplay.state === "revisit"
       ? RefreshCcw
       : CheckCircle2;
+
+  const normalizeText = (value?: string | null) => (value ?? "").toString().trim();
+
+  const profession = normalizeText(lead.profession);
+  const designation = normalizeText(lead.designation);
+  const companyName = normalizeText(lead.companyName);
+  const location = normalizeText(lead.location);
+  const product = normalizeText(lead.product);
+  const genderRaw = normalizeText(lead.gender);
+  const referralName = normalizeText(lead.referralName);
+  const referralCode = normalizeText(lead.referralCode);
+  const investmentRangeRaw = normalizeText(lead.investmentRange);
+
+  const occupationPrimary = profession || designation || companyName;
+  const occupationKey = occupationPrimary ? occupationPrimary.toLowerCase() : "";
+  const occupationSecondaryParts: string[] = [];
+  if (designation && designation.toLowerCase() !== occupationKey) {
+    occupationSecondaryParts.push(designation);
+  }
+  if (companyName && companyName.toLowerCase() !== occupationKey) {
+    occupationSecondaryParts.push(companyName);
+  }
+  const occupationSecondary =
+    occupationSecondaryParts.length > 0 ? occupationSecondaryParts.join(" | ") : null;
+
+  const hasInvestmentRange = Boolean(investmentRangeRaw);
+  const sipAmountValue =
+    typeof lead.sipAmount === "number" && Number.isFinite(lead.sipAmount) ? lead.sipAmount : null;
+  const hasSipAmount = sipAmountValue !== null;
+  const sipDisplay = formatSipAmount(sipAmountValue);
+  const investmentValue = hasInvestmentRange
+    ? formatInvestmentRange(investmentRangeRaw)
+    : hasSipAmount
+    ? sipDisplay
+    : "Not captured";
+  const investmentSecondary = hasInvestmentRange && hasSipAmount ? sipDisplay : null;
+
+  const genderDisplay = genderRaw ? humanize(genderRaw) : "Unknown";
+
+  const hasReferral = Boolean(referralName || referralCode);
+  const referralPrimary = referralName || referralCode || "";
+  const referralSecondary = referralName && referralCode ? `Code: ${referralCode}` : null;
+
+  const ageRaw = (lead as any).age;
+  const hasAgeField = typeof ageRaw !== "undefined";
+  const ageNumber = Number(ageRaw);
+  const hasValidAge = hasAgeField && Number.isFinite(ageNumber) && ageNumber > 0;
+  const ageDisplay = hasValidAge ? String(Math.round(ageNumber)) : "Unknown";
+
+  const metaFields: HeaderMetaField[] = [
+    {
+      key: "occupation",
+      icon: Briefcase,
+      label: "Occupation",
+      value: occupationPrimary || "Not captured",
+      secondary: occupationSecondary,
+      muted: !(occupationPrimary || occupationSecondary),
+    },
+    {
+      key: "investmentRange",
+      icon: CircleDollarSign,
+      label: "Investment range",
+      value: investmentValue,
+      secondary: investmentSecondary,
+      muted: !(hasInvestmentRange || hasSipAmount),
+    },
+    {
+      key: "location",
+      icon: MapPin,
+      label: "Location",
+      value: location || "Unknown",
+      muted: !location,
+    },
+    {
+      key: "product",
+      icon: Package,
+      label: "Product",
+      value: product || "Not specified",
+      muted: !product,
+    },
+    {
+      key: "age",
+      icon: Calendar,
+      label: "Age",
+      value: ageDisplay,
+      muted: !hasValidAge,
+      visible: hasAgeField,
+    },
+    {
+      key: "gender",
+      icon: User,
+      label: "Gender",
+      value: genderDisplay,
+      muted: !genderRaw,
+    },
+    {
+      key: "company",
+      icon: Building,
+      label: "Company",
+      value: companyName || "Not captured",
+      muted: !companyName,
+      secondary: designation && designation.toLowerCase() !== occupationKey ? designation : null,
+    },
+    {
+      key: "referral",
+      icon: Code,
+      label: "Referral",
+      value: referralPrimary || "Not available",
+      secondary: referralSecondary,
+      muted: !hasReferral,
+      visible: hasReferral,
+    },
+    {
+      key: "sipAmount",
+      icon: DollarSign,
+      label: "SIP amount",
+      value: sipDisplay,
+      muted: !hasSipAmount,
+    },
+  ].filter((field) => field.visible !== false);
 
   /**
    * Build an array of quick contact chips. The list always begins with an
@@ -244,11 +377,11 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
           <button
             type="button"
             onClick={handleEditClick}
-            className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-md transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            className="absolute right-3 top-3 inline-flex items-center justify-center rounded-full bg-emerald-600 p-2 text-sm font-medium text-white shadow-md transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 md:gap-2 md:px-4 md:py-2"
             title="Edit lead details"
           >
             <PencilLine className="h-4 w-4" />
-            <span className="hidden sm:inline">Edit</span>
+            <span className="hidden md:inline">Edit</span>
           </button>
         )}
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
@@ -292,7 +425,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
             </div>
           </div>
           {/* Right column: summary card */}
-          <div className="w-full max-w-sm rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-100 md:text-right">
+          <div className="w-full max-w-sm rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-100 md:pr-6 md:text-right lg:pr-8">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] uppercase tracking-wide text-emerald-600/80 dark:text-emerald-200/80">
                 Lead code
@@ -323,62 +456,9 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
         </div>
         {/* Dynamic meta fields: display all available data points */}
         <div className="mt-5 grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
-          {/* Occupation: from profession or designation */}
-          <MetaField
-            icon={Briefcase}
-            label="Occupation"
-            value={lead.profession ?? lead.designation ?? "Not captured"}
-          />
-          {/* Investment range */}
-          <MetaField
-            icon={CircleDollarSign}
-            label="Investment range"
-            value={lead.investmentRange ?? "Not captured"}
-          />
-          {/* Location */}
-          <MetaField icon={MapPin} label="Location" value={lead.location ?? "Unknown"} />
-          {/* Product */}
-          <MetaField icon={Package} label="Product" value={lead.product ?? "Not specified"} />
-          {/* Age */}
-          {typeof (lead as any).age !== "undefined" && (
-            <MetaField
-              icon={Calendar}
-              label="Age"
-              value={(lead as any).age ? String((lead as any).age) : "Unknown"}
-            />
-          )}
-          {/* Gender */}
-          {typeof (lead as any).gender !== "undefined" && (
-            <MetaField
-              icon={User}
-              label="Gender"
-              value={(lead as any).gender ?? "Unknown"}
-            />
-          )}
-          {/* Company */}
-          {typeof (lead as any).companyName !== "undefined" && (
-            <MetaField
-              icon={Building}
-              label="Company"
-              value={(lead as any).companyName ?? "Not captured"}
-            />
-          )}
-          {/* Referral Code */}
-          {typeof (lead as any).referralCode !== "undefined" && (
-            <MetaField
-              icon={Code}
-              label="Referral Code"
-              value={(lead as any).referralCode ?? "Not available"}
-            />
-          )}
-          {/* SIP Amount */}
-          {typeof (lead as any).sipAmount !== "undefined" && (
-            <MetaField
-              icon={DollarSign}
-              label="SIP Amount"
-              value={(lead as any).sipAmount ? `₹${(lead as any).sipAmount}` : "Not captured"}
-            />
-          )}
+          {metaFields.map(({ key, visible: _visible, ...field }) => (
+            <MetaField key={key} {...field} />
+          ))}
         </div>
         {/* Latest remark */}
         {lead.remark && (
@@ -411,14 +491,40 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
  * Simple meta field used in the header summary. Accepts an icon, label, and
  * value. Handles dark mode and truncation.
  */
-function MetaField({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
+function MetaField({
+  icon: Icon,
+  label,
+  value,
+  secondary,
+  muted = false,
+}: {
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  secondary?: string | null;
+  muted?: boolean;
+}) {
   return (
     <div className="flex flex-col rounded-2xl border border-gray-100 bg-gray-50/60 p-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
       <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500 dark:text-white/50">
         <Icon className="h-4 w-4" />
         {label}
       </div>
-      <div className="mt-1 truncate font-semibold text-gray-900 dark:text-white">{value}</div>
+      <div
+        className={`mt-1 truncate font-semibold ${
+          muted ? "text-gray-400 dark:text-white/40" : "text-gray-900 dark:text-white"
+        }`}
+        title={value}
+      >
+        {value}
+      </div>
+      {secondary ? (
+        <div className="mt-1 text-xs text-gray-500 dark:text-white/60" title={secondary}>
+          {secondary}
+        </div>
+      ) : null}
     </div>
   );
 }
+
+
