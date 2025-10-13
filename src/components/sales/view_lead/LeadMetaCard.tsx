@@ -1,24 +1,49 @@
 import {
-  Mail,
-  PhoneCall,
-  MapPin,
-  UserRound,
-  Package,
+  Building2,
   CircleDollarSign,
+  Clock,
+  Flag,
+  Mail,
+  MapPin,
+  Package,
+  PencilLine,
+  PhoneCall,
   Briefcase,
   UserPlus,
-  Clock,
-  PencilLine,
+  UserRound,
 } from "lucide-react";
-import { formatInvestmentRange, formatRelative } from "./utils";
-import type { EditableLeadField, LeadProfile } from "./types";
+import type { LucideIcon } from "lucide-react";
+import {
+  formatInvestmentRange,
+  formatRelative,
+  formatSipAmount,
+  resolveStageDisplay,
+} from "./interface/utils";
+import type { EditableLeadField, LeadProfile } from "./interface/types";
 
 type Props = {
   lead: LeadProfile;
   loading: boolean;
   isAdmin: boolean;
   canEdit: boolean;
-  onEditField?: (field: EditableLeadField) => void; // optional - hook up when ready
+  onEditField?: (field: EditableLeadField) => void;
+};
+
+type Row = {
+  key: string;
+  icon: LucideIcon;
+  label: string;
+  value: string;
+  field?: EditableLeadField;
+  editable?: boolean;
+  visible?: boolean;
+  href?: string;
+  secondary?: string | null;
+  emphasis?: "pill" | "default";
+  accentClass?: string;
+  hint?: string;
+  hintClass?: string;
+  muted?: boolean;
 };
 
 export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditField }: Props) {
@@ -26,18 +51,63 @@ export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditFi
   const referralValue =
     lead.referralName?.trim() || lead.referralCode?.trim() || "No referral provided";
 
-  type Row = {
-    key: string;
-    icon: any;
-    label: string;
-    value: string;
-    field?: EditableLeadField;
-    editable?: boolean;
-    visible?: boolean;
-  };
+  const stageInfo = resolveStageDisplay({
+    rawStage: lead.clientStageRaw,
+    normalizedStage: lead.clientStage,
+    status: lead.status,
+  });
+
+  const stageHintClass =
+    stageInfo.state === "pending"
+      ? "text-amber-600 dark:text-amber-200"
+      : stageInfo.state === "revisit"
+      ? "text-rose-600 dark:text-rose-200"
+      : "text-gray-500 dark:text-white/60";
+
+  const occupation = lead.profession?.trim() || lead.designation?.trim();
+  const company = lead.companyName?.trim();
+
+  const hasInvestmentRange = !!lead.investmentRange?.trim();
+  const hasSipAmount = lead.sipAmount !== null && lead.sipAmount !== undefined;
+  const investmentPrimary = hasInvestmentRange
+    ? formatInvestmentRange(lead.investmentRange)
+    : hasSipAmount
+    ? formatSipAmount(lead.sipAmount)
+    : "Not captured";
+
+  const investmentSecondary =
+    hasInvestmentRange && hasSipAmount ? formatSipAmount(lead.sipAmount) : undefined;
+
+  const investmentLabel =
+    hasInvestmentRange && hasSipAmount
+      ? "Investment & SIP"
+      : hasInvestmentRange
+      ? "Investment range"
+      : hasSipAmount
+      ? "SIP amount"
+      : "Investment details";
 
   const rows: Row[] = [
-    { key: "email", icon: Mail, label: "Email", value: lead.email ?? "No email", field: "email", editable: canEdit },
+    {
+      key: "clientStage",
+      icon: Flag,
+      label: "Client stage",
+      value: stageInfo.label,
+      emphasis: "pill",
+      accentClass: stageInfo.pillClass,
+      hint: stageInfo.hint,
+      hintClass: stageHintClass,
+    },
+    {
+      key: "email",
+      icon: Mail,
+      label: "Email",
+      value: lead.email ?? "No email",
+      field: "email",
+      editable: canEdit,
+      href: lead.email ? `mailto:${lead.email}` : undefined,
+      muted: !lead.email,
+    },
     {
       key: "phone",
       icon: PhoneCall,
@@ -45,6 +115,11 @@ export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditFi
       value: lead.mobile ?? lead.phone ?? "No phone",
       field: "phone",
       editable: canEdit,
+      href:
+        lead.mobile || lead.phone
+          ? `tel:${(lead.mobile ?? lead.phone ?? "").replace(/\s+/g, "")}`
+          : undefined,
+      muted: !(lead.mobile || lead.phone),
     },
     {
       key: "location",
@@ -53,9 +128,8 @@ export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditFi
       value: lead.location ?? "Location unknown",
       field: "location",
       editable: canEdit,
+      muted: !lead.location,
     },
-
-    // Assigned RM -> admin only
     {
       key: "assignedRm",
       icon: UserRound,
@@ -64,30 +138,47 @@ export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditFi
       field: "assignedRm",
       editable: isAdmin,
       visible: isAdmin,
+      muted: !(lead.assignedRmDetails?.name ?? lead.assignedRm),
     },
-
-    { key: "product", icon: Package, label: "Product", value: lead.product?.trim() || "Not specified", field: "product", editable: canEdit },
-
+    {
+      key: "occupation",
+      icon: Briefcase,
+      label: "Occupation",
+      value: occupation || "Not captured",
+      secondary: company || null,
+      field: lead.profession ? "profession" : "designation",
+      editable: canEdit,
+      visible: !!occupation || !!company || canEdit,
+      muted: !(occupation || company),
+    },
+    {
+      key: "product",
+      icon: Package,
+      label: "Product",
+      value: lead.product?.trim() || "Not specified",
+      field: "product",
+      editable: canEdit,
+      muted: !lead.product,
+    },
     {
       key: "investmentRange",
       icon: CircleDollarSign,
-      label: "Investment range",
-      value: formatInvestmentRange(lead.investmentRange),
-      field: "investmentRange",
+      label: investmentLabel,
+      value: investmentPrimary,
+      secondary: investmentSecondary,
+      field: hasInvestmentRange ? "investmentRange" : hasSipAmount ? "sipAmount" : undefined,
       editable: canEdit,
-      visible: !!lead.investmentRange || canEdit,
+      visible: hasInvestmentRange || hasSipAmount || canEdit,
+      muted: !(hasInvestmentRange || hasSipAmount),
     },
-
     {
-      key: "designation",
-      icon: Briefcase,
-      label: "Designation",
-      value: lead.designation?.trim() || "Not provided",
-      field: "designation",
-      editable: canEdit,
-      visible: !!lead.designation || canEdit,
+      key: "clientTypes",
+      icon: Building2,
+      label: "Client type",
+      value: lead.clientTypes?.trim() || "Not categorised",
+      visible: !!lead.clientTypes,
+      muted: !lead.clientTypes,
     },
-
     {
       key: "referral",
       icon: UserPlus,
@@ -97,44 +188,104 @@ export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditFi
       editable: canEdit,
       visible: showReferral,
     },
-
     {
       key: "lastContact",
       icon: Clock,
       label: "Last contact",
-      value: lead.lastContactedAt ? `Last contact ${formatRelative(lead.lastContactedAt)}` : "No contact logged",
+      value: lead.lastContactedAt
+        ? `Last contact ${formatRelative(lead.lastContactedAt)}`
+        : "No contact logged",
+      muted: !lead.lastContactedAt,
     },
   ];
 
   return (
     <div className="mt-3 grid gap-3 sm:grid-cols-2">
       {rows
-        .filter((r) => r.visible !== false)
-        .map(({ key, icon: Icon, label, value, field, editable }) => (
-          <div
-            key={key}
-            className={`flex items-center gap-2 rounded-xl border border-gray-100 bg-white/70 px-3 py-2 text-sm text-gray-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70 ${
-              loading ? "opacity-70" : ""
-            }`}
-          >
-            <Icon className="h-4 w-4 text-emerald-500" />
-            <span className="truncate text-left text-sm font-medium" title={value}>
-              {value}
-            </span>
+        .filter((row) => row.visible !== false)
+        .map(
+          ({
+            key,
+            icon: Icon,
+            label,
+            value,
+            field,
+            editable,
+            href,
+            secondary,
+            emphasis,
+            accentClass,
+            hint,
+            hintClass,
+            muted,
+          }) => (
+            <div
+              key={key}
+              className={`group relative flex items-start gap-3 rounded-2xl border border-gray-100 bg-white/80 px-4 py-4 text-sm text-gray-700 shadow-sm transition hover:-translate-y-[1px] hover:border-emerald-200 hover:shadow-md dark:border-white/10 dark:bg-white/[0.03] dark:text-white/70 ${
+                loading ? "opacity-60" : ""
+              }`}
+            >
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-200">
+                <Icon className="h-5 w-5" aria-hidden="true" />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p
+                  className={`text-[11px] uppercase tracking-wide text-gray-400 dark:text-white/40 ${
+                    muted ? "opacity-80" : ""
+                  }`}
+                >
+                  {label}
+                </p>
+                {emphasis === "pill" ? (
+                  <span
+                    className={`mt-1 inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold transition ${accentClass}`}
+                  >
+                    {value}
+                  </span>
+                ) : href ? (
+                  <a
+                    href={href}
+                    className="mt-1 inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:underline dark:text-emerald-200"
+                    title={value}
+                  >
+                    {value}
+                  </a>
+                ) : (
+                  <p
+                    className={`mt-1 text-sm font-semibold ${
+                      muted ? "text-gray-400 dark:text-white/40" : "text-gray-800 dark:text-white"
+                    }`}
+                    title={value}
+                  >
+                    {value}
+                  </p>
+                )}
+                {secondary && (
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-white/60" title={secondary}>
+                    {secondary}
+                  </p>
+                )}
+                {hint && (
+                  <p className={`mt-1 text-xs font-medium ${hintClass ?? "text-gray-400 dark:text-white/50"}`}>
+                    {hint}
+                  </p>
+                )}
+              </div>
 
-            {editable && field && (
-              <button
-                type="button"
-                onClick={() => onEditField?.(field)}
-                className="ml-auto inline-flex h-7 w-7 items-center justify-center rounded-full border border-transparent text-gray-400 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600 focus:outline-hidden focus:ring-2 focus:ring-emerald-200 dark:text-white/40 dark:hover:border-emerald-400/40 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-200"
-                title={`Edit ${label.toLowerCase()}`}
-              >
-                <PencilLine className="h-4 w-4" />
-                <span className="sr-only">Edit {label}</span>
-              </button>
-            )}
-          </div>
-        ))}
+              {editable && field && (
+                <button
+                  type="button"
+                  onClick={() => onEditField?.(field)}
+                  className="ml-auto inline-flex h-8 w-8 items-center justify-center rounded-full border border-transparent text-gray-400 transition hover:border-emerald-200 hover:bg-emerald-50 hover:text-emerald-600 focus:outline-hidden focus:ring-2 focus:ring-emerald-200 dark:text-white/40 dark:hover:border-emerald-400/40 dark:hover:bg-emerald-500/10 dark:hover:text-emerald-200"
+                  title={`Edit ${label.toLowerCase()}`}
+                >
+                  <PencilLine className="h-4 w-4" aria-hidden="true" />
+                  <span className="sr-only">Edit {label}</span>
+                </button>
+              )}
+            </div>
+          ),
+        )}
     </div>
   );
 }

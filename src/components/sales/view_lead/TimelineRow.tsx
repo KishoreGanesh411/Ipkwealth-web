@@ -9,9 +9,8 @@ import {
   UserRound,
 } from "lucide-react";
 import { STAGE_META } from "@/components/sales/myleads/stageMeta";
-import { formatEventTimestamp, humanize } from "./utils";
-import type { LeadStage } from "@/components/sales/myleads/interface/type";
-import type { TimelineEvent } from "./types";
+import { formatEventTimestamp, humanize } from "./interface/utils";
+import type { TimelineEvent } from "./interface/types";
 
 type Props = { event: TimelineEvent };
 
@@ -27,19 +26,21 @@ export default function TimelineRow({ event }: Props) {
 
       <div className="flex-1">
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-400 dark:text-white/50">
-          <span className="font-medium text-gray-600 dark:text-white/70">{humanize(event.type)}</span>
-          <span aria-hidden="true">&bull;</span>
+          <span className="font-medium text-gray-600 dark:text-white/70">
+            {humanize(event.type)}
+          </span>
+          <span aria-hidden="true">•</span>
           <span>{formatEventTimestamp(event.occurredAt)}</span>
           {event.authorName && (
             <>
-              <span aria-hidden="true">&bull;</span>
+              <span aria-hidden="true">•</span>
               <span>{event.authorName}</span>
             </>
           )}
         </div>
 
         <div className="mt-1 text-sm text-gray-800 dark:text-white/80">
-          {renderEventSummary(event)}
+          {renderSummary(event)}
         </div>
 
         {event.note && (
@@ -81,14 +82,14 @@ function iconFor(type?: string) {
   }
 }
 
-function renderEventSummary(ev: TimelineEvent) {
-  if (ev.type === "STATUS_CHANGE" && ev.prevStatus && ev.nextStatus) {
-    return `Status changed from ${humanize(ev.prevStatus)} to ${humanize(ev.nextStatus)}`;
+function renderSummary(ev: TimelineEvent) {
+  if (ev.type === "STATUS_CHANGE" && ev.prev && ev.next) {
+    return `Status changed from ${humanize(ev.prev.status)} to ${humanize(ev.next.status)}`;
   }
-  if (ev.type === "STAGE_CHANGE" && ev.prevStage && ev.nextStage) {
-    const prev = STAGE_META[ev.prevStage as LeadStage]?.label ?? humanize(ev.prevStage);
-    const next = STAGE_META[ev.nextStage as LeadStage]?.label ?? humanize(ev.nextStage);
-    return `Stage moved from ${prev} to ${next}`;
+  if (ev.type === "STAGE_CHANGE" && ev.prev && ev.next) {
+    const prevLabel = STAGE_META[ev.prev.stage ?? ""]?.label ?? humanize(ev.prev.stage);
+    const nextLabel = STAGE_META[ev.next.stage ?? ""]?.label ?? humanize(ev.next.stage);
+    return `Stage moved from ${prevLabel} to ${nextLabel}`;
   }
   if (ev.summary) return ev.summary;
   switch (ev.type) {
@@ -105,6 +106,6 @@ function renderEventSummary(ev: TimelineEvent) {
     case "ASSIGNMENT":
       return "Lead assigned";
     default:
-      return humanize(ev.type ?? "event");
+      return humanize(ev.type);
   }
 }

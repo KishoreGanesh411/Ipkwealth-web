@@ -1,6 +1,6 @@
-import { type FormEvent } from "react";
+import type { FormEvent } from "react";
 import { PlusCircle, NotebookPen, Loader2 } from "lucide-react";
-import type { EventFormState } from "./types";
+import type { EventFormState } from "./interface/types";
 
 type Props = {
   form: EventFormState;
@@ -9,22 +9,31 @@ type Props = {
   submitting?: boolean;
 };
 
-export default function AddEventCard({ form, onChange, onSubmit, submitting }: Props) {
+export default function AddEventCard({
+  form,
+  onChange,
+  onSubmit,
+  submitting,
+}: Props) {
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
       <div className="flex items-center gap-2">
         <PlusCircle className="h-5 w-5 text-emerald-500" aria-hidden="true" />
-        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Log activity</h3>
+        <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+          Log activity
+        </h3>
       </div>
 
       <form className="mt-4 space-y-4" onSubmit={onSubmit}>
         <fieldset>
-          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-white/60">Event type</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-white/60">
+            Event type
+          </label>
           <select
             value={form.type}
             onChange={(e) => onChange({ ...form, type: e.target.value })}
             disabled={submitting}
-            className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm"
+            className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
           >
             <option value="NOTE">Note</option>
             <option value="CALL">Phone call</option>
@@ -35,32 +44,36 @@ export default function AddEventCard({ form, onChange, onSubmit, submitting }: P
         </fieldset>
 
         <fieldset>
-          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-white/60">Notes</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-white/60">
+            Notes
+          </label>
           <textarea
             value={form.note}
             onChange={(e) => onChange({ ...form, note: e.target.value })}
-            rows={4}
-            placeholder="Add call summary, commitments, objections..."
+            rows={3}
+            placeholder="Add summary, commitments..."
             disabled={submitting}
-            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm"
+            className="w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
           />
         </fieldset>
 
         <fieldset>
-          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-white/60">Next follow-up</label>
+          <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-white/60">
+            Next follow-up
+          </label>
           <input
             type="datetime-local"
             value={form.followUpOn}
             onChange={(e) => onChange({ ...form, followUpOn: e.target.value })}
             disabled={submitting}
-            className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm"
+            className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-white"
           />
         </fieldset>
 
         <button
           type="submit"
           disabled={submitting}
-          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600"
+          className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-600 disabled:opacity-60 disabled:cursor-not-allowed"
         >
           {submitting ? (
             <>

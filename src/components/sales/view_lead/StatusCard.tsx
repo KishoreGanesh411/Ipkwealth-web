@@ -1,14 +1,16 @@
 import { UserRoundCheck } from "lucide-react";
 import { STAGE_META } from "@/components/sales/myleads/stageMeta";
-import { LeadStage, LeadStatus } from "@/components/sales/myleads/interface/type";
+import type { LeadStage, LeadStatus } from "@/components/sales/myleads/interface/type";
 
-const STATUS_OPTIONS: { value: LeadStatus; label: string }[] = [
-  { value: LeadStatus.PENDING, label: "Pending" },
-  { value: LeadStatus.OPEN, label: "Open" },
-  { value: LeadStatus.IN_PROGRESS, label: "In progress" },
-  { value: LeadStatus.ON_HOLD, label: "On hold" },
-  { value: LeadStatus.CLOSED, label: "Closed" },
-  { value: LeadStatus.LOST, label: "Lost" },
+/**
+ * We map ASSIGNED to PENDING in the dropdown labels so the RM
+ * sees “Pending” for new leads that have not been contacted.
+ */
+const STATUS_OPTIONS: { value: string; label: string }[] = [
+  { value: "PENDING", label: "Pending" },
+  { value: "OPEN", label: "Open" },
+  { value: "ON_HOLD", label: "On hold" },
+  { value: "CLOSED", label: "Closed" },
 ];
 
 type Props = {
@@ -19,7 +21,17 @@ type Props = {
   disabled?: boolean;
 };
 
-export default function StatusCard({ statusValue, stageValue, onStatusChange, onStageChange, disabled }: Props) {
+export default function StatusCard({
+  statusValue,
+  stageValue,
+  onStatusChange,
+  onStageChange,
+  disabled,
+}: Props) {
+  // Convert ASSIGNED to PENDING for display
+  const displayStatus =
+    statusValue === "ASSIGNED" ? "PENDING" : statusValue ?? "";
+
   return (
     <div className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
       <div className="flex items-center gap-2">
@@ -31,7 +43,7 @@ export default function StatusCard({ statusValue, stageValue, onStatusChange, on
         <fieldset>
           <label className="mb-1 block text-xs font-medium text-gray-500 dark:text-white/60">Lead status</label>
           <select
-            value={statusValue ?? ""}
+            value={displayStatus}
             onChange={(e) => onStatusChange(e.target.value)}
             disabled={disabled}
             className="h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.06] dark:text-white"

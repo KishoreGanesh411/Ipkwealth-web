@@ -20,6 +20,8 @@ export type EditableLeadField =
   | "product"
   | "investmentRange"
   | "designation"
+  | "profession"
+  | "sipAmount"
   | "referralName"
   | "referralCode"
   | "assignedRm";
@@ -31,15 +33,28 @@ export type LeadProfile = {
   email?: string | null;
   phone?: string | null;
   mobile?: string | null;
+  phones?: {
+    number: string;
+    isWhatsapp: boolean;
+    isPrimary?: boolean;
+  }[];
   location?: string | null;
   leadSource?: string | null;
   product?: string | null;
   investmentRange?: string | null;
   designation?: string | null;
+  profession?: string | null;
+  companyName?: string | null;
   referralName?: string | null;
   referralCode?: string | null;
-  status?: LeadStatus;
-  clientStage?: LeadStage;
+  status?: LeadStatus | string;
+  clientStage?: LeadStage | string | null;
+  clientStageRaw?: string | null;
+  clientTypes?: string | null;
+  sipAmount?: number | null;
+  gender?: string | null;
+  enteredAt?: string | null;
+  agingDays?: number | null;
   remark?: string | null;
   assignedRm?: string | null;
   assignedRmDetails?: {
@@ -51,21 +66,19 @@ export type LeadProfile = {
   createdAt?: string | null;
   updatedAt?: string | null;
   lastContactedAt?: string | null;
+  revisitCount?: number;
 };
 
 export type TimelineEvent = {
   id: string;
   type: LeadEventType;
   occurredAt: string;
-  note?: string | null;
-  summary?: string | null;
-  followUpOn?: string | null;
   authorName?: string | null;
-  authorInitials?: string | null;
-  prevStatus?: string | null;
-  nextStatus?: string | null;
-  prevStage?: string | null;
-  nextStage?: string | null;
+  note?: string | null;
+  followUpOn?: string | null;
+  prev?: any;
+  next?: any;
+  summary?: string | null;
 };
 
 export type EventFormState = {
