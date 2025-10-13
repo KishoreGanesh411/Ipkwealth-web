@@ -135,9 +135,10 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
 
   // Recreate the client when token changes (simple & reliable)
   const client = useMemo(() => {
+    const uri = import.meta.env.VITE_GRAPHQL_URL || "/graphql"; // fall back to Vite proxy
     return new ApolloClient({
       link: new HttpLink({
-        uri: import.meta.env.VITE_GRAPHQL_URL,
+        uri,
         headers: { Authorization: idToken ? `Bearer ${idToken}` : "" },
       }),
       cache: new InMemoryCache(),

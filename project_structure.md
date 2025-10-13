@@ -1,13 +1,140 @@
 # File Tree: Ipkwealth-web
 
-Generated on: 10/13/2025, 4:53:08 PM
-Root path: `d:\IPK WorkSapce\New folder\Ipkwealth-web`
+Generated on: 10/13/2025, 7:20:30 PM
+Root path: `c:\IPK_workspace\crm_application\Ipkwealth-web`
 
 ```
 ├── .git/ 🚫 (auto-hidden)
 ├── .vscode/ 🚫 (auto-hidden)
 ├── node_modules/ 🚫 (auto-hidden)
-├── public/ 🚫 (auto-hidden)
+├── public/
+│   ├── images/
+│   │   ├── brand/
+│   │   │   ├── brand-01.svg
+│   │   │   ├── brand-02.svg
+│   │   │   ├── brand-03.svg
+│   │   │   ├── brand-04.svg
+│   │   │   ├── brand-05.svg
+│   │   │   ├── brand-06.svg
+│   │   │   ├── brand-07.svg
+│   │   │   ├── brand-08.svg
+│   │   │   ├── brand-09.svg
+│   │   │   ├── brand-10.svg
+│   │   │   ├── brand-11.svg
+│   │   │   ├── brand-12.svg
+│   │   │   ├── brand-13.svg
+│   │   │   ├── brand-14.svg
+│   │   │   └── brand-15.svg
+│   │   ├── cards/
+│   │   │   ├── card-01.jpg
+│   │   │   ├── card-01.png
+│   │   │   ├── card-02.jpg
+│   │   │   ├── card-02.png
+│   │   │   ├── card-03.jpg
+│   │   │   └── card-03.png
+│   │   ├── carousel/
+│   │   │   ├── carousel-01.png
+│   │   │   ├── carousel-02.png
+│   │   │   ├── carousel-03.png
+│   │   │   └── carousel-04.png
+│   │   ├── chat/
+│   │   │   └── chat.jpg
+│   │   ├── country/
+│   │   │   ├── country-01.svg
+│   │   │   ├── country-02.svg
+│   │   │   ├── country-03.svg
+│   │   │   ├── country-04.svg
+│   │   │   ├── country-05.svg
+│   │   │   ├── country-06.svg
+│   │   │   ├── country-07.svg
+│   │   │   └── country-08.svg
+│   │   ├── error/
+│   │   │   ├── 404-dark.svg
+│   │   │   ├── 404.svg
+│   │   │   ├── 500-dark.svg
+│   │   │   ├── 500.svg
+│   │   │   ├── 503-dark.svg
+│   │   │   ├── 503.svg
+│   │   │   ├── maintenance-dark.svg
+│   │   │   ├── maintenance.svg
+│   │   │   ├── success-dark.svg
+│   │   │   └── success.svg
+│   │   ├── grid-image/
+│   │   │   ├── image-01.png
+│   │   │   ├── image-02.png
+│   │   │   ├── image-03.png
+│   │   │   ├── image-04.png
+│   │   │   ├── image-05.png
+│   │   │   └── image-06.png
+│   │   ├── icons/
+│   │   │   ├── file-image-dark.svg
+│   │   │   ├── file-image.svg
+│   │   │   ├── file-pdf-dark.svg
+│   │   │   ├── file-pdf.svg
+│   │   │   ├── file-video-dark.svg
+│   │   │   └── file-video.svg
+│   │   ├── logo/
+│   │   │   ├── auth-logo.svg
+│   │   │   ├── logo-dark.svg
+│   │   │   ├── logo-icon.svg
+│   │   │   └── logo.svg
+│   │   ├── product/
+│   │   │   ├── product-01.jpg
+│   │   │   ├── product-02.jpg
+│   │   │   ├── product-03.jpg
+│   │   │   ├── product-04.jpg
+│   │   │   └── product-05.jpg
+│   │   ├── shape/
+│   │   │   └── grid-01.svg
+│   │   ├── task/
+│   │   │   ├── google-drive.svg
+│   │   │   ├── pdf.svg
+│   │   │   ├── task.jpg
+│   │   │   └── task.png
+│   │   ├── user/
+│   │   │   ├── owner.jpg
+│   │   │   ├── user-01.jpg
+│   │   │   ├── user-02.jpg
+│   │   │   ├── user-03.jpg
+│   │   │   ├── user-04.jpg
+│   │   │   ├── user-05.jpg
+│   │   │   ├── user-06.jpg
+│   │   │   ├── user-07.jpg
+│   │   │   ├── user-08.jpg
+│   │   │   ├── user-09.jpg
+│   │   │   ├── user-10.jpg
+│   │   │   ├── user-11.jpg
+│   │   │   ├── user-12.jpg
+│   │   │   ├── user-13.jpg
+│   │   │   ├── user-14.jpg
+│   │   │   ├── user-15.jpg
+│   │   │   ├── user-16.jpg
+│   │   │   ├── user-17.jpg
+│   │   │   ├── user-18.jpg
+│   │   │   ├── user-19.jpg
+│   │   │   ├── user-20.jpg
+│   │   │   ├── user-21.jpg
+│   │   │   ├── user-22.jpg
+│   │   │   ├── user-23.jpg
+│   │   │   ├── user-24.jpg
+│   │   │   ├── user-25.jpg
+│   │   │   ├── user-26.jpg
+│   │   │   ├── user-27.jpg
+│   │   │   ├── user-28.jpg
+│   │   │   ├── user-29.jpg
+│   │   │   ├── user-30.jpg
+│   │   │   ├── user-31.jpg
+│   │   │   ├── user-32.jpg
+│   │   │   ├── user-33.jpg
+│   │   │   ├── user-34.jpg
+│   │   │   ├── user-35.jpg
+│   │   │   ├── user-36.jpg
+│   │   │   └── user-37.jpg
+│   │   ├── video-thumb/
+│   │   │   ├── thumb-16.png
+│   │   │   └── youtube-icon-84.svg
+│   │   └── favicon.ico
+│   └── favicon.png
 ├── src/
 │   ├── components/
 │   │   ├── UserProfile/
@@ -204,7 +331,6 @@ Root path: `d:\IPK WorkSapce\New folder\Ipkwealth-web`
 │   │   └── lead/
 │   │       └── leadAdapter.ts
 │   ├── environments/
-│   │   ├── .env 🚫 (auto-hidden)
 │   │   ├── environment.prod.ts
 │   │   ├── environment.stag.ts
 │   │   ├── environment.ts
@@ -223,7 +349,72 @@ Root path: `d:\IPK WorkSapce\New folder\Ipkwealth-web`
 │   │   ├── useLeadEntry.ts
 │   │   ├── useMe.ts
 │   │   └── useModal.ts
-│   ├── icons/ 🚫 (auto-hidden)
+│   ├── icons/
+│   │   ├── alert-hexa.svg
+│   │   ├── alert.svg
+│   │   ├── angle-down.svg
+│   │   ├── angle-left.svg
+│   │   ├── angle-right.svg
+│   │   ├── angle-up.svg
+│   │   ├── arrow-down.svg
+│   │   ├── arrow-right.svg
+│   │   ├── arrow-up.svg
+│   │   ├── audio.svg
+│   │   ├── bolt.svg
+│   │   ├── box-cube.svg
+│   │   ├── box-line.svg
+│   │   ├── box.svg
+│   │   ├── calendar.svg
+│   │   ├── calender-line.svg
+│   │   ├── chat.svg
+│   │   ├── check-circle.svg
+│   │   ├── check-line.svg
+│   │   ├── chevron-down.svg
+│   │   ├── chevron-left.svg
+│   │   ├── chevron-up.svg
+│   │   ├── close-line.svg
+│   │   ├── close.svg
+│   │   ├── copy.svg
+│   │   ├── docs.svg
+│   │   ├── dollar-line.svg
+│   │   ├── download.svg
+│   │   ├── envelope.svg
+│   │   ├── eye-close.svg
+│   │   ├── eye.svg
+│   │   ├── file.svg
+│   │   ├── folder.svg
+│   │   ├── gender.svg
+│   │   ├── grid.svg
+│   │   ├── group.svg
+│   │   ├── horizontal-dots.svg
+│   │   ├── index.ts
+│   │   ├── info-error.svg
+│   │   ├── info-hexa.svg
+│   │   ├── info.svg
+│   │   ├── list.svg
+│   │   ├── location-marker.svg
+│   │   ├── lock.svg
+│   │   ├── mail-line.svg
+│   │   ├── mail.svg
+│   │   ├── moredot.svg
+│   │   ├── page.svg
+│   │   ├── paper-plane.svg
+│   │   ├── pencil.svg
+│   │   ├── pie-chart.svg
+│   │   ├── plug-in.svg
+│   │   ├── plus.svg
+│   │   ├── product.svg
+│   │   ├── profession.svg
+│   │   ├── remark-notes.svg
+│   │   ├── shooting-star.svg
+│   │   ├── table.svg
+│   │   ├── task-icon.svg
+│   │   ├── time.svg
+│   │   ├── trash.svg
+│   │   ├── user-circle.svg
+│   │   ├── user-line.svg
+│   │   ├── user.svg
+│   │   └── videos.svg
 │   ├── layout/
 │   │   ├── AppHeader.tsx
 │   │   ├── AppLayout.tsx
@@ -300,7 +491,7 @@ Root path: `d:\IPK WorkSapce\New folder\Ipkwealth-web`
 ├── .hintrc
 ├── README.md
 ├── Unauthorized.tsx
-├── banner.png 🚫 (auto-hidden)
+├── banner.png
 ├── continue.continue-1.0.24-win32-x64.vsix
 ├── eslint.config.js
 ├── index.html
@@ -313,7 +504,7 @@ Root path: `d:\IPK WorkSapce\New folder\Ipkwealth-web`
 ├── tsconfig.app.json
 ├── tsconfig.json
 ├── tsconfig.node.json
-├── tsconfig.tsbuildinfo 🚫 (auto-hidden)
+├── tsconfig.tsbuildinfo
 └── vite.config.ts
 ```
 

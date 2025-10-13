@@ -1,39 +1,31 @@
 ﻿import { useLocation, useParams } from "react-router-dom";
-import {
-  useEffect,
-  useMemo,
-  useState,
-  type FormEvent,
-} from "react";
-import { useQuery, useMutation } from "@apollo/client";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { useMutation, useQuery } from "@apollo/client";
 import { Loader2, AlertCircle } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { useAuth } from "@/context/AuthContex";
 import {
   LEAD_DETAIL_WITH_TIMELINE,
-  UPDATE_LEAD_PROGRESS,
+  UPDATE_LEAD_STATUS,
+  CHANGE_STAGE,
   CREATE_LEAD_EVENT,
-} from "@/core/graphql/lead/lead.gql";
+} from "./gql/view_lead.gql";
 
 import LeadProfileHeader from "./LeadProfileHeader";
 import StatusCard from "./StatusCard";
 import AddEventCard from "./AddEventCard";
 import TimelineRow from "./TimelineRow";
 import { pickLeadStage, pickLeadStatus } from "./interface/utils";
+import type { LeadEvent, LeadProfile } from "./interface/types";
 
-import type { LeadProfile, TimelineEvent, EventFormState } from "./interface/types";
-
-type LeadDetailQueryResult = {
-  lead: any | null;
-  leadEvents: TimelineEvent[];
-};
-type LeadDetailQueryVariables = { id: string };
+type LeadDetailResp = { leadDetailWithTimeline: LeadProfile };
+type LeadDetailVars = { leadId: string; eventsLimit?: number };
 
 export default function ViewLead() {
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
-  const passedLead = (location.state as { lead?: any } | null)?.lead;
+  const passedLead = (location.state as { lead?: Partial<LeadProfile> } | null)?.lead;
 
   const leadId = useMemo(() => {
     if (typeof id === "string" && id.trim()) return id;
@@ -45,122 +37,34 @@ export default function ViewLead() {
   const isAdmin = user?.role === "ADMIN";
   const canEditProfile = isAdmin || user?.role === "RM";
 
-  const { data, loading, error, refetch } = useQuery<
-    LeadDetailQueryResult,
-    LeadDetailQueryVariables
-  >(LEAD_DETAIL_WITH_TIMELINE, {
-    variables: { id: leadId },
-    skip: !leadId,
-    fetchPolicy: "cache-and-network",
-  });
-
-  const [updateLeadProgress, { loading: updatingProgress }] = useMutation(
-    UPDATE_LEAD_PROGRESS
-  );
-  const [createLeadEvent, { loading: creatingEvent }] = useMutation(
-    CREATE_LEAD_EVENT
+  const { data, loading, error, refetch } = useQuery<LeadDetailResp, LeadDetailVars>(
+    LEAD_DETAIL_WITH_TIMELINE,
+    { variables: { leadId, eventsLimit: 100 }, skip: !leadId, fetchPolicy: "cache-and-network" }
   );
 
-  const lead: LeadProfile | null = useMemo(() => {
-    const node = data?.lead ?? passedLead;
-    if (!node) return null;
+  const [mutUpdateStatus] = useMutation(UPDATE_LEAD_STATUS);
+  const [mutChangeStage] = useMutation(CHANGE_STAGE);
+  const [mutCreateEvent, { loading: creatingEvent }] = useMutation(CREATE_LEAD_EVENT);
 
-    const name =
-      node.name ||
-      `${node.firstName ?? ""} ${node.lastName ?? ""}`.trim() ||
-      "Unnamed lead";
+  const lead = data?.leadDetailWithTimeline;
 
-    const rawClientStage = node.clientStage ?? null;
-    const normalizedStage =
-      pickLeadStage(rawClientStage) ?? pickLeadStage(node.status);
-
-    const enteredAt: string | null =
-      node.createdAt ?? node.firstSeenAt ?? null;
-    const agingDays =
-      enteredAt && !Number.isNaN(Date.parse(enteredAt))
-        ? Math.max(
-            0,
-            Math.floor(
-              (Date.now() - Date.parse(enteredAt)) / (1000 * 60 * 60 * 24),
-            ),
-          )
-        : null;
-    const sipAmount =
-      node.sipAmount === null || node.sipAmount === undefined
-        ? null
-        : Number.isFinite(Number(node.sipAmount))
-        ? Number(node.sipAmount)
-        : null;
-
-    return {
-      id: leadId,
-      name,
-      firstName: node.firstName ?? null,
-      lastName: node.lastName ?? null,
-      leadCode: node.leadCode ?? null,
-      email: node.email ?? null,
-      phone: node.phone ?? null,
-      mobile: node.mobile ?? null,
-      phones: node.phones ?? [],
-      location: node.location ?? node.city ?? null,
-      leadSource: node.leadSource ?? null,
-      product: node.product ?? null,
-      investmentRange: node.investmentRange ?? null,
-      designation: node.designation ?? null,
-      profession: node.profession ?? null,
-      companyName: node.companyName ?? null,
-      referralName: node.referralName ?? null,
-      referralCode: node.referralCode ?? null,
-      status: pickLeadStatus<string>(node.status),
-      clientStage: normalizedStage,
-      clientStageRaw: rawClientStage,
-      clientTypes: node.clientTypes ?? null,
-      sipAmount,
-      gender: node.gender ?? null,
-      enteredAt,
-      agingDays,
-      remark: node.remark ?? null,
-      assignedRm: node.assignedRM ?? null,
-      assignedRmDetails: node.assignedRmDetails ?? null,
-      createdAt: node.createdAt ?? null,
-      updatedAt: node.updatedAt ?? null,
-      lastContactedAt: node.lastContactedAt ?? null,
-      revisitCount: node.revisitCount ?? 0,
-    };
-  }, [data?.lead, passedLead, leadId]);
-
-  const events: TimelineEvent[] = useMemo(() => {
-    const list = data?.leadEvents ?? [];
-    return list.slice().sort(
-      (a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt)
-    );
-  }, [data?.leadEvents]);
-
-  const [statusValue, setStatusValue] = useState<string | undefined>(
-    lead?.status === "ASSIGNED" ? "PENDING" : lead?.status
+  const events: LeadEvent[] = useMemo(
+    () => (lead?.events ?? []).slice().sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt)),
+    [lead?.events]
   );
-  const [stageValue, setStageValue] = useState<string | undefined>(
-    lead?.clientStage ?? undefined
-  );
-  const [eventForm, setEventForm] = useState<EventFormState>({
-    type: "NOTE",
-    note: "",
-    followUpOn: "",
-  });
+
+  const [statusValue, setStatusValue] = useState<string | undefined>(lead?.status as string | undefined);
+  const [stageValue, setStageValue] = useState<string | undefined>(lead?.clientStage as string | undefined);
 
   useEffect(() => {
-    setStatusValue(
-      lead?.status === "ASSIGNED" ? "PENDING" : lead?.status
-    );
-    setStageValue(lead?.clientStage ?? undefined);
+    setStatusValue(lead?.status as string | undefined);
+    setStageValue(lead?.clientStage as string | undefined);
   }, [lead?.status, lead?.clientStage]);
 
   const handleStatusChange = async (next: string) => {
     if (!leadId) return;
     try {
-      await updateLeadProgress({
-        variables: { id: leadId, input: { status: next } },
-      });
+      await mutUpdateStatus({ variables: { leadId, status: next } });
       toast.success("Status updated");
       await refetch();
     } catch (e: any) {
@@ -171,8 +75,17 @@ export default function ViewLead() {
   const handleStageChange = async (next: string) => {
     if (!leadId) return;
     try {
-      await updateLeadProgress({
-        variables: { id: leadId, input: { clientStage: next } },
+      await mutChangeStage({
+        variables: {
+          input: {
+            leadId,
+            stage: next,
+            note: null,
+            channel: null,
+            nextFollowUpAt: null,
+            productExplained: null,
+          },
+        },
       });
       toast.success("Stage updated");
       await refetch();
@@ -181,31 +94,37 @@ export default function ViewLead() {
     }
   };
 
+  const [note, setNote] = useState("");
+  const [followUpOn, setFollowUpOn] = useState("");
+
   const handleCreateEvent = async (e: FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (!leadId) return;
-    const note = eventForm.note.trim();
-    if (!note) {
+    const text = note.trim();
+    if (!text) {
       toast.warn("Add a note before saving");
       return;
     }
-    const followUpOn =
-      eventForm.followUpOn && !isNaN(Date.parse(eventForm.followUpOn))
-        ? new Date(eventForm.followUpOn).toISOString()
-        : undefined;
+    const nextFollowUpAt =
+      followUpOn && !isNaN(Date.parse(followUpOn)) ? new Date(followUpOn).toISOString() : undefined;
+
     try {
-      await createLeadEvent({
+      await mutCreateEvent({
         variables: {
           input: {
             leadId,
-            type: eventForm.type,
-            note,
-            followUpOn,
+            text,
+            tags: ["MANUAL_NOTE"],
+            channel: null,
+            outcome: null,
+            nextFollowUpAt,
+            dormantReason: null,
           },
         },
       });
       toast.success("Event logged");
-      setEventForm({ type: "NOTE", note: "", followUpOn: "" });
+      setNote("");
+      setFollowUpOn("");
       await refetch();
     } catch (e: any) {
       toast.error(e.message || "Failed to log event");
@@ -245,7 +164,7 @@ export default function ViewLead() {
   return (
     <div className="space-y-6">
       <LeadProfileHeader
-        lead={lead}
+        lead={lead as any}
         loading={loading}
         isAdmin={isAdmin}
         canEditProfile={canEditProfile}
@@ -255,15 +174,18 @@ export default function ViewLead() {
       <div className="grid gap-6 lg:grid-cols-[320px,minmax(0,1fr)]">
         <aside className="flex flex-col gap-6">
           <StatusCard
-            statusValue={statusValue as any}
-            stageValue={stageValue as any}
+            statusValue={pickLeadStatus<string>(lead.status)}
+            stageValue={pickLeadStage(lead.clientStage as any) as any}
             onStatusChange={handleStatusChange}
             onStageChange={handleStageChange}
-            disabled={updatingProgress}
+            disabled={false}
           />
           <AddEventCard
-            form={eventForm}
-            onChange={setEventForm}
+            form={{ type: "NOTE", note, followUpOn }}
+            onChange={(f) => {
+              setNote(f.note);
+              setFollowUpOn(f.followUpOn);
+            }}
             onSubmit={handleCreateEvent}
             submitting={creatingEvent}
           />
