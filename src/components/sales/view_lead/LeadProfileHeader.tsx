@@ -1,20 +1,27 @@
+import { useMemo, useState } from "react";
+import { useMutation } from "@apollo/client";
+import { toast } from "react-toastify";
 import {
-  Briefcase,
   CheckCircle2,
-  CircleDollarSign,
   Clock3,
   Mail,
-  MapPin,
-  MessageCircle,
-  Package,
   Phone,
+  MessageCircle,
   RefreshCcw,
   PencilLine,
-  X,
+  Briefcase,
+  CircleDollarSign,
+  MapPin,
+  Package,
+  Calendar,
+  Building,
+  User,
+  Code,
+  DollarSign,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
-import { useState } from "react";
 
+import { UPDATE_LEAD } from "@/core/graphql/leads.gql";
 import LeadStatusBadge from "@/components/sales/myleads/LeadStatusBadge";
 import {
   initials,
@@ -22,23 +29,151 @@ import {
   formatDateDisplay,
   formatAgingDays,
 } from "./interface/utils";
-import type { LeadProfile } from "./interface/types";
+import type { LeadProfile, LeadEditFormValues } from "./interface/types";
+import LeadEditModal from "./LeadEditModal";
+
+/**
+ * LeadProfileHeader component displays a lead summary and exposes an edit button.
+ *
+ * It now supports multiple phone numbers with tags (primary/whatsapp) and removes
+ * the client type and RM assignment details. If the lead has multiple phone
+ * entries (from the `phones` relation), each will be rendered as its own chip
+ * with the appropriate icon (telephone or WhatsApp). The edit modal is opened
+ * when the “Edit” button is clicked, and the data passed into the modal is
+ * normalized to match our Prisma model.
+ */
 
 type Props = {
   lead: LeadProfile;
   loading: boolean;
-  isAdmin: boolean;
+  /** determines if the user can click the Edit button */
   canEditProfile: boolean;
+  /** callback invoked after a successful update to refresh parent data */
+  onProfileRefresh?: () => void;
 };
 
-export default function LeadProfileHeader({ lead, loading }: Props) {
+export default function LeadProfileHeader({ lead, loading, canEditProfile, onProfileRefresh }: Props) {
   const [isEditing, setIsEditing] = useState(false);
-  const [editForm, setEditForm] = useState({
-    name: lead?.name || "",
-    profession: lead?.profession || "",
-    product: lead?.product || "",
-    gender: lead?.gender || "",
+  const [updateLeadMutation, { loading: saving }] = useMutation(UPDATE_LEAD);
+
+  // Normalize the lead status; treat ASSIGNED as PENDING for display
+  const displayStatus = lead.status === "ASSIGNED" ? "PENDING" : lead.status;
+  const stageDisplay = resolveStageDisplay({
+    rawStage: (lead as any).clientStageRaw,
+    normalizedStage: (lead.clientStage as any) ?? undefined,
+    status: displayStatus as string,
   });
+
+  /** Determine the color of the stage hint */
+  const stageHintClass =
+    stageDisplay.state === "pending"
+      ? "text-amber-600 dark:text-amber-200"
+      : stageDisplay.state === "revisit"
+      ? "text-rose-600 dark:text-rose-200"
+      : "text-gray-500 dark:text-white/60";
+
+  /** Select an icon based on the stage state */
+  const StageIcon =
+    stageDisplay.state === "pending"
+      ? Clock3
+      : stageDisplay.state === "revisit"
+      ? RefreshCcw
+      : CheckCircle2;
+
+  /**
+   * Build an array of quick contact chips. The list always begins with an
+   * email (if present) and then one chip per phone in the `phones` array. Each
+   * phone chip uses a WhatsApp icon if the number is flagged as such, or a
+   * standard phone icon otherwise. If the lead does not have a populated
+   * `phones` array, fall back to `mobile` or `phone` on the root object.
+   */
+  const quickChips = useMemo(() => {
+    const chips: Array<{ key: string; icon: LucideIcon; label: string; href: string }> = [];
+    if (lead.email) {
+      chips.push({ key: "email", icon: Mail, label: lead.email, href: `mailto:${lead.email}` });
+    }
+    // Compose phone chips from relation if available
+    if (Array.isArray((lead as any).phones) && (lead as any).phones.length > 0) {
+      (lead as any).phones.forEach((phone: any, idx: number) => {
+        const number = String(phone?.number ?? "");
+        if (!number) return;
+        const key = `phone-${idx}`;
+        const isWa = Boolean(phone.isWhatsapp);
+        const href = isWa
+          ? `https://wa.me/${number.replace(/\D/g, "")}`
+          : `tel:${number.replace(/\s+/g, "")}`;
+        const icon = isWa ? MessageCircle : Phone;
+        chips.push({ key, icon, label: number, href });
+      });
+    } else {
+      // fallback: use mobile or phone on root
+      const rawNumber = lead.mobile ?? (lead.phone as any);
+      if (rawNumber) {
+        chips.push({
+          key: "phone-single",
+          icon: Phone,
+          label: rawNumber,
+          href: `tel:${String(rawNumber).replace(/\s+/g, "")}`,
+        });
+      }
+    }
+    return chips;
+  }, [lead.email, lead.mobile, lead.phone, (lead as any).phones]);
+
+  /** Basic summary fields displayed on the header card */
+  const leadSummary = useMemo(() => {
+    return [
+      { label: "Lead source", value: lead.leadSource?.trim() || "Not captured" },
+      { label: "Entered on", value: formatDateDisplay(lead.enteredAt) },
+      { label: "Aging", value: formatAgingDays(lead.agingDays) },
+    ];
+  }, [lead.leadSource, lead.enteredAt, lead.agingDays]);
+
+  /**
+   * Prepare initial values for the edit modal. We map DB fields into
+   * user-facing inputs and normalize the phone fields into primary/WhatsApp
+   * entries for easier editing.
+   */
+  const modalInitialValues = useMemo((): LeadEditFormValues => {
+    // Determine a primary phone and WhatsApp phone from the phones array
+    let primaryPhone: string | undefined;
+    let whatsappPhone: string | undefined;
+    if (Array.isArray((lead as any).phones) && (lead as any).phones.length > 0) {
+      const list = (lead as any).phones;
+      const primary = list.find((p: any) => Boolean(p.isPrimary));
+      const whatsapp = list.find((p: any) => Boolean(p.isWhatsapp));
+      primaryPhone = primary?.number ?? undefined;
+      whatsappPhone = whatsapp?.number ?? undefined;
+    }
+    // fallback to root phone if needed
+    if (!primaryPhone) {
+      primaryPhone = (lead as any).phone ?? (lead as any).mobile ?? undefined;
+    }
+    return {
+      leadCode: lead.leadCode ?? "",
+      leadSource: lead.leadSource ?? "",
+      firstName: lead.firstName ?? "",
+      lastName: lead.lastName ?? "",
+      fullName: lead.name ?? "",
+      email: lead.email ?? "",
+      primaryPhone: primaryPhone ?? "",
+      whatsappPhone: whatsappPhone ?? "",
+      location: lead.location ?? "",
+      profession: lead.profession ?? "",
+      designation: lead.designation ?? "",
+      companyName: lead.companyName ?? "",
+      product: lead.product ?? "",
+      investmentRange: lead.investmentRange ?? "",
+      sipAmount: lead.sipAmount ? String(lead.sipAmount) : "",
+      gender: (lead.gender ?? "").toUpperCase(),
+      remark: lead.remark ?? "",
+      referralName: (lead as any).referralName ?? "",
+      leadSourceOther: (lead as any).leadSourceOther ?? "",
+      age: (lead as any).age ?? null,
+      referralCode: (lead as any).referralCode ?? "",
+      bioText: (lead as any).bioText ?? "",
+    } as LeadEditFormValues;
+  }, [lead]);
 
   if (loading) {
     return (
@@ -48,98 +183,80 @@ export default function LeadProfileHeader({ lead, loading }: Props) {
     );
   }
 
-  const displayStatus = lead.status === "ASSIGNED" ? "PENDING" : lead.status;
-  const stageDisplay = resolveStageDisplay({
-    rawStage: lead.clientStageRaw,
-    normalizedStage: (lead.clientStage as any) ?? undefined,
-    status: displayStatus as string,
-  });
-
-  const stageHintClass =
-    stageDisplay.state === "pending"
-      ? "text-amber-600 dark:text-amber-200"
-      : stageDisplay.state === "revisit"
-      ? "text-rose-600 dark:text-rose-200"
-      : "text-gray-500 dark:text-white/60";
-
-  const StageIcon =
-    stageDisplay.state === "pending"
-      ? Clock3
-      : stageDisplay.state === "revisit"
-      ? RefreshCcw
-      : CheckCircle2;
-
-  const quickChips = (
-    [
-      lead.email && {
-        key: "email",
-        icon: Mail,
-        label: lead.email,
-        href: `mailto:${lead.email}`,
-      },
-      (lead.mobile ?? lead.phone) && {
-        key: "phone",
-        icon: Phone,
-        label: lead.mobile ?? lead.phone!,
-        href: `tel:${(lead.mobile ?? lead.phone)!.replace(/\s+/g, "")}`,
-      },
-      lead.phones?.find((p) => p.isWhatsapp) && {
-        key: "whatsapp",
-        icon: MessageCircle,
-        label: lead.phones.find((p) => p.isWhatsapp)?.number ?? "",
-        href: `https://wa.me/${lead.phones
-          .find((p) => p.isWhatsapp)
-          ?.number?.replace(/\D/g, "")}`,
-      },
-    ].filter(Boolean) as Array<{ key: string; icon: LucideIcon; label: string; href?: string }>
-  );
-
-  const leadSummary = [
-    { label: "Lead source", value: lead.leadSource?.trim() || "Not captured" },
-    { label: "Entered on", value: formatDateDisplay(lead.enteredAt) },
-    { label: "Aging", value: formatAgingDays(lead.agingDays) },
-  ];
-
+  /** handle opening the edit modal */
   const handleEditClick = () => {
-    setEditForm({
-      name: lead.name ?? "",
-      profession: lead.profession ?? "",
-      product: lead.product ?? "",
-      gender: lead.gender ?? "",
-    });
+    if (!canEditProfile) return;
     setIsEditing(true);
   };
 
-  const handleEditChange = (field: string, value: string) => {
-    setEditForm((prev) => ({ ...prev, [field]: value }));
-  };
+  const handleModalClose = () => setIsEditing(false);
 
-  const handleEditSave = () => {
-    // Here you would call a mutation to update the lead details.
-    // For example: updateLeadDetails mutation with variables {id: lead.id, ...editForm}
-    // After success:
-    setIsEditing(false);
+  /**
+   * Submit handler for the edit modal. We normalize phone numbers into phone
+   * and mobile fields (primary and WhatsApp respectively) and omit client
+   * type(s). Only fields with non-empty values are sent; empty strings are
+   * converted to null.
+   */
+  const handleModalSubmit = async (values: LeadEditFormValues) => {
+    const trimOrNull = (val: any) => {
+      const str = String(val ?? "").trim();
+      return str.length ? str : null;
+    };
+    const sanitized: Record<string, any> = {
+      firstName: trimOrNull(values.firstName),
+      lastName: trimOrNull(values.lastName),
+      name: String(values.fullName ?? "").trim(),
+      email: trimOrNull(values.email),
+      phone: trimOrNull(values.primaryPhone),
+      mobile: trimOrNull(values.whatsappPhone),
+      location: trimOrNull(values.location),
+      profession: trimOrNull(values.profession),
+      designation: trimOrNull(values.designation),
+      companyName: trimOrNull(values.companyName),
+      product: trimOrNull(values.product),
+      investmentRange: trimOrNull(values.investmentRange),
+      gender: trimOrNull(values.gender),
+      remark: trimOrNull(values.remark),
+      referralName: trimOrNull(values.referralName),
+      leadSourceOther: trimOrNull(values.leadSourceOther),
+    };
+    const sipStr = String(values.sipAmount ?? "").replace(/,/g, "").trim();
+    if (sipStr) {
+      const sipValue = Number(sipStr);
+      sanitized.sipAmount = Number.isNaN(sipValue) ? null : sipValue;
+    } else {
+      sanitized.sipAmount = null;
+    }
+    try {
+      await updateLeadMutation({ variables: { id: lead.id, input: sanitized } });
+      toast.success("Lead details updated");
+      setIsEditing(false);
+      onProfileRefresh?.();
+    } catch (error: any) {
+      toast.error(error?.message ?? "Unable to update lead");
+    }
   };
 
   return (
     <>
-      {/* Main card */}
       <div className="relative rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
-        {/* Edit icon */}
-        <button
-          className="absolute right-4 top-4 rounded-full p-2 hover:bg-gray-100 dark:hover:bg-white/[0.08]"
-          onClick={handleEditClick}
-          title="Edit lead details"
-        >
-          <PencilLine className="h-4 w-4 text-gray-500 dark:text-gray-300" />
-        </button>
-
+        {canEditProfile && (
+          <button
+            type="button"
+            onClick={handleEditClick}
+            className="absolute right-4 top-4 inline-flex items-center gap-2 rounded-full bg-emerald-600 px-4 py-2 text-sm font-medium text-white shadow-md transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2"
+            title="Edit lead details"
+          >
+            <PencilLine className="h-4 w-4" />
+            <span className="hidden sm:inline">Edit</span>
+          </button>
+        )}
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+          {/* Left column: avatar + name + status */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
             <div className="grid h-16 w-16 place-items-center rounded-full bg-emerald-500/10 text-lg font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
               {initials(lead.name)}
             </div>
-
             <div>
               <div className="flex flex-wrap items-center gap-3">
                 <h1 className="text-xl font-semibold capitalize text-gray-900 dark:text-white">
@@ -153,42 +270,28 @@ export default function LeadProfileHeader({ lead, loading }: Props) {
                   {stageDisplay.label}
                 </span>
               </div>
-
               {stageDisplay.hint && (
-                <p className={`mt-1 text-xs font-medium ${stageHintClass}`}>
-                  {stageDisplay.hint}
-                </p>
+                <p className={`mt-1 text-xs font-medium ${stageHintClass}`}>{stageDisplay.hint}</p>
               )}
-
               {quickChips.length > 0 && (
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {quickChips.map(({ key, icon: Icon, label, href }) =>
-                    href ? (
-                      <a
-                        key={key}
-                        href={href}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-100"
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span>{label}</span>
-                      </a>
-                    ) : (
-                      <span
-                        key={key}
-                        className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-1.5 text-sm font-semibold text-gray-600 dark:border-white/10 dark:bg-white/[0.06] dark:text-white/70"
-                      >
-                        <Icon className="h-4 w-4" />
-                        <span>{label}</span>
-                      </span>
-                    )
-                  )}
+                  {quickChips.map(({ key, icon: Icon, label, href }) => (
+                    <a
+                      key={key}
+                      href={href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-100"
+                    >
+                      <Icon className="h-4 w-4" />
+                      <span>{label}</span>
+                    </a>
+                  ))}
                 </div>
               )}
             </div>
           </div>
-
+          {/* Right column: summary card */}
           <div className="w-full max-w-sm rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-100 md:text-right">
             <div className="flex items-center justify-between gap-3">
               <span className="text-[11px] uppercase tracking-wide text-emerald-600/80 dark:text-emerald-200/80">
@@ -204,7 +307,6 @@ export default function LeadProfileHeader({ lead, loading }: Props) {
                 {lead.leadCode ?? "Not generated"}
               </span>
             </div>
-
             <div className="mt-3 grid gap-3 text-left sm:grid-cols-3 md:text-right">
               {leadSummary.map(({ label, value }) => (
                 <div key={label} className="flex flex-col gap-1">
@@ -219,180 +321,104 @@ export default function LeadProfileHeader({ lead, loading }: Props) {
             </div>
           </div>
         </div>
-
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 md:grid-cols-4">
+        {/* Dynamic meta fields: display all available data points */}
+        <div className="mt-5 grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+          {/* Occupation: from profession or designation */}
           <MetaField
             icon={Briefcase}
             label="Occupation"
             value={lead.profession ?? lead.designation ?? "Not captured"}
           />
+          {/* Investment range */}
           <MetaField
             icon={CircleDollarSign}
             label="Investment range"
             value={lead.investmentRange ?? "Not captured"}
           />
-          <MetaField
-            icon={MapPin}
-            label="Location"
-            value={lead.location ?? "Unknown"}
-          />
-          <MetaField
-            icon={Package}
-            label="Product"
-            value={lead.product ?? "Not specified"}
-          />
+          {/* Location */}
+          <MetaField icon={MapPin} label="Location" value={lead.location ?? "Unknown"} />
+          {/* Product */}
+          <MetaField icon={Package} label="Product" value={lead.product ?? "Not specified"} />
+          {/* Age */}
+          {typeof (lead as any).age !== "undefined" && (
+            <MetaField
+              icon={Calendar}
+              label="Age"
+              value={(lead as any).age ? String((lead as any).age) : "Unknown"}
+            />
+          )}
+          {/* Gender */}
+          {typeof (lead as any).gender !== "undefined" && (
+            <MetaField
+              icon={User}
+              label="Gender"
+              value={(lead as any).gender ?? "Unknown"}
+            />
+          )}
+          {/* Company */}
+          {typeof (lead as any).companyName !== "undefined" && (
+            <MetaField
+              icon={Building}
+              label="Company"
+              value={(lead as any).companyName ?? "Not captured"}
+            />
+          )}
+          {/* Referral Code */}
+          {typeof (lead as any).referralCode !== "undefined" && (
+            <MetaField
+              icon={Code}
+              label="Referral Code"
+              value={(lead as any).referralCode ?? "Not available"}
+            />
+          )}
+          {/* SIP Amount */}
+          {typeof (lead as any).sipAmount !== "undefined" && (
+            <MetaField
+              icon={DollarSign}
+              label="SIP Amount"
+              value={(lead as any).sipAmount ? `₹${(lead as any).sipAmount}` : "Not captured"}
+            />
+          )}
         </div>
-
+        {/* Latest remark */}
         {lead.remark && (
           <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/60 p-4 text-sm text-gray-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70">
-            <span className="font-semibold text-gray-900 dark:text-white">
-              Latest remark:
-            </span>{" "}
+            <span className="font-semibold text-gray-900 dark:text-white">Latest remark:</span>{" "}
             {lead.remark}
           </div>
         )}
-      </div>
-
-      {/* Edit modal */}
-      {isEditing && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-lg rounded-2xl border border-gray-200 bg-white p-6 shadow-lg dark:border-white/10 dark:bg-gray-900">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
-                Edit Lead Details
-              </h2>
-              <button
-                className="p-1 rounded-full text-gray-600 hover:bg-gray-200 dark:text-white dark:hover:bg-white/[0.1]"
-                onClick={() => setIsEditing(false)}
-              >
-                <X className="h-5 w-5" />
-              </button>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              {/* Lead code (read-only) */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Lead code
-                </label>
-                <div className="mt-1 rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-white/10 dark:bg-gray-800">
-                  {lead.leadCode ?? "Not generated"}
-                </div>
-              </div>
-              {/* Lead source (read-only) */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Lead source
-                </label>
-                <div className="mt-1 rounded-md border border-gray-200 bg-gray-50 p-2 dark:border-white/10 dark:bg-gray-800">
-                  {lead.leadSource ?? "Not captured"}
-                </div>
-              </div>
-
-              {/* Name */}
-              <div className="col-span-2">
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Name
-                </label>
-                <input
-                  type="text"
-                  value={editForm.name}
-                  onChange={(e) =>
-                    handleEditChange("name", e.target.value)
-                  }
-                  className="mt-1 w-full rounded-md border border-gray-200 bg-white p-2 text-gray-900 dark:border-white/10 dark:bg-gray-800 dark:text-white"
-                />
-              </div>
-
-              {/* Occupation */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Occupation
-                </label>
-                <input
-                  type="text"
-                  value={editForm.profession}
-                  onChange={(e) =>
-                    handleEditChange("profession", e.target.value)
-                  }
-                  className="mt-1 w-full rounded-md border border-gray-200 bg-white p-2 text-gray-900 dark:border-white/10 dark:bg-gray-800 dark:text-white"
-                />
-              </div>
-
-              {/* Product */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Product
-                </label>
-                <input
-                  type="text"
-                  value={editForm.product}
-                  onChange={(e) =>
-                    handleEditChange("product", e.target.value)
-                  }
-                  className="mt-1 w-full rounded-md border border-gray-200 bg-white p-2 text-gray-900 dark:border-white/10 dark:bg-gray-800 dark:text-white"
-                />
-              </div>
-
-              {/* Gender */}
-              <div>
-                <label className="block text-xs font-medium text-gray-500 dark:text-gray-400">
-                  Gender
-                </label>
-                <select
-                  value={editForm.gender}
-                  onChange={(e) =>
-                    handleEditChange("gender", e.target.value)
-                  }
-                  className="mt-1 w-full rounded-md border border-gray-200 bg-white p-2 text-gray-900 dark:border-white/10 dark:bg-gray-800 dark:text-white"
-                >
-                  <option value="">Select gender</option>
-                  <option value="MALE">Male</option>
-                  <option value="FEMALE">Female</option>
-                  <option value="OTHER">Other</option>
-                </select>
-              </div>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button
-                className="inline-flex items-center rounded-md bg-gray-100 px-4 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-200 dark:bg-gray-700 dark:text-white dark:hover:bg-gray-600"
-                onClick={() => setIsEditing(false)}
-              >
-                Cancel
-              </button>
-              <button
-                className="inline-flex items-center rounded-md bg-emerald-600 px-4 py-2 text-sm font-semibold text-white hover:bg-emerald-700"
-                onClick={handleEditSave}
-              >
-                Confirm & Save
-              </button>
-            </div>
+        {/* Biography text if available */}
+        {(lead as any).bioText && (
+          <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50/60 p-4 text-sm text-gray-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70">
+            <span className="font-semibold text-gray-900 dark:text-white">Bio:</span>{" "}
+            {(lead as any).bioText}
           </div>
-        </div>
-      )}
+        )}
+      </div>
+      <LeadEditModal
+        isOpen={isEditing}
+        onClose={handleModalClose}
+        initial={modalInitialValues}
+        saving={saving}
+        onSubmit={handleModalSubmit}
+        title="Edit lead details"
+      />
     </>
   );
 }
 
-function MetaField({
-  icon: Icon,
-  label,
-  value,
-}: {
-  icon: LucideIcon;
-  label: string;
-  value: string;
-}) {
+/**
+ * Simple meta field used in the header summary. Accepts an icon, label, and
+ * value. Handles dark mode and truncation.
+ */
+function MetaField({ icon: Icon, label, value }: { icon: LucideIcon; label: string; value: string }) {
   return (
     <div className="flex flex-col rounded-2xl border border-gray-100 bg-gray-50/60 p-3 text-sm dark:border-white/10 dark:bg-white/[0.03]">
       <div className="flex items-center gap-2 text-xs uppercase tracking-wide text-gray-500 dark:text-white/50">
         <Icon className="h-4 w-4" />
         {label}
       </div>
-      <div className="mt-1 truncate font-semibold text-gray-900 dark:text-white">
-        {value}
-      </div>
+      <div className="mt-1 truncate font-semibold text-gray-900 dark:text-white">{value}</div>
     </div>
   );
 }

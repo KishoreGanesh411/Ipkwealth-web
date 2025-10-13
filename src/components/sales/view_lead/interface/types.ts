@@ -29,6 +29,8 @@ export type EditableLeadField =
 export type LeadProfile = {
   id: string;
   name: string;
+  firstName?: string | null;
+  lastName?: string | null;
   leadCode?: string | null;
   email?: string | null;
   phone?: string | null;
@@ -67,6 +69,26 @@ export type LeadProfile = {
   updatedAt?: string | null;
   lastContactedAt?: string | null;
   revisitCount?: number;
+};
+
+export type LeadEditFormValues = {
+  leadCode?: string | null;
+  leadSource?: string | null;
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  location: string;
+  profession: string;
+  designation: string;
+  companyName: string;
+  product: string;
+  investmentRange: string;
+  sipAmount: string;
+  clientTypes: string;
+  gender: string;
+  remark: string;
 };
 
 export type TimelineEvent = {

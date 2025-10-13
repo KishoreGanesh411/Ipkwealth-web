@@ -1,6 +1,6 @@
 # File Tree: Ipkwealth-web
 
-Generated on: 10/6/2025, 5:19:12 PM
+Generated on: 10/13/2025, 4:53:08 PM
 Root path: `d:\IPK WorkSapce\New folder\Ipkwealth-web`
 
 ```
@@ -127,6 +127,15 @@ Root path: `d:\IPK WorkSapce\New folder\Ipkwealth-web`
 │   │   │   │   ├── stageMeta.ts
 │   │   │   │   └── types.ts
 │   │   │   └── view_lead/
+│   │   │       ├── interface/
+│   │   │       │   ├── types.ts
+│   │   │       │   └── utils.ts
+│   │   │       ├── AddEventCard.tsx
+│   │   │       ├── LeadEditModal.tsx
+│   │   │       ├── LeadMetaCard.tsx
+│   │   │       ├── LeadProfileHeader.tsx
+│   │   │       ├── StatusCard.tsx
+│   │   │       ├── TimelineRow.tsx
 │   │   │       └── ViewLead.tsx
 │   │   ├── sales_dashboard/
 │   │   │   ├── EstimatedTarget.tsx
@@ -200,6 +209,15 @@ Root path: `d:\IPK WorkSapce\New folder\Ipkwealth-web`
 │   │   ├── environment.stag.ts
 │   │   ├── environment.ts
 │   │   └── shared.ts
+│   ├── features/
+│   │   └── leads/
+│   │       └── profile/
+│   │           ├── EventComposer.tsx
+│   │           ├── EventTimeline.tsx
+│   │           ├── LeadSnapshot.tsx
+│   │           ├── StageSelect.tsx
+│   │           ├── gql.ts
+│   │           └── recentLeads.ts
 │   ├── hooks/
 │   │   ├── useGoBack.ts
 │   │   ├── useLeadEntry.ts
@@ -242,8 +260,13 @@ Root path: `d:\IPK WorkSapce\New folder\Ipkwealth-web`
 │   │   │   │   └── dummy.ts
 │   │   │   ├── Support/
 │   │   │   │   └── ChatPage.tsx
+│   │   │   ├── Viewlead/
+│   │   │   │   └── Leadprofile_page.tsx
+│   │   │   ├── LeadProfileLanding.tsx
 │   │   │   ├── LeadStagesPage.tsx
-│   │   │   └── ViewLeadPage.tsx
+│   │   │   ├── RecentLeadProfilesPage.tsx
+│   │   │   ├── ViewLeadPage.tsx
+│   │   │   └── lead-profile-page.tsx
 │   │   ├── Tables/
 │   │   │   └── BasicTables.tsx
 │   │   ├── UiElements/
@@ -270,6 +293,7 @@ Root path: `d:\IPK WorkSapce\New folder\Ipkwealth-web`
 │   ├── main.tsx
 │   ├── svg.d.ts
 │   └── vite-env.d.ts
+├── -
 ├── .editorconfig
 ├── .ftignore
 ├── .gitignore

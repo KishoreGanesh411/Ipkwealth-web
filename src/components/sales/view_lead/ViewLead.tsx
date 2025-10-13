@@ -95,6 +95,8 @@ export default function ViewLead() {
     return {
       id: leadId,
       name,
+      firstName: node.firstName ?? null,
+      lastName: node.lastName ?? null,
       leadCode: node.leadCode ?? null,
       email: node.email ?? null,
       phone: node.phone ?? null,
@@ -106,6 +108,7 @@ export default function ViewLead() {
       investmentRange: node.investmentRange ?? null,
       designation: node.designation ?? null,
       profession: node.profession ?? null,
+      companyName: node.companyName ?? null,
       referralName: node.referralName ?? null,
       referralCode: node.referralCode ?? null,
       status: pickLeadStatus<string>(node.status),
@@ -246,6 +249,7 @@ export default function ViewLead() {
         loading={loading}
         isAdmin={isAdmin}
         canEditProfile={canEditProfile}
+        onProfileRefresh={() => refetch()}
       />
 
       <div className="grid gap-6 lg:grid-cols-[320px,minmax(0,1fr)]">
