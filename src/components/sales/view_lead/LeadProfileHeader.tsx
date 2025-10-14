@@ -42,7 +42,7 @@ import LeadEditModal from "./LeadEditModal";
  * the client type and RM assignment details. If the lead has multiple phone
  * entries (from the `phones` relation), each will be rendered as its own chip
  * with the appropriate icon (telephone or WhatsApp). The edit modal is opened
- * when the “Edit” button is clicked, and the data passed into the modal is
+ * when the â€œEditâ€ button is clicked, and the data passed into the modal is
  * normalized to match our Prisma model.
  */
 
@@ -372,18 +372,26 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
 
   return (
     <>
-      <div className="relative rounded-2xl border border-gray-100 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
-        {canEditProfile && (
-          <button
-            type="button"
-            onClick={handleEditClick}
-            className="absolute right-3 top-3 inline-flex items-center justify-center rounded-full bg-emerald-600 p-2 text-sm font-medium text-white shadow-md transition hover:bg-emerald-700 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 md:gap-2 md:px-4 md:py-2"
-            title="Edit lead details"
-          >
-            <PencilLine className="h-4 w-4" />
-            <span className="hidden md:inline">Edit</span>
-          </button>
-        )}
+      <div className="relative card card-padded">
+{canEditProfile && (
+  <button
+    type="button"
+    onClick={handleEditClick}
+    className="
+      absolute left-1/2 top-[94px] 
+      -translate-x-1/2 transform
+      inline-flex items-center justify-center
+      rounded-full bg-emerald-600 p-3 
+      text-white shadow-md ring-offset-1 transition-all 
+      hover:scale-105 hover:bg-emerald-700 focus:outline-none 
+      focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
+      md:left-[68px] md:top-[78px] md:-translate-x-0
+    "
+    title="Edit lead details"
+  >
+    <PencilLine className="h-5 w-5" />
+  </button>
+)}
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           {/* Left column: avatar + name + status */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
@@ -414,7 +422,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
                       href={href}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-100"
+                      className="chip"
                     >
                       <Icon className="h-4 w-4" />
                       <span>{label}</span>
@@ -455,7 +463,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
           </div>
         </div>
         {/* Dynamic meta fields: display all available data points */}
-        <div className="mt-5 grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6">
+        <div className="mt-5 meta-grid">
           {metaFields.map(({ key, visible: _visible, ...field }) => (
             <MetaField key={key} {...field} />
           ))}

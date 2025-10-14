@@ -1,4 +1,4 @@
-﻿import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "@apollo/client";
 import { Loader2, AlertCircle } from "lucide-react";
@@ -15,7 +15,7 @@ import {
 import LeadProfileHeader from "./LeadProfileHeader";
 import StatusCard from "./StatusCard";
 import AddEventCard from "./AddEventCard";
-import TimelineRow from "./TimelineRow";
+import TimelineList from "./TimelineList";
 import { pickLeadStage, pickLeadStatus } from "./interface/utils";
 import type { LeadEvent, LeadProfile } from "./interface/types";
 
@@ -94,11 +94,14 @@ export default function ViewLead() {
     }
   };
 
+  const [eventType, setEventType] = useState<string>("NOTE");
   const [note, setNote] = useState("");
   const [followUpOn, setFollowUpOn] = useState("");
+  const [channel, setChannel] = useState<string>("");
+  const [outcome, setOutcome] = useState<string>("");
+  const [reactivateToStage, setReactivateToStage] = useState<string | null>(null);
 
-  const handleCreateEvent = async (e: FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
+  const handleCreateEventEnhanced = async () => {
     if (!leadId) return;
     const text = note.trim();
     if (!text) {
@@ -109,22 +112,43 @@ export default function ViewLead() {
       followUpOn && !isNaN(Date.parse(followUpOn)) ? new Date(followUpOn).toISOString() : undefined;
 
     try {
+      // If reactivation chosen, move stage first
+      if (reactivateToStage && reactivateToStage !== stageValue) {
+        await mutChangeStage({
+          variables: {
+            input: {
+              leadId,
+              stage: reactivateToStage,
+              note: "Reactivated via new activity",
+              channel: channel || null,
+              nextFollowUpAt: nextFollowUpAt ?? null,
+              productExplained: null,
+            },
+          },
+        });
+      }
+
       await mutCreateEvent({
         variables: {
           input: {
             leadId,
+            type: eventType,
             text,
-            tags: ["MANUAL_NOTE"],
-            channel: null,
-            outcome: null,
+            tags: [eventType, "MANUAL_ENTRY"],
+            channel: channel || null,
+            outcome: outcome || null,
             nextFollowUpAt,
             dormantReason: null,
           },
         },
       });
       toast.success("Event logged");
+      setEventType("NOTE");
       setNote("");
       setFollowUpOn("");
+      setChannel("");
+      setOutcome("");
+      setReactivateToStage(null);
       await refetch();
     } catch (e: any) {
       toast.error(e.message || "Failed to log event");
@@ -178,36 +202,57 @@ export default function ViewLead() {
             stageValue={pickLeadStage(lead.clientStage as any) as any}
             onStatusChange={handleStatusChange}
             onStageChange={handleStageChange}
+            onStatusStageChange={async ({ newStatus, newStage, dormantReason }) => {
+              try {
+                if (newStatus) await handleStatusChange(newStatus);
+                if (newStage) {
+                  await mutChangeStage({
+                    variables: {
+                      input: {
+                        leadId,
+                        stage: newStage,
+                        note: dormantReason ? `Dormant reason: ${dormantReason}` : null,
+                        channel: null,
+                        nextFollowUpAt: null,
+                        productExplained: null,
+                      },
+                    },
+                  });
+                  toast.success("Stage updated");
+                  await refetch();
+                }
+              } catch (err: any) {
+                toast.error(err.message || "Unable to update");
+              }
+            }}
             disabled={false}
           />
           <AddEventCard
-            form={{ type: "NOTE", note, followUpOn }}
+            form={{
+              type: eventType as any,
+              note,
+              followUpOn,
+              channel,
+              outcome,
+              reactivateToStage,
+            }}
             onChange={(f) => {
+              setEventType(f.type);
               setNote(f.note);
               setFollowUpOn(f.followUpOn);
+              setChannel(f.channel ?? "");
+              setOutcome(f.outcome ?? "");
+              setReactivateToStage(f.reactivateToStage ?? null);
             }}
-            onSubmit={handleCreateEvent}
+            onCreateEvent={() => handleCreateEventEnhanced()}
             submitting={creatingEvent}
+            currentStage={stageValue ?? null}
           />
         </aside>
 
-        <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
-          <div className="flex items-center justify-between">
-            <h2 className="text-base font-semibold">Activity timeline</h2>
-            <span className="text-xs text-gray-400">{events.length} entries</span>
-          </div>
-          <div className="mt-4 space-y-6">
-            {events.length === 0 && (
-              <div className="rounded-xl border border-dashed border-gray-200 bg-gray-50/60 p-6 text-sm text-gray-500">
-                No events recorded yet. Log a call or note to begin history.
-              </div>
-            )}
-            {events.map((ev) => (
-              <TimelineRow key={ev.id} event={ev} />
-            ))}
-          </div>
-        </section>
+        <TimelineList events={events} />
       </div>
     </div>
   );
 }
+

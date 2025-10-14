@@ -107,6 +107,9 @@ export type EventFormState = {
   type: LeadEventType;
   note: string;
   followUpOn: string;
+  channel?: string;
+  outcome?: string;
+  reactivateToStage?: string | null;
 };
 export const STATUS_OPTIONS: { value: string; label: string }[] = [
   { value: "PENDING", label: "Pending" },
@@ -121,7 +124,28 @@ export type StatustCardProps = {
   onStatusChange: (value: string) => void;
   onStageChange: (value: string) => void;
   disabled?: boolean;
+  onStatusStageChange?: (options: {
+    newStatus?: string;
+    newStage?: string;
+    dormantReason?: string | null;
+  }) => void | Promise<void>;
 };
+
+export type InteractionChannel =
+  | "PHONE"
+  | "MEETING"
+  | "WHATSAPP"
+  | "EMAIL"
+  | string;
+
+export type InteractionOutcome =
+  | "ANSWERED"
+  | "NO_ANSWER"
+  | "INTERESTED"
+  | "NOT_INTERESTED"
+  | "FOLLOW_UP_NEEDED"
+  | "WRONG_NUMBER"
+  | string;
 
 import type { LeadStage, LeadStatus } from "@/components/sales/myleads/interface/type";
 

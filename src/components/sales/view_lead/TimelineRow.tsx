@@ -17,23 +17,23 @@ type Props = { event: TimelineEvent };
 export default function TimelineRow({ event }: Props) {
   const Icon = iconFor(event.type);
   return (
-    <div className="flex gap-3">
+    <div className="timeline-row">
       <div className="mt-1">
-        <div className="flex h-10 w-10 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-200">
+        <div className="timeline-icon">
           <Icon className="h-4 w-4" aria-hidden="true" />
         </div>
       </div>
 
       <div className="flex-1">
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-400 dark:text-white/50">
+        <div className="timeline-meta">
           <span className="font-medium text-gray-600 dark:text-white/70">
             {humanize(event.type)}
           </span>
-          <span aria-hidden="true">•</span>
+          <span aria-hidden="true">â€¢</span>
           <span>{formatEventTimestamp(event.occurredAt)}</span>
           {event.authorName && (
             <>
-              <span aria-hidden="true">•</span>
+              <span aria-hidden="true">â€¢</span>
               <span>{event.authorName}</span>
             </>
           )}
@@ -50,7 +50,7 @@ export default function TimelineRow({ event }: Props) {
         )}
 
         {event.followUpOn && (
-          <div className="mt-2 inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-500/10 dark:text-sky-200">
+          <div className="timeline-next">
             <CalendarClock className="h-3.5 w-3.5" aria-hidden="true" />
             Follow-up {formatEventTimestamp(event.followUpOn)}
           </div>
