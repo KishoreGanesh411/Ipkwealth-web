@@ -100,6 +100,7 @@ export default function ViewLead() {
   const [channel, setChannel] = useState<string>("");
   const [outcome, setOutcome] = useState<string>("");
   const [reactivateToStage, setReactivateToStage] = useState<string | null>(null);
+  const [updatingProgress, setUpdatingProgress] = useState(false);
 
   const handleCreateEventEnhanced = async () => {
     if (!leadId) return;
@@ -195,14 +196,16 @@ export default function ViewLead() {
         onProfileRefresh={() => refetch()}
       />
 
-      <div className="grid gap-6 lg:grid-cols-[320px,minmax(0,1fr)]">
-        <aside className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 lg:gap-8">
+        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-[minmax(0,420px),minmax(0,1fr)]">
           <StatusCard
             statusValue={pickLeadStatus<string>(lead.status)}
             stageValue={pickLeadStage(lead.clientStage as any) as any}
             onStatusChange={handleStatusChange}
             onStageChange={handleStageChange}
             onStatusStageChange={async ({ newStatus, newStage, dormantReason }) => {
+              if (!newStatus && !newStage) return;
+              setUpdatingProgress(true);
               try {
                 if (newStatus) await handleStatusChange(newStatus);
                 if (newStage) {
@@ -223,9 +226,12 @@ export default function ViewLead() {
                 }
               } catch (err: any) {
                 toast.error(err.message || "Unable to update");
+              } finally {
+                setUpdatingProgress(false);
               }
             }}
-            disabled={false}
+            disabled={loading || updatingProgress}
+            saving={updatingProgress}
           />
           <AddEventCard
             form={{
@@ -248,7 +254,7 @@ export default function ViewLead() {
             submitting={creatingEvent}
             currentStage={stageValue ?? null}
           />
-        </aside>
+        </div>
 
         <TimelineList events={events} />
       </div>

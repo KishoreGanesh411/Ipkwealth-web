@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
-import { Info, UserRoundCheck } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { Info, Loader2, RotateCcw, UserRoundCheck } from "lucide-react";
+
 import {
   STAGE_META,
   STATUS_OPTIONS,
@@ -11,9 +12,9 @@ import { resolveStageDisplay } from "./interface/utils";
 
 /**
  * StatusCard
- * - Centralised options for status and stage
- * - Inline dormant-reason prompt for *_DORMANT/HIBERNATED stages when unified handler is provided
- * - Shows a tiny current-stage pill for quick visual context
+ * - Users can adjust lead status & stage, then commit via an explicit Save button.
+ * - Dormant / hibernated stages prompt for a required dormant reason before saving.
+ * - A reset action lets users discard unsaved edits.
  */
 export default function StatusCard({
   statusValue,
@@ -21,53 +22,125 @@ export default function StatusCard({
   onStatusChange,
   onStageChange,
   disabled,
+  saving = false,
   onStatusStageChange,
 }: StatustCardProps) {
-  // Show ASSIGNED as PENDING in the control
-  const displayStatus = statusValue === "ASSIGNED" ? "PENDING" : statusValue ?? "";
+  const normalizedStatus = statusValue === "ASSIGNED" ? "PENDING" : statusValue ?? "";
+  const normalizedStage = stageValue ?? "";
 
-  // Hide ASSIGNED from the list entirely
-  const statusOptionsNoAssigned = STATUS_OPTIONS.filter((opt) => opt.value !== "ASSIGNED");
-
-  // Dormant handling state
-  const [pendingStage, setPendingStage] = useState<string | null>(null);
+  const [editedStatus, setEditedStatus] = useState<string>(normalizedStatus);
+  const [editedStage, setEditedStage] = useState<string>(normalizedStage);
   const [dormantReason, setDormantReason] = useState<string | null>(null);
+  const [validationError, setValidationError] = useState<string | null>(null);
 
-  const currentStageMeta = useMemo(
-    () => (stageValue ? STAGE_META[String(stageValue)] : undefined),
-    [stageValue]
-  );
-  const stageHint = useMemo(() => {
-    const s = resolveStageDisplay({ rawStage: String(stageValue ?? ""), normalizedStage: stageValue as any, status: displayStatus });
-    return s.hint;
-  }, [stageValue, displayStatus]);
+  // Sync local draft with incoming props (e.g. after save/refetch)
+  useEffect(() => {
+    setEditedStatus(normalizedStatus);
+  }, [normalizedStatus]);
+
+  useEffect(() => {
+    setEditedStage(normalizedStage);
+    setDormantReason(null);
+  }, [normalizedStage]);
+
+  const stageDraft = editedStage || "";
+
+  const currentStageMeta = useMemo(() => {
+    const key = stageDraft || normalizedStage;
+    return key ? STAGE_META[String(key)] : undefined;
+  }, [stageDraft, normalizedStage]);
+
+  const stageDisplay = useMemo(() => {
+    const stageForDisplay = stageDraft || normalizedStage;
+    return resolveStageDisplay({
+      rawStage: stageForDisplay,
+      normalizedStage: (stageForDisplay || undefined) as any,
+      status: (editedStatus || normalizedStatus) as any,
+    });
+  }, [stageDraft, normalizedStage, editedStatus, normalizedStatus]);
+
+  const stageHint = stageDisplay.hint;
+  const showDormantReason =
+    Boolean(editedStage) && editedStage !== normalizedStage && isDormantStage(editedStage);
+
+  const hasChanges =
+    (editedStatus && editedStatus !== normalizedStatus) ||
+    (editedStage && editedStage !== normalizedStage);
+
+  const combinedDisabled = disabled || saving;
+  const requiresReason = showDormantReason && (!dormantReason || !dormantReason.trim());
+  const saveDisabled = combinedDisabled || !hasChanges || requiresReason;
+
+  const statusOptions = STATUS_OPTIONS.filter((opt) => opt.value !== "ASSIGNED");
+
+  const handleReset = () => {
+    setEditedStatus(normalizedStatus);
+    setEditedStage(normalizedStage);
+    setDormantReason(null);
+    setValidationError(null);
+  };
+
+  const handleSave = () => {
+    setValidationError(null);
+
+    const updates: { newStatus?: string; newStage?: string; dormantReason?: string | null } = {};
+
+    if (editedStatus && editedStatus !== normalizedStatus) {
+      updates.newStatus = editedStatus;
+    }
+    if (editedStage && editedStage !== normalizedStage) {
+      updates.newStage = editedStage;
+      if (isDormantStage(editedStage)) {
+        if (!dormantReason || !dormantReason.trim()) {
+          setValidationError("Choose a dormant reason before saving.");
+          return;
+        }
+        updates.dormantReason = dormantReason;
+      }
+    }
+
+    if (!updates.newStatus && !updates.newStage) {
+      setValidationError("No changes to save.");
+      return;
+    }
+
+    if (onStatusStageChange) {
+      onStatusStageChange(updates);
+    } else {
+      if (updates.newStatus) onStatusChange(updates.newStatus);
+      if (updates.newStage) onStageChange(updates.newStage);
+    }
+  };
 
   return (
-    <div className="card card-padded">
+    <div className="card card-padded flex h-full flex-col">
       <div className="flex items-center gap-2">
         <UserRoundCheck className="h-5 w-5 text-emerald-500" aria-hidden="true" />
         <h3 className="section-title">Update progress</h3>
       </div>
 
-      <div className="mt-4 space-y-4">
+      <form
+        className="mt-4 flex flex-1 flex-col gap-4"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (!saveDisabled) handleSave();
+        }}
+      >
         <fieldset>
-          <label className="form-label">
-            Lead status
-          </label>
+          <label className="form-label">Lead status</label>
           <select
-            value={displayStatus}
-            onChange={(e) => {
-              const val = e.target.value;
-              if (onStatusStageChange) onStatusStageChange({ newStatus: val });
-              else onStatusChange(val);
+            value={editedStatus || ""}
+            onChange={(event) => {
+              setEditedStatus(event.target.value);
+              setValidationError(null);
             }}
-            disabled={disabled}
+            disabled={combinedDisabled}
             className="form-select"
           >
             <option value="" disabled>
               Select status
             </option>
-            {statusOptionsNoAssigned.map((opt) => (
+            {statusOptions.map((opt) => (
               <option key={opt.value} value={opt.value}>
                 {opt.label}
               </option>
@@ -76,23 +149,16 @@ export default function StatusCard({
         </fieldset>
 
         <fieldset>
-          <label className="form-label">
-            Pipeline stage
-          </label>
+          <label className="form-label">Pipeline stage</label>
           <select
-            value={pendingStage ?? stageValue ?? ""}
-            onChange={(e) => {
-              const nxt = e.target.value;
-              if (isDormantStage(nxt) && onStatusStageChange) {
-                setPendingStage(nxt);
-                setDormantReason(null);
-                return;
-              }
-              setPendingStage(null);
-              if (onStatusStageChange) onStatusStageChange({ newStage: nxt });
-              else onStageChange(nxt);
+            value={editedStage || ""}
+            onChange={(event) => {
+              const nextStage = event.target.value;
+              setEditedStage(nextStage);
+              setValidationError(null);
+              if (!isDormantStage(nextStage)) setDormantReason(null);
             }}
-            disabled={disabled}
+            disabled={combinedDisabled}
             className="form-select"
           >
             <option value="" disabled>
@@ -112,61 +178,69 @@ export default function StatusCard({
               >
                 {currentStageMeta.label}
               </span>
-              <span className="inline-flex items-center gap-1">
-                <Info className="h-3.5 w-3.5" />
-                <span>Stage hint available</span>
-              </span>
+              {stageHint && (
+                <span className="inline-flex items-center gap-1">
+                  <Info className="h-3.5 w-3.5" />
+                  <span>Stage hint available</span>
+                </span>
+              )}
             </p>
           )}
         </fieldset>
 
-        {pendingStage && isDormantStage(pendingStage) && (
+        {showDormantReason && (
           <div className="rounded-xl border border-amber-200 bg-amber-50/60 p-3 text-xs text-amber-900 dark:border-amber-400/30 dark:bg-amber-500/10 dark:text-amber-100">
-            <div className="mb-2 font-semibold">Dormant stage selected — choose a reason</div>
+            <div className="mb-2 font-semibold">Dormant stage selected - choose a reason.</div>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <select
                 value={dormantReason ?? ""}
-                onChange={(e) => setDormantReason(e.target.value || null)}
+                onChange={(event) => setDormantReason(event.target.value || null)}
                 className="h-9 w-full rounded-lg border border-amber-300 bg-white px-2 text-xs text-amber-900 dark:border-amber-400/40 dark:bg-white/5 dark:text-amber-100 sm:max-w-xs"
               >
                 <option value="" disabled>
                   Choose reason
                 </option>
-                {DORMANT_REASONS.map((r) => (
-                  <option key={r.value} value={r.value}>
-                    {r.label}
+                {DORMANT_REASONS.map((reason) => (
+                  <option key={reason.value} value={reason.value}>
+                    {reason.label}
                   </option>
                 ))}
               </select>
-              <div className="flex gap-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (!onStatusStageChange || !pendingStage) return;
-                    onStatusStageChange({ newStage: pendingStage, dormantReason });
-                    setPendingStage(null);
-                    setDormantReason(null);
-                  }}
-                  disabled={!dormantReason || disabled}
-                  className="inline-flex items-center rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-                >
-                  Apply
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setPendingStage(null);
-                    setDormantReason(null);
-                  }}
-                  className="inline-flex items-center rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-semibold text-amber-900 dark:border-amber-400/40 dark:text-amber-100"
-                >
-                  Cancel
-                </button>
-              </div>
+              <span className="text-[11px] text-amber-700 dark:text-amber-100">
+                Captures why the lead moved to a dormant state.
+              </span>
             </div>
           </div>
         )}
-      </div>
+
+        {validationError && (
+          <p className="text-xs font-medium text-rose-600 dark:text-rose-300">{validationError}</p>
+        )}
+
+        <div className="mt-auto flex flex-col-reverse gap-2 pt-2 sm:flex-row sm:items-center sm:justify-between">
+          {hasChanges && (
+            <button
+              type="button"
+              onClick={handleReset}
+              disabled={combinedDisabled}
+              className="inline-flex items-center justify-center gap-2 rounded-full border border-gray-200 bg-white px-4 py-2 text-xs font-semibold text-gray-600 transition hover:border-gray-300 hover:text-gray-800 dark:border-white/10 dark:bg-white/5 dark:text-white/70 dark:hover:border-white/20 dark:hover:text-white"
+            >
+              <RotateCcw className="h-3.5 w-3.5" />
+              Reset
+            </button>
+          )}
+          <button type="submit" disabled={saveDisabled} className="btn btn-success w-full sm:w-auto">
+            {saving ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              "Save progress"
+            )}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }

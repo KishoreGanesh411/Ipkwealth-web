@@ -124,6 +124,7 @@ export type StatustCardProps = {
   onStatusChange: (value: string) => void;
   onStageChange: (value: string) => void;
   disabled?: boolean;
+  saving?: boolean;
   onStatusStageChange?: (options: {
     newStatus?: string;
     newStage?: string;

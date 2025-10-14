@@ -26,7 +26,7 @@ export default function AddEventCard({
   const isInteraction = useMemo(() => ["CALL", "MEETING", "WHATSAPP", "INTERACTION"].includes(form.type), [form.type]);
   const dormant = isDormantStage(currentStage);
   return (
-    <div className="card card-padded">
+    <div className="card card-padded flex h-full flex-col">
       <div className="flex items-center gap-2">
         <PlusCircle className="h-5 w-5 text-emerald-500" aria-hidden="true" />
         <h3 className="section-title">
@@ -35,7 +35,7 @@ export default function AddEventCard({
       </div>
 
       <form
-        className="mt-4 space-y-4"
+        className="mt-4 flex flex-1 flex-col gap-4"
         onSubmit={(e) => {
           if (onCreateEvent) {
             e.preventDefault();
@@ -162,7 +162,7 @@ export default function AddEventCard({
         <button
           type="submit"
           disabled={submitting}
-          className="btn btn-success w-full"
+          className="btn btn-success mt-2 w-full sm:mt-auto"
         >
           {submitting ? (
             <>

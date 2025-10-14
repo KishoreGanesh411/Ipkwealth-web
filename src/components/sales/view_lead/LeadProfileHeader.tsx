@@ -372,31 +372,26 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
 
   return (
     <>
-      <div className="relative card card-padded">
-{canEditProfile && (
-  <button
-    type="button"
-    onClick={handleEditClick}
-    className="
-      absolute left-1/2 top-[94px] 
-      -translate-x-1/2 transform
-      inline-flex items-center justify-center
-      rounded-full bg-emerald-600 p-3 
-      text-white shadow-md ring-offset-1 transition-all 
-      hover:scale-105 hover:bg-emerald-700 focus:outline-none 
-      focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2
-      md:left-[68px] md:top-[78px] md:-translate-x-0
-    "
-    title="Edit lead details"
-  >
-    <PencilLine className="h-5 w-5" />
-  </button>
-)}
+      <div className="card card-padded">
         <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
           {/* Left column: avatar + name + status */}
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="grid h-16 w-16 place-items-center rounded-full bg-emerald-500/10 text-lg font-semibold text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
-              {initials(lead.name)}
+            <div className="relative flex h-16 w-16 flex-shrink-0 items-center justify-center">
+              <div className="grid h-16 w-16 place-items-center rounded-full bg-emerald-500/10 text-lg font-semibold text-emerald-700 transition-colors dark:bg-emerald-500/20 dark:text-emerald-200">
+                {initials(lead.name)}
+              </div>
+              {canEditProfile && (
+                <button
+                  type="button"
+                  onClick={handleEditClick}
+                  disabled={loading}
+                  aria-label="Edit lead details"
+                  title="Edit lead details"
+                  className="absolute -bottom-2 left-1/2 inline-flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-white shadow-lg transition-transform hover:scale-105 hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-75 sm:-bottom-3 sm:left-auto sm:right-0 sm:translate-x-0 sm:border-white/90 md:-right-2 dark:border-emerald-500/40 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                >
+                  <PencilLine className="h-4 w-4" />
+                </button>
+              )}
             </div>
             <div>
               <div className="flex flex-wrap items-center gap-3">
