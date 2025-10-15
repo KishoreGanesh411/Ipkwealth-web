@@ -23,6 +23,7 @@ import type { LucideIcon } from "lucide-react";
 
 import { UPDATE_LEAD } from "@/core/graphql/leads.gql";
 import LeadStatusBadge from "@/components/sales/myleads/LeadStatusBadge";
+import { leadOptions, valueToLabel } from "@/components/lead/types";
 import {
   initials,
   resolveStageDisplay,
@@ -32,6 +33,7 @@ import {
   formatSipAmount,
   humanize,
 } from "./interface/utils";
+import { parseISO, differenceInCalendarDays, isValid as isValidDate } from "date-fns";
 import type { LeadProfile, LeadEditFormValues } from "./interface/types";
 import LeadEditModal from "./LeadEditModal";
 
@@ -255,12 +257,23 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
 
   /** Basic summary fields displayed on the header card */
   const leadSummary = useMemo(() => {
+    const enteredOnRaw = lead.firstSeenAt || lead.createdAt || null;
+    let agingDaysNum: number | null = null;
+    if (enteredOnRaw) {
+      try {
+        const d = parseISO(enteredOnRaw);
+        if (isValidDate(d)) agingDaysNum = Math.max(0, differenceInCalendarDays(new Date(), d));
+      } catch {
+        // fallthrough with null
+      }
+    }
+    const leadSourceLabel = valueToLabel((lead.leadSource as any) ?? "", leadOptions);
     return [
-      { label: "Lead source", value: lead.leadSource?.trim() || "Not captured" },
-      { label: "Entered on", value: formatDateDisplay(lead.enteredAt) },
-      { label: "Aging", value: formatAgingDays(lead.agingDays) },
+      { label: "Lead source", value: leadSourceLabel || "Not captured" },
+      { label: "Entered on", value: formatDateDisplay(enteredOnRaw) },
+      { label: "Aging", value: formatAgingDays(agingDaysNum ?? undefined) },
     ];
-  }, [lead.leadSource, lead.enteredAt, lead.agingDays]);
+  }, [lead.leadSource, lead.firstSeenAt, lead.createdAt]);
 
   /**
    * Prepare initial values for the edit modal. We map DB fields into

@@ -44,6 +44,7 @@ type MyAssignedLeadNode = {
   status?: string | null;
   clientStage?: string | null;
   createdAt?: string | null;
+  firstSeenAt?: string | null;
   assignedAt?: string | null;
   assignedRM?: string | null;
   lastContactedAt?: string | null;
@@ -137,7 +138,7 @@ function normalizeLead(node: MyAssignedLeadNode): Lead {
   const name = fallbackName && fallbackName.length > 0 ? fallbackName : "Unnamed lead";
   const mobile = node.mobile ?? node.phone ?? null;
   const location = node.location ?? node.city ?? null;
-  const rawAging = node.agingDays ?? computeAgingDays(node.createdAt);
+  const rawAging = node.agingDays ?? computeAgingDays(node.firstSeenAt ?? node.createdAt);
   const agingDays =
     typeof rawAging === "number" && Number.isFinite(rawAging) ? Math.max(0, Math.floor(rawAging)) : undefined;
 
@@ -171,9 +172,9 @@ function normalizeLead(node: MyAssignedLeadNode): Lead {
   };
 }
 
-function computeAgingDays(createdAt?: string | null) {
-  if (!createdAt) return undefined;
-  const timestamp = Date.parse(createdAt);
+function computeAgingDays(fromDate?: string | null) {
+  if (!fromDate) return undefined;
+  const timestamp = Date.parse(fromDate);
   if (Number.isNaN(timestamp)) return undefined;
   const diffMs = Date.now() - timestamp;
   if (diffMs < 0) return 0;

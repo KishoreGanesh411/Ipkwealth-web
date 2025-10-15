@@ -16,6 +16,7 @@ import { Dropdown } from "@/components/ui/dropdown/Dropdown";
 import { DropdownItem } from "@/components/ui/dropdown/DropdownItem";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import LeadStatusBadge from "@/components/sales/myleads/LeadStatusBadge";
+import { leadOptions, valueToLabel } from "@/components/lead/types";
 import type { Lead } from "@/components/sales/myleads/interface/type";
 import { LeadStage, LeadStatus } from "@/components/sales/myleads/interface/type";
 import { STAGE_META, STAGE_SEQUENCE } from "@/components/sales/myleads/stageMeta";
@@ -240,7 +241,7 @@ export default function AssignedLeads({
                             <span className="text-sm font-semibold text-gray-900 dark:text-white">{lead.name}</span>
                             {lead.isNew && <NewBadge />}
                           </div>
-                          <div className="text-xs text-gray-500 dark:text-white/60">{lead.leadSource || "-"}</div>
+                          <div className="text-xs text-gray-500 dark:text-white/60">{valueToLabel(lead.leadSource as any, leadOptions) || "-"}</div>
                         </div>
                       </div>
                       {lead.location && (
@@ -419,32 +420,22 @@ function ExportButton({ onClick, disabled }: { onClick: () => void; disabled?: b
 
 function StageCell({ stage }: { stage?: LeadStage }) {
   if (!stage) {
-    return <span className={FALLBACK_STAGE_BADGE}>Stage pending</span>;
+    return (
+      <div className="flex flex-col gap-1.5">
+        <span className={FALLBACK_STAGE_BADGE}>Stage pending</span>
+        <span className="h-1.5 w-16 rounded-full bg-gray-200" />
+      </div>
+    );
   }
 
   const meta = STAGE_META[stage];
-  const currentIndex = STAGE_SEQUENCE.indexOf(stage);
 
   return (
-    <div className="flex flex-col gap-2">
-      <div className="flex gap-1">
-        {STAGE_SEQUENCE.map((step, index) => {
-          const tone = STAGE_META[step];
-          const isActive = index <= currentIndex;
-          let base = "bg-emerald-200/60";
-          if (index >= 4 && index <= 6) base = "bg-rose-200/40";
-          if (index === STAGE_SEQUENCE.length - 1) base = "bg-slate-200/60";
-          return (
-            <span
-              key={step}
-              className={`h-2 w-8 rounded-full transition ${isActive ? tone.barClass : base}`}
-            />
-          );
-        })}
-      </div>
+    <div className="flex flex-col gap-1.5">
       <span className={`inline-flex items-center justify-center rounded-full px-3 py-1 text-xs font-semibold ${meta.pillClass}`}>
         {meta.label}
       </span>
+      <span className={`h-1.5 w-16 rounded-full ${meta.barClass}`} />
     </div>
   );
 }

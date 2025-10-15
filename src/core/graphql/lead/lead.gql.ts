@@ -12,6 +12,7 @@ export const LEAD_FIELDS = gql`
     leadSource
     assignedRM
     status
+    clientStage
     createdAt
     # telemetry for dormant view / metrics
     firstSeenAt

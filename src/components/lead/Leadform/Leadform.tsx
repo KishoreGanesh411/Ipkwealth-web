@@ -13,7 +13,10 @@ export type LeadFormState = Pick<
 > & {
   leadSource: LeadSource;
   leadSourceOther?: string;
-  referralName?: string; // using this name in the UI
+  // referral capture when source=referral
+  referralMode?: "NAME" | "LEAD_CODE"; // UI toggle between name/code
+  referralName?: string; // optional
+  referralCode?: string; // optional
 };
 
 interface CreateLeadFormProps {
@@ -138,6 +141,8 @@ export default function CreateLeadForm({
                 leadSource: val as LeadSource,
                 // clear fields when switching away
                 referralName: val === "referral" ? s.referralName ?? "" : "",
+                referralCode: val === "referral" ? s.referralCode ?? "" : "",
+                referralMode: val === "referral" ? (s.referralMode ?? "NAME") : s.referralMode,
                 leadSourceOther: val === "others" ? s.leadSourceOther ?? "" : "",
               }))
             }
@@ -165,19 +170,53 @@ export default function CreateLeadForm({
       {/* Referral Name / Lead Code */}
       {showReferral && (
         <div>
-          <Label>Referral Name / Lead Code</Label>
+          <div className="mb-2 flex items-center justify-between">
+            <Label>Referral</Label>
+            <div className="flex gap-2">
+              {(["NAME", "LEAD_CODE"] as const).map((mode) => {
+                const active = (lead.referralMode ?? "NAME") === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setLead((s) => ({ ...s, referralMode: mode }))}
+                    className={
+                      `rounded-full px-3 py-1 text-xs font-semibold transition ` +
+                      (active
+                        ? "bg-emerald-500 text-white"
+                        : "border border-gray-200 text-gray-700 hover:border-emerald-300 dark:border-white/10 dark:text-gray-200")
+                    }
+                    aria-pressed={active}
+                  >
+                    {mode === "NAME" ? "Lead name" : "Lead code"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="relative">
             <IconWrap>
               <UserIcon className="h-4 w-4" />
             </IconWrap>
-            <Input
-              className="pl-9"
-              value={lead.referralName ?? ""}
-              onChange={(e) =>
-                setLead((s) => ({ ...s, referralName: e.target.value }))
-              }
-              placeholder="Enter referral name or lead code"
-            />
+            {((lead.referralMode ?? "NAME") === "NAME") ? (
+              <Input
+                className="pl-9"
+                value={lead.referralName ?? ""}
+                onChange={(e) =>
+                  setLead((s) => ({ ...s, referralName: e.target.value }))
+                }
+                placeholder="Enter referral name"
+              />
+            ) : (
+              <Input
+                className="pl-9"
+                value={lead.referralCode ?? ""}
+                onChange={(e) =>
+                  setLead((s) => ({ ...s, referralCode: e.target.value }))
+                }
+                placeholder="Enter referral lead code (e.g., IPK25100002)"
+              />
+            )}
           </div>
         </div>
       )}

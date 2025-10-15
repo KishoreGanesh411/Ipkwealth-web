@@ -19,7 +19,8 @@ export default function LeadEntry() {
   const [lead, setLead] = useState({
     firstName: "", lastName: "", email: "", phone: "", leadSource: "",
     leadSourceOther: "",
-    referralName: "", gender: "", age: "" as number | "", profession: "",
+    referralName: "", referralCode: "", referralMode: "NAME" as "NAME" | "LEAD_CODE",
+    gender: "", age: "" as number | "", profession: "",
     companyName: "", designation: "", location: "", product: "",
     investmentRange: "", sipAmount: "" as number | "", clientType: "", remark: "",
   });
@@ -74,19 +75,38 @@ export default function LeadEntry() {
           ? lead.leadSourceOther?.trim()
           : lead.leadSource?.trim();
 
+      // Build occupations[] for new embedded occupation schema
+      const occItem: Record<string, any> = {};
+      if (lead.profession && String(lead.profession).trim()) occItem.profession = String(lead.profession).trim();
+      if (lead.companyName && String(lead.companyName).trim()) occItem.companyName = String(lead.companyName).trim();
+      if (lead.designation && String(lead.designation).trim()) occItem.designation = String(lead.designation).trim();
+      const occupations = Object.keys(occItem).length ? [occItem] : undefined;
+
+      // Resolve referral by mode when source is referral
+      const referralByName = lead.leadSource === "referral" && (lead.referralMode ?? "NAME") === "NAME"
+        ? (lead.referralName?.trim() || undefined)
+        : undefined;
+      const referralByCode = lead.leadSource === "referral" && (lead.referralMode ?? "NAME") === "LEAD_CODE"
+        ? (lead.referralCode?.trim() || undefined)
+        : undefined;
+
       const payload = {
         firstName: lead.firstName || undefined,
         lastName: lead.lastName || undefined,
         email: lead.email || undefined,
         phone: lead.phone,
         leadSource: normalizedLeadSource || undefined,
-        referralCode: lead.referralName || undefined,
+        referralName: referralByName,
+        referralCode: referralByCode,
         gender: lead.gender || undefined,
         age: lead.age ? Number(lead.age) : undefined,
         location: lead.location || undefined,
+        // keep top-level occupation fields for backward compatibility
         profession: lead.profession || undefined,
         companyName: lead.companyName || undefined,
         designation: lead.designation || undefined,
+        // new embedded array
+        occupations,
         product: lead.product || undefined,
         investmentRange: lead.investmentRange || undefined,
         sipAmount: lead.sipAmount ? Number(lead.sipAmount) : undefined,
@@ -98,7 +118,8 @@ export default function LeadEntry() {
       setLead({
         firstName: "", lastName: "", email: "", phone: "", leadSource: "",
         leadSourceOther: "",
-        referralName: "", gender: "", age: "" as number | "", profession: "",
+        referralName: "", referralCode: "", referralMode: "NAME",
+        gender: "", age: "" as number | "", profession: "",
         companyName: "", designation: "", location: "", product: "",
         investmentRange: "", sipAmount: "" as number | "", clientType: "", remark: "",
       });
