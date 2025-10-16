@@ -36,6 +36,8 @@ import {
 import { parseISO, differenceInCalendarDays, isValid as isValidDate } from "date-fns";
 import type { LeadProfile, LeadEditFormValues } from "./interface/types";
 import LeadEditModal from "./LeadEditModal";
+import { useModal } from "@/hooks/useModal";
+import { Modal } from "@/components/ui/modal";
 
 /**
  * LeadProfileHeader component displays a lead summary and exposes an edit button.
@@ -63,6 +65,7 @@ type HeaderMetaField = {
   label: string;
   value: string;
   secondary?: string | null;
+  lines?: string[]; // optional extra lines (renders under value)
   muted?: boolean;
   visible?: boolean;
 };
@@ -118,6 +121,10 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   }
   const occupationSecondary =
     occupationSecondaryParts.length > 0 ? occupationSecondaryParts.join(" | ") : null;
+  const occupationLines: string[] = [];
+  if (profession) occupationLines.push(profession);
+  if (designation) occupationLines.push(designation);
+  if (companyName) occupationLines.push(companyName);
 
   const hasInvestmentRange = Boolean(investmentRangeRaw);
   const sipAmountValue =
@@ -149,7 +156,8 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       icon: Briefcase,
       label: "Occupation",
       value: occupationPrimary || "Not captured",
-      secondary: occupationSecondary,
+      // show each on its own line for clarity
+      lines: occupationLines.length ? occupationLines : undefined,
       muted: !(occupationPrimary || occupationSecondary),
     },
     {
@@ -189,13 +197,14 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       value: genderDisplay,
       muted: !genderRaw,
     },
+    // Company is represented inside Occupation box as a line; hide separate box
     {
       key: "company",
       icon: Building,
       label: "Company",
       value: companyName || "Not captured",
       muted: !companyName,
-      secondary: designation && designation.toLowerCase() !== occupationKey ? designation : null,
+      visible: false,
     },
     {
       key: "referral",
@@ -264,16 +273,34 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
         const d = parseISO(enteredOnRaw);
         if (isValidDate(d)) agingDaysNum = Math.max(0, differenceInCalendarDays(new Date(), d));
       } catch {
-        // fallthrough with null
+        // ignore
       }
     }
     const leadSourceLabel = valueToLabel((lead.leadSource as any) ?? "", leadOptions);
-    return [
+
+    // Product
+    const productLabel = (lead.product ?? "").toString().trim() || "Not specified";
+
+    // Investment or SIP
+    const invRaw = (lead.investmentRange ?? "").toString().trim();
+    const sipNum = typeof lead.sipAmount === "number" && Number.isFinite(lead.sipAmount)
+      ? lead.sipAmount
+      : null;
+    const invValue = invRaw
+      ? formatInvestmentRange(invRaw)
+      : sipNum !== null
+      ? formatSipAmount(sipNum)
+      : "Not captured";
+
+    const items = [
       { label: "Lead source", value: leadSourceLabel || "Not captured" },
       { label: "Entered on", value: formatDateDisplay(enteredOnRaw) },
       { label: "Aging", value: formatAgingDays(agingDaysNum ?? undefined) },
+      { label: "Product", value: productLabel },
+      { label: "Investment / SIP", value: invValue },
     ];
-  }, [lead.leadSource, lead.firstSeenAt, lead.createdAt]);
+    return items;
+  }, [lead.leadSource, lead.firstSeenAt, lead.createdAt, lead.product, lead.investmentRange, lead.sipAmount]);
 
   /**
    * Prepare initial values for the edit modal. We map DB fields into
@@ -336,6 +363,8 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   };
 
   const handleModalClose = () => setIsEditing(false);
+  const remarkModal = useModal(false);
+  const bioModal = useModal(false);
 
   /**
    * Submit handler for the edit modal. We normalize phone numbers into phone
@@ -470,27 +499,41 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
             </div>
           </div>
         </div>
+        {/* Remark + Bio row with hover previews and view-more */}
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          <HoverPreviewCard
+            label="Latest remark"
+            text={lead.remark ?? ""}
+            onViewMore={remarkModal.openModal}
+          />
+          <HoverPreviewCard
+            label="Bio"
+            text={(lead as any).bioText ?? ""}
+            onViewMore={bioModal.openModal}
+          />
+        </div>
+
         {/* Dynamic meta fields: display all available data points */}
         <div className="mt-5 meta-grid">
           {metaFields.map(({ key, visible: _visible, ...field }) => (
             <MetaField key={key} {...field} />
           ))}
         </div>
-        {/* Latest remark */}
-        {lead.remark && (
-          <div className="mt-4 rounded-xl border border-gray-100 bg-gray-50/60 p-4 text-sm text-gray-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70">
-            <span className="font-semibold text-gray-900 dark:text-white">Latest remark:</span>{" "}
-            {lead.remark}
-          </div>
-        )}
-        {/* Biography text if available */}
-        {(lead as any).bioText && (
-          <div className="mt-2 rounded-xl border border-gray-100 bg-gray-50/60 p-4 text-sm text-gray-700 dark:border-white/10 dark:bg-white/[0.04] dark:text-white/70">
-            <span className="font-semibold text-gray-900 dark:text-white">Bio:</span>{" "}
-            {(lead as any).bioText}
-          </div>
-        )}
-      </div>
+        {/* Biography text moved to hover/Modal row above */}
+              </div>
+      {/* Full text modals */}
+      <RemarkBioModal
+        title="Lead remark"
+        isOpen={remarkModal.isOpen}
+        onClose={remarkModal.closeModal}
+        body={lead.remark ?? "No remark added yet."}
+      />
+      <RemarkBioModal
+        title="Lead bio"
+        isOpen={bioModal.isOpen}
+        onClose={bioModal.closeModal}
+        body={(lead as any).bioText ?? "No bio added yet."}
+      />
       <LeadEditModal
         isOpen={isEditing}
         onClose={handleModalClose}
@@ -512,12 +555,14 @@ function MetaField({
   label,
   value,
   secondary,
+  lines,
   muted = false,
 }: {
   icon: LucideIcon;
   label: string;
   value: string;
   secondary?: string | null;
+  lines?: string[];
   muted?: boolean;
 }) {
   return (
@@ -526,15 +571,16 @@ function MetaField({
         <Icon className="h-4 w-4" />
         {label}
       </div>
-      <div
-        className={`mt-1 truncate font-semibold ${
-          muted ? "text-gray-400 dark:text-white/40" : "text-gray-900 dark:text-white"
-        }`}
-        title={value}
-      >
-        {value}
-      </div>
-      {secondary ? (
+      <div className={`mt-1 font-semibold ${muted ? "text-gray-400 dark:text-white/40" : "text-gray-900 dark:text-white"}`}>{value}</div>
+      {Array.isArray(lines) && lines.length > 0 ? (
+        <div className="mt-1 space-y-0.5 text-xs text-gray-500 dark:text-white/60">
+          {lines.map((ln, i) => (
+            <div key={i} className="truncate" title={ln}>
+              {ln}
+            </div>
+          ))}
+        </div>
+      ) : secondary ? (
         <div className="mt-1 text-xs text-gray-500 dark:text-white/60" title={secondary}>
           {secondary}
         </div>
@@ -542,5 +588,67 @@ function MetaField({
     </div>
   );
 }
+
+/* ------------------------------ Local UI --------------------------------- */
+function HoverPreviewCard({
+  label,
+  text,
+  onViewMore,
+}: {
+  label: string;
+  text: string;
+  onViewMore: () => void;
+}) {
+  const preview = (text || "").trim();
+  const empty = preview.length === 0;
+  return (
+    <div className="group relative rounded-2xl border border-gray-100 bg-gray-50/60 p-4 text-sm transition-all hover:border-emerald-200 hover:bg-white dark:border-white/10 dark:bg-white/[0.03]">
+      <div className="flex items-center justify-between">
+        <div className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-white/60">{label}</div>
+        <button
+          type="button"
+          onClick={onViewMore}
+          className="inline-flex items-center rounded-lg border border-gray-200 px-2.5 py-1 text-[11px] font-semibold text-gray-700 shadow-sm transition hover:border-emerald-300 hover:text-emerald-700 dark:border-white/10 dark:text-gray-200 dark:hover:border-emerald-300"
+        >
+          View
+        </button>
+      </div>
+      <div className={`mt-2 line-clamp-2 whitespace-pre-wrap ${empty ? "text-gray-400 dark:text-white/40" : "text-gray-800 dark:text-white/80"}`}>
+        {empty ? "—" : preview}
+      </div>
+      {/* Hover popover */}
+      {!empty && (
+        <div className="pointer-events-none absolute inset-x-4 -bottom-2 z-20 hidden origin-top rounded-xl border border-gray-200 bg-white p-3 text-[13px] text-gray-800 shadow-2xl transition-all duration-200 group-hover:block group-hover:-translate-y-1 group-hover:opacity-100 dark:border-white/10 dark:bg-gray-900 dark:text-white/80">
+          <div className="max-h-40 overflow-auto whitespace-pre-wrap">
+            {preview}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function RemarkBioModal({ title, isOpen, onClose, body }: { title: string; isOpen: boolean; onClose: () => void; body: string }) {
+  return (
+    <Modal isOpen={isOpen} onClose={onClose} className="max-w-[720px] m-4">
+      <div className="p-6">
+        <h3 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h3>
+        <div className="mt-3 max-h-[60vh] overflow-auto whitespace-pre-wrap text-sm text-gray-800 dark:text-white/80">
+          {body?.trim() ? body : "—"}
+        </div>
+        <div className="mt-5 flex justify-end">
+          <button
+            type="button"
+            onClick={onClose}
+            className="rounded-lg border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]"
+          >
+            Close
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}
+
 
 

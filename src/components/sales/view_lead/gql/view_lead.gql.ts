@@ -142,3 +142,14 @@ export const CREATE_LEAD_EVENT = gql`
     }
   }
 `;
+
+/** Update just the biography text */
+export const UPDATE_LEAD_BIO = gql`
+  mutation UpdateLeadBio($input: UpdateLeadBioInput!) {
+    updateLeadBio(input: $input) {
+      id
+      bioText
+      updatedAt
+    }
+  }
+`;
