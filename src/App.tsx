@@ -25,8 +25,7 @@ import SalesEvent from "@/pages/Sales/Event_sales/Event_Rm";
 import CallConnectPage from "@/pages/Sales/Call/CallConnectPage";
 import LeadStagesPage from "@/pages/Sales/LeadStagesPage";
 import ViewLeadPage from "@/pages/Sales/ViewLeadPage";
-import RecentLeadProfilesPage from "@/pages/Sales/RecentLeadProfilesPage";
-import LeadProfileLanding from "@/pages/Sales/LeadProfileLanding";
+// import LeadProfileLanding from "@/pages/Sales/LeadProfileLanding";
 import AdminDashboard from "@/pages/Admin/AdminDashboard";
 
 // Common/Misc
@@ -98,8 +97,7 @@ export default function App() {
               <Route path="sales/dashboard" element={<SalesRMDashboard />} />
               <Route path="sales/assigned" element={<MyLeadsPage />} />
               <Route path="sales/stages" element={<LeadStagesPage />} />
-              <Route path="sales/leads" element={<LeadProfileLanding />} />
-              <Route path="sales/leads/recent" element={<RecentLeadProfilesPage />} />
+              {/* <Route path="sales/leads" element={<LeadProfileLanding />} /> */}
               <Route path="sales/leads/:id" element={<ViewLeadPage />} />
               <Route path="sales/events" element={<SalesEvent />} />
               <Route path="sales/call" element={<CallConnectPage />} />
