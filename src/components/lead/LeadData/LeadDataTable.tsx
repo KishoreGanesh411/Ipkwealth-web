@@ -11,6 +11,7 @@ import { LeadTableRow, Row } from "./LeadTableRow";
 import { LeadTableFooter } from "./LeadTableFooter";
 import { PAGE_SIZE, TopCenterLoader, useDebounced } from "./leadHelpers";
 import * as XLSX from "xlsx";
+import LeadFiltersModal, { LeadFilters } from "./LeadFilters";
 import {
   titleCaseWords,
   valueToLabel,
@@ -82,7 +83,7 @@ const toTitleOrNull = (value?: string | null): string | null => {
 const toDisplayName = (lead: LeadItemGql): string => {
   const composed = lead.name || [lead.firstName, lead.lastName].filter(Boolean).join(" ");
   const trimmed = composed.trim();
-  if (!trimmed) return "—";
+  if (!trimmed) return "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â";
   return titleCaseWords(trimmed);
 };
 
@@ -150,16 +151,16 @@ function DormantRow({
 }) {
   return (
     <tr className="hover:bg-gray-50/60 dark:hover:bg-white/5">
-      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.leadCode ?? "—"}</td>
+      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.leadCode ?? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</td>
       <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.name}</td>
-      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.phone ?? "—"}</td>
-      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.source ?? "—"}</td>
+      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.phone ?? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</td>
+      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.source ?? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</td>
       <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.reenterCount ?? 0}</td>
       <td className="px-5 py-3 text-sm text-gray-600 dark:text-white/70">
-        {r.firstSeenAt ? new Date(r.firstSeenAt).toLocaleDateString() : "—"}
+        {r.firstSeenAt ? new Date(r.firstSeenAt).toLocaleDateString() : "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
       </td>
       <td className="px-5 py-3 text-sm text-gray-600 dark:text-white/70">
-        {r.lastSeenAt ? new Date(r.lastSeenAt).toLocaleDateString() : "—"}
+        {r.lastSeenAt ? new Date(r.lastSeenAt).toLocaleDateString() : "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
       </td>
     </tr>
   );
@@ -179,6 +180,8 @@ export default function LeadDataTable() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<Notice>(null);
   const [genDone, setGenDone] = useState(false);
+  const [filters, setFilters] = useState<LeadFilters>({ from: null, to: null, rm: null, source: null });
+  const [filterOpen, setFilterOpen] = useState(false);
 
   const isPending = mode === "pending";
   const isDormant = mode === "dormant";
@@ -248,11 +251,47 @@ export default function LeadDataTable() {
     [items],
   );
 
+  const rmOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const r of rows) if (r.assignedRm) names.add(r.assignedRm);
+    return Array.from(names).sort();
+  }, [rows]);
+
+  const visibleRows = useMemo(() => {
+    const lower = (s?: string | null) => (s || '').toLowerCase().trim();
+    return rows.filter((r) => {
+      if (filters.rm) {
+        if (filters.rm === 'UNASSIGNED') {
+          if (r.assignedRm) return false;
+        } else if (lower(r.assignedRm) !== lower(filters.rm)) {
+          return false;
+        }
+      }
+      if (filters.source && lower(r.source) !== lower(filters.source)) return false;
+      if (filters.from || filters.to) {
+        if (!r.createdAt) return false;
+        const ts = Date.parse(r.createdAt);
+        if (Number.isNaN(ts)) return false;
+        const d = new Date(ts);
+        const only = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+        if (filters.from) {
+          const [fy, fm, fd] = String(filters.from).split('-').map((x) => parseInt(x, 10));
+          if (only < Date.UTC(fy, fm - 1, fd)) return false;
+        }
+        if (filters.to) {
+          const [ty, tm, td] = String(filters.to).split('-').map((x) => parseInt(x, 10));
+          if (only > Date.UTC(ty, tm - 1, td)) return false;
+        }
+      }
+      return true;
+    });
+  }, [rows, filters]);
+
   // Selection helpers (unused in Dormant mode)
   const rowKey = (r: Row) => r.id;
-  const allSelected = rows.length > 0 && rows.every((r) => selected.has(rowKey(r)));
+  const allSelected = visibleRows.length > 0 && visibleRows.every((r) => selected.has(rowKey(r)));
   const toggleAll = (checked: boolean) => {
-    const ids = new Set(rows.map(rowKey));
+    const ids = new Set(visibleRows.map(rowKey));
     setSelected((prev) => {
       const next = new Set(prev);
       if (checked) ids.forEach((k) => next.add(k));
@@ -327,7 +366,7 @@ export default function LeadDataTable() {
 
   // Download XLSX (context-aware)
   const handleDownloadXlsx = () => {
-    const chosen = selected.size > 0 && !isDormant ? rows.filter((r) => selected.has(r.id)) : rows;
+    const chosen = selected.size > 0 && !isDormant ? visibleRows.filter((r) => selected.has(r.id)) : visibleRows;
 
     const exportRows = isDormant
       ? chosen.map((r) => ({
@@ -358,6 +397,7 @@ export default function LeadDataTable() {
   const searchRef = useRef<HTMLInputElement>(null);
   const handleReset = () => {
     setSearch("");
+    setFilters({ from: null, to: null, rm: null, source: null });
     setSelected(new Set());
     setPage(1);
     requestAnimationFrame(() => {
@@ -367,11 +407,11 @@ export default function LeadDataTable() {
     setNotice({ variant: "success", title: "Filters Cleared", message: "Showing latest leads." });
   };
 
-  const showAdvancedCols = !isDormant && rows.some((l) => !!l.leadCode || !!l.assignedRm);
+  const showAdvancedCols = !isDormant && visibleRows.some((l) => !!l.leadCode || !!l.assignedRm);
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-      <TopCenterLoader show={loading || generating} text={generating ? "Generating…" : "Loading…"} />
+      <TopCenterLoader show={loading || generating} text={generating ? "GeneratingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦"} />
 
       {notice && (
         <div className="p-3">
@@ -419,6 +459,15 @@ export default function LeadDataTable() {
             onReset={handleReset}
           />
 
+                    <button
+            type="button"
+            onClick={() => setFilterOpen(true)}
+            className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/5"
+            title="Filter"
+          >
+            Filter
+          </button>
+
           <button
             type="button"
             onClick={handleDownloadXlsx}
@@ -436,16 +485,16 @@ export default function LeadDataTable() {
             <>
               <DormantHeader />
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                {rows.map((row) => (
+                {visibleRows.map((row) => (
                   <DormantRow key={row.id} r={row} />
                 ))}
-                {rows.length === 0 && (
+                {visibleRows.length === 0 && (
                   <tr>
                     <td
                       colSpan={7}
                       className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                     >
-                      {loading ? "Loading…" : "No leads to show."}
+                      {loading ? "LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "No leads to show."}
                     </td>
                   </tr>
                 )}
@@ -455,11 +504,11 @@ export default function LeadDataTable() {
             <>
               <LeadTableHeader
                 showAdvancedCols={showAdvancedCols}
-                allSelected={rows.length > 0 && allSelected}
+                allSelected={visibleRows.length > 0 && allSelected}
                 toggleAll={toggleAll}
               />
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                {rows.map((row) => {
+                {visibleRows.map((row) => {
                   const id = rowKey(row);
                   return (
                     <LeadTableRow
@@ -473,13 +522,13 @@ export default function LeadDataTable() {
                     />
                   );
                 })}
-                {rows.length === 0 && (
+                {visibleRows.length === 0 && (
                   <tr>
                     <td
                       colSpan={showAdvancedCols ? 8 : 6}
                       className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
                     >
-                      {loading ? "Loading…" : "No leads to show."}
+                      {loading ? "LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "No leads to show."}
                     </td>
                   </tr>
                 )}
@@ -499,6 +548,15 @@ export default function LeadDataTable() {
           genDone={genDone}
         />
       )}
+
+
+      <LeadFiltersModal
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        value={filters}
+        onApply={setFilters}
+        rmOptions={rmOptions}
+      />
     </div>
   );
 }

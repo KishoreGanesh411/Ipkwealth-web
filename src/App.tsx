@@ -27,6 +27,7 @@ import LeadStagesPage from "@/pages/Sales/LeadStagesPage";
 import ViewLeadPage from "@/pages/Sales/ViewLeadPage";
 // import LeadProfileLanding from "@/pages/Sales/LeadProfileLanding";
 import AdminDashboard from "@/pages/Admin/AdminDashboard";
+import IPKUsers from "@/pages/Admin/IPKUsers";
 
 // Common/Misc
 import Unauthorized from "@/pages/OtherPage/Unauthorized";
@@ -82,6 +83,7 @@ export default function App() {
             {/* Admin-only */}
             <Route element={<ProtectedRoute allow={["ADMIN"]} />}>
               <Route path="admin/dashboard" element={<AdminDashboard />} />
+              <Route path="admin/users" element={<IPKUsers />} />
             </Route>
 
             {/* Marketing-only */}

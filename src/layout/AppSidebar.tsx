@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+﻿import { useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useSidebar } from "@/context/SidebarContext";
 import {
@@ -10,6 +10,7 @@ import {
   ChevronDownIcon,
   HorizontaLDots,
   PieChartIcon,
+  GroupIcon,
 } from "@/icons";
 import SidebarWidget from "./SidebarWidget";
 import { Role, useAuth } from "@/context/AuthContex";
@@ -78,6 +79,11 @@ const adminNav: NavItem[] = [
     icon: <PieChartIcon />,
     name: 'Admin Dashboard',
     path: '/admin/dashboard',
+  },
+  {
+    icon: <GroupIcon />,
+    name: 'IPK Users',
+    path: '/admin/users',
   },
 ];
 

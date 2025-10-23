@@ -1,4 +1,4 @@
-import { useLocation } from "react-router-dom";
+﻿import { useLocation } from "react-router-dom";
 import { useEffect, useState } from "react";
 import EcommerceMetrics from "../../components/ecommerce/EcommerceMetrics";
 import MonthlySalesChart from "../../components/ecommerce/MonthlySalesChart";
@@ -7,7 +7,7 @@ import MonthlyTarget from "../../components/ecommerce/MonthlyTarget";
 // import RecentOrders from "../../components/ecommerce/RecentOrders";
 import DemographicCard from "../../components/ecommerce/DemographicCard";
 import PageMeta from "../../components/common/PageMeta";
-import Alert from "../../components/ui/alert/Alert"; // ✅ import TailAdmin alert
+import Alert from "../../components/ui/alert/Alert"; // âœ… import TailAdmin alert
 
 export default function DigitalHome() {
   const location = useLocation();
@@ -29,11 +29,11 @@ export default function DigitalHome() {
   return (
     <>
       <PageMeta
-        title="React.js CRM Dashboard | IPK-WEALTH"
+        title="Marketing Overview"
         description="Dashboard page for IPK-wealth"
       />
 
-      {/* ✅ Login success alert */}
+      {/* âœ… Login success alert */}
       {showLoginAlert && (
         <div className="mb-2">
           <Alert
@@ -45,7 +45,7 @@ export default function DigitalHome() {
         </div>
       )}
 
-      {/* ✅ Dashboard grid */}
+      {/* âœ… Dashboard grid */}
       <div className="grid grid-cols-12 gap-4 md:gap-6">
         <div className="col-span-12 space-y-6 xl:col-span-7">
           <EcommerceMetrics />
