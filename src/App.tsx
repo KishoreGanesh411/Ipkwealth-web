@@ -20,7 +20,6 @@ import LeadTable from "@/pages/Tables/BasicTables";
 
 // Sales (RM)
 import SalesRMDashboard from "@/pages/Dashboard/salesHome";
-import MyLeadsPage from "@/pages/Sales/Mylead/MyLeadsPage";
 import SalesEvent from "@/pages/Sales/Event_sales/Event_Rm";
 import CallConnectPage from "@/pages/Sales/Call/CallConnectPage";
 import LeadStagesPage from "@/pages/Sales/LeadStagesPage";
@@ -97,7 +96,7 @@ export default function App() {
             {/* Sales (RM)-only */}
             <Route element={<ProtectedRoute allow={["RM", "ADMIN"]} />}>
               <Route path="sales/dashboard" element={<SalesRMDashboard />} />
-              <Route path="sales/assigned" element={<MyLeadsPage />} />
+              <Route path="sales/assigned" element={<Navigate to="/sales/stages" replace />} />
               <Route path="sales/stages" element={<LeadStagesPage />} />
               {/* <Route path="sales/leads" element={<LeadProfileLanding />} /> */}
               <Route path="sales/leads/:id" element={<ViewLeadPage />} />

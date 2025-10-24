@@ -3,13 +3,14 @@ import {
   memo, useCallback, useEffect, useMemo, useRef, useState, forwardRef,
 } from "react";
 import { useLazyQuery, useMutation, useApolloClient, ApolloError } from "@apollo/client";
-import { LEADS_OPEN, ASSIGN_LEAD, ASSIGN_LEADS } from "@/core/graphql/lead/lead.gql";
+import { LEADS_OPEN, ASSIGN_LEAD_WITH_MODE, ASSIGN_LEADS } from "@/core/graphql/lead/lead.gql";
 import Alert from "@/components/ui/alert/Alert";
 import { Table, TableBody } from "@/components/ui/table";
 import { LeadTableHeader } from "./LeadTableHeader";
 import { LeadTableRow, Row } from "./LeadTableRow";
 import { LeadTableFooter } from "./LeadTableFooter";
 import { PAGE_SIZE, TopCenterLoader, useDebounced } from "./leadHelpers";
+import { Modal } from "@/components/ui/modal";
 import * as XLSX from "xlsx";
 import LeadFiltersModal, { LeadFilters } from "./LeadFilters";
 import {
@@ -18,6 +19,8 @@ import {
   leadOptions,
   humanizeEnum,
 } from "@/components/lead/types";
+import { useAuth } from "@/context/AuthContex";
+import { useRms } from "@/core/graphql/user/useRms";
 
 /* ----------------------------- GQL shapes ----------------------------- */
 type LeadItemGql = {
@@ -39,6 +42,7 @@ type LeadItemGql = {
   assignedRM?: string | null;
   // Note: some APIs expose assignedRm { name }, keep fallback usage safe:
   assignedRm?: { name?: string | null } | null;
+  assignedRmId?: string | null;
 
   status?: string | null;
 };
@@ -171,6 +175,14 @@ const EMPTY_ITEMS: ReadonlyArray<LeadItemGql> = Object.freeze([]);
 
 export default function LeadDataTable() {
   const client = useApolloClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  // Only admins can load RM roster to avoid 400 for marketing users
+  const { rms, loading: rmsLoading, error: rmsError } = useRms(isAdmin);
+  const assignableRmOptions = useMemo(
+    () => rms.map((rm) => ({ value: rm.id, label: rm.name })),
+    [rms],
+  );
 
   const [mode, setMode] = useState<ViewMode>("pending");
   const [page, setPage] = useState(1);
@@ -182,6 +194,13 @@ export default function LeadDataTable() {
   const [genDone, setGenDone] = useState(false);
   const [filters, setFilters] = useState<LeadFilters>({ from: null, to: null, rm: null, source: null });
   const [filterOpen, setFilterOpen] = useState(false);
+  const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+  const [confirmAssign, setConfirmAssign] = useState<{
+    leadId: string;
+    rmId: string | null;
+    rmName: string;
+    leadName: string;
+  } | null>(null);
 
   const isPending = mode === "pending";
   const isDormant = mode === "dormant";
@@ -243,6 +262,7 @@ export default function LeadDataTable() {
         source: toLeadSource(l.leadSource),
         createdAt: l.createdAt ?? null,
         assignedRm: toTitleOrNull(l.assignedRM ?? l.assignedRm?.name ?? null),
+        assignedRmId: l.assignedRmId ?? null,
         status: toStatus(l.status),
         firstSeenAt: l.firstSeenAt ?? null,
         lastSeenAt: l.lastSeenAt ?? null,
@@ -251,7 +271,7 @@ export default function LeadDataTable() {
     [items],
   );
 
-  const rmOptions = useMemo(() => {
+  const filterRmOptions = useMemo(() => {
     const names = new Set<string>();
     for (const r of rows) if (r.assignedRm) names.add(r.assignedRm);
     return Array.from(names).sort();
@@ -309,9 +329,19 @@ export default function LeadDataTable() {
   }, []);
 
   // Actions (disabled in Dormant mode)
-  const [assignLeadMut, { loading: loadingSingle }] = useMutation(ASSIGN_LEAD);
+  const [assignLeadMut, { loading: loadingSingle }] = useMutation(ASSIGN_LEAD_WITH_MODE);
   const [assignLeadsMut, { loading: loadingBatch }] = useMutation(ASSIGN_LEADS);
   const generating = loadingSingle || loadingBatch || networkStatus === 3;
+
+  useEffect(() => {
+    if (rmsError) {
+      setNotice({
+        variant: "error",
+        title: "Failed to load RM list",
+        message: rmsError.message,
+      });
+    }
+  }, [rmsError]);
 
   const onEdit = (r: Row) =>
     setNotice({ variant: "info", title: "Edit Lead", message: `Editing ${r.name} (${r.phone ?? ""})` });
@@ -319,9 +349,44 @@ export default function LeadDataTable() {
   const onDelete = () =>
     setNotice({ variant: "info", title: "Not Implemented", message: "Contact Admin to delete this." });
 
-  const refetchActive = async () => {
+  const refetchActive = useCallback(async () => {
     await client.refetchQueries({ include: "active" });
-  };
+  }, [client]);
+
+  const handleAssignRm = useCallback(
+    async (leadId: string, rmId: string | null) => {
+      if (!leadId || !isAdmin) return;
+      const current = rows.find((r) => r.id === leadId);
+      if (current && (current.assignedRmId ?? null) === (rmId ?? null)) return;
+
+      try {
+        setUpdatingLeadId(leadId);
+        await assignLeadMut({ variables: { input: { leadId, mode: rmId ? "MANUAL" : "AUTO", rmId: rmId ?? undefined } } });
+        await refetchActive();
+        await runLeads({ variables });
+
+        const rmName = rmId
+          ? assignableRmOptions.find((opt) => opt.value === rmId)?.label ?? "selected RM"
+          : "Auto assign";
+        const leadName = current?.name ?? "Selected lead";
+        setNotice({
+          variant: "success",
+          title: "RM updated",
+          message: rmId
+            ? `${leadName} re-assigned to ${rmName}.`
+            : `${leadName} set to auto assign.`,
+        });
+      } catch (err) {
+        let message = "Unknown error";
+        if (err instanceof ApolloError) message = err.graphQLErrors[0]?.message || err.message;
+        else if (err instanceof Error) message = err.message;
+        setNotice({ variant: "error", title: "Assignment Failed", message });
+      } finally {
+        setUpdatingLeadId(null);
+      }
+    },
+    [rows, assignLeadMut, refetchActive, runLeads, variables, assignableRmOptions, isAdmin],
+  );
 
   const generateLead = async () => {
     if (isDormant) return; // not allowed in Dormant view
@@ -341,7 +406,7 @@ export default function LeadDataTable() {
         return;
       }
       if (pendingOnPage.length === 1) {
-        await assignLeadMut({ variables: { id: pendingOnPage[0] } });
+        await assignLeadMut({ variables: { input: { leadId: pendingOnPage[0], mode: "AUTO" } } });
       } else {
         await assignLeadsMut({ variables: { ids: pendingOnPage } });
       }
@@ -511,15 +576,28 @@ export default function LeadDataTable() {
                 {visibleRows.map((row) => {
                   const id = rowKey(row);
                   return (
-                    <LeadTableRow
-                      key={id}
-                      row={row}
-                      showAdvancedCols={showAdvancedCols}
-                      isSelected={selected.has(id)}
-                      onToggle={toggleOne}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                    />
+              <LeadTableRow
+                  key={id}
+                  row={row}
+                  showAdvancedCols={showAdvancedCols}
+                  canAssignRm={isAdmin}
+                  rmOptions={assignableRmOptions}
+                  rmLoading={rmsLoading}
+                  assigning={updatingLeadId === row.id}
+                  onAssignRm={(leadId: string, rmId: string | null) => {
+                    if (!isAdmin) return;
+                    const r = rows.find((x) => x.id === leadId);
+                    const leadName = r?.name ?? "Selected lead";
+                    const rmName = rmId
+                      ? assignableRmOptions.find((o) => o.value === rmId)?.label ?? "selected RM"
+                      : "Auto assign";
+                    setConfirmAssign({ leadId, rmId, rmName, leadName });
+                  }}
+                  isSelected={selected.has(id)}
+                  onToggle={toggleOne}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
                   );
                 })}
                 {visibleRows.length === 0 && (
@@ -538,6 +616,39 @@ export default function LeadDataTable() {
         </Table>
       </div>
 
+      {confirmAssign && (
+        <Modal isOpen={true} onClose={() => setConfirmAssign(null)} className="max-w-md m-4">
+          <div className="rounded-2xl bg-white p-6 dark:bg-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Confirm Assignment</h3>
+            <p className="mt-2 text-sm text-gray-700 dark:text-white/80">
+              Assign <span className="font-medium">{confirmAssign.leadName}</span> to
+              {" "}
+              <span className="font-medium">{confirmAssign.rmName}</span>?
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmAssign(null)}
+                className="rounded-md border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { leadId, rmId } = confirmAssign;
+                  setConfirmAssign(null);
+                  await handleAssignRm(leadId, rmId);
+                }}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Yes, Assign
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {!isDormant && rows.length > 0 && (
         <LeadTableFooter
           page={page}
@@ -555,7 +666,7 @@ export default function LeadDataTable() {
         onClose={() => setFilterOpen(false)}
         value={filters}
         onApply={setFilters}
-        rmOptions={rmOptions}
+        rmOptions={filterRmOptions}
       />
     </div>
   );

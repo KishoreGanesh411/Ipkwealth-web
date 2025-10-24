@@ -1,5 +1,5 @@
 // src/components/lead/Leadform/Leadform.tsx
-import React from "react";
+import React, { useMemo } from "react";
 import { UserIcon, EnvelopeIcon, MailIcon, TaskIcon } from "../../../icons";
 import Label from "../../../components/form/Label";
 import Input from "../../../components/form/input/InputField";
@@ -17,6 +17,10 @@ export type LeadFormState = Pick<
   referralMode?: "NAME" | "LEAD_CODE"; // UI toggle between name/code
   referralName?: string; // optional
   referralCode?: string; // optional
+  // assignment
+  assignMode?: "AUTO" | "MANUAL";
+  assignedRmId?: string;
+  assignedRmName?: string;
 };
 
 interface CreateLeadFormProps {
@@ -25,6 +29,9 @@ interface CreateLeadFormProps {
   phoneOk: boolean;
   /** Optional; if omitted we'll infer from lead.leadSource */
   isReferral?: boolean;
+  canAssignRm?: boolean;
+  rmOptions?: ReadonlyArray<{ value: string; label: string }>;
+  rmLoading?: boolean;
 }
 
 const IconWrap = ({ children }: { children: React.ReactNode }) => (
@@ -38,9 +45,30 @@ export default function CreateLeadForm({
   setLead,
   phoneOk,
   isReferral,
+  canAssignRm,
+  rmOptions,
+  rmLoading,
 }: CreateLeadFormProps) {
   const isOtherSource = lead.leadSource === "others";
   const showReferral = isReferral ?? lead.leadSource === "referral";
+  const showAssignRm = Boolean(canAssignRm);
+  const autoAssignValue = "__AUTO_ASSIGN__";
+  const rmSelectOptions = useMemo(() => {
+    const base = rmOptions ?? [];
+    const deduped: ReadonlyArray<{ value: string; label: string }> = base;
+    const extras: { value: string; label: string }[] = [];
+    if (lead.assignedRmId && lead.assignedRmName) {
+      const alreadyPresent = deduped.some((opt) => opt.value === lead.assignedRmId);
+      if (!alreadyPresent) {
+        extras.push({ value: lead.assignedRmId, label: lead.assignedRmName });
+      }
+    }
+    return [
+      // manual-only dropdown options
+      ...deduped,
+      ...extras,
+    ];
+  }, [rmOptions, lead.assignedRmId, lead.assignedRmName]);
 
   return (
     <div className="space-y-4">
@@ -166,6 +194,59 @@ export default function CreateLeadForm({
           </div>
         )}
       </div>
+
+      {showAssignRm && (
+        <div>
+          <Label>Assign RM</Label>
+          <div className="mt-1 flex items-center gap-6">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-white/80">
+              <input
+                type="radio"
+                name="assignMode"
+                className="h-4 w-4 accent-blue-600"
+                checked={(lead.assignMode ?? "AUTO") === "AUTO"}
+                onChange={() =>
+                  setLead((s) => ({ ...s, assignMode: "AUTO", assignedRmId: undefined, assignedRmName: undefined }))
+                }
+              />
+              Auto assign
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-white/80">
+              <input
+                type="radio"
+                name="assignMode"
+                className="h-4 w-4 accent-blue-600"
+                checked={(lead.assignMode ?? "AUTO") === "MANUAL"}
+                onChange={() => setLead((s) => ({ ...s, assignMode: "MANUAL" }))}
+              />
+              Manual assign
+            </label>
+          </div>
+          <Select
+            className="pl-3"
+            options={rmSelectOptions}
+            style={{ display: (lead.assignMode ?? "AUTO") === "MANUAL" ? "block" : "none" }}
+            value={(lead.assignMode ?? "AUTO") === "MANUAL" ? (lead.assignedRmId ?? "") : ""}
+            onChange={(val: string) => {
+              if (val === autoAssignValue) {
+                setLead((s) => ({ ...s, assignedRmId: undefined, assignedRmName: undefined }));
+                return;
+              }
+              const selected = rmSelectOptions.find((opt) => opt.value === val);
+              setLead((s) => ({
+                ...s,
+                assignedRmId: val,
+                assignedRmName: selected?.label ?? "",
+              }));
+            }}
+            placeholder={rmLoading ? "Loading active RMs…" : "Select RM"}
+            disabled={rmLoading || rmSelectOptions.length <= 1}
+          />
+          {(lead.assignMode ?? "AUTO") === "MANUAL" && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Only active RM users are shown.</p>
+          )}
+        </div>
+      )}
 
       {/* Referral Name / Lead Code */}
       {showReferral && (

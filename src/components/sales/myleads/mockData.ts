@@ -3,6 +3,17 @@ import type { Lead } from './interface/type';
 
 export const SAMPLE_LEADS: Lead[] = [
   {
+    id: 0,
+    leadCode: 'IPK-NEW-0001',
+    name: 'New Prospect',
+    leadSource: 'Meta',
+    mobile: '+91 98765 00000',
+    location: 'Chennai',
+    agingDays: 0,
+    status: LeadStage.NEW_LEAD,
+    email: 'new.prospect@example.com',
+  },
+  {
     id: 1,
     leadCode: 'IPK-2509-0001',
     name: 'Ramya Priya',

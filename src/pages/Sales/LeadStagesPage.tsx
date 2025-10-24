@@ -1,15 +1,16 @@
 import { useMemo, useState } from 'react';
 import { ArrowLeft, Download, RefreshCcw, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useQuery } from '@apollo/client';
 
 import ComponentCard from '@/components/common/ComponentCard';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import PageMeta from '@/components/common/PageMeta';
 import MyLeads from '@/components/sales/myleads/MyLeads';
-import { SAMPLE_LEADS } from '@/components/sales/myleads/mockData';
 import { STAGE_META, STAGE_SEQUENCE } from '@/components/sales/myleads/stageMeta';
 import { LeadStage } from '@/components/sales/myleads/interface/type';
 import Button from '@/components/ui/button/Button';
+import { MY_ASSIGNED_LEADS } from '@/core/graphql/lead/lead.gql';
 
 type StageFilter = 'ALL' | LeadStage;
 
@@ -27,17 +28,41 @@ export default function LeadStagesPage() {
   const [q, setQ] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
 
+  // Live data: fetch assigned leads (first 200)
+  const { data, loading, error, refetch } = useQuery(
+    MY_ASSIGNED_LEADS,
+    { variables: { args: { page: 1, pageSize: 200, archived: false, status: null, search: null } }, fetchPolicy: 'cache-and-network' }
+  );
+
+  // Map GQL -> MyLeads interface
+  const allLeads = useMemo(() => {
+    const nodes = (data?.myAssignedLeads?.items ?? []) as any[];
+    return nodes.map((n) => ({
+      id: n.id,
+      leadCode: n.leadCode ?? null,
+      name: (n.name || [n.firstName, n.lastName].filter(Boolean).join(' ')) ?? '-',
+      email: n.email ?? null,
+      mobile: n.phone ?? null,
+      location: undefined,
+      agingDays: n.createdAt ? Math.max(0, Math.floor((Date.now() - Date.parse(n.createdAt)) / 86400000)) : undefined,
+      leadSource: n.leadSource ?? '-',
+      status: n.clientStage || n.status || undefined,
+      clientStage: n.clientStage || undefined,
+      lastContactedAt: n.lastContactedAt ?? null,
+      assignedRm: n.assignedRM ?? null,
+      isNew: (n.clientStage === 'NEW_LEAD') || !n.lastContactedAt,
+    }));
+  }, [data?.myAssignedLeads?.items]);
+
   const stageCounts = useMemo(() => {
     const counts = new Map<LeadStage, number>();
     STAGE_SEQUENCE.forEach((stage) => counts.set(stage, 0));
-    SAMPLE_LEADS.forEach((lead) => {
-      if (lead.status) {
-        const current = counts.get(lead.status) ?? 0;
-        counts.set(lead.status, current + 1);
-      }
+    allLeads.forEach((lead) => {
+      const st = (lead.clientStage as LeadStage | undefined) ?? undefined;
+      if (st && counts.has(st)) counts.set(st, (counts.get(st) ?? 0) + 1);
     });
     return counts;
-  }, []);
+  }, [allLeads]);
 
   const stageCards = useMemo<StageCardInfo[]>(() => {
     return [
@@ -45,7 +70,7 @@ export default function LeadStagesPage() {
         id: 'ALL',
         label: 'All stages',
         helper: 'Overview',
-        count: SAMPLE_LEADS.length,
+        count: allLeads.length,
         badgeClass: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-200',
       },
       ...STAGE_SEQUENCE.map((stage) => {
@@ -62,11 +87,9 @@ export default function LeadStagesPage() {
   }, [stageCounts]);
 
   const filteredByStage = useMemo(() => {
-    if (selectedStage === 'ALL') {
-      return SAMPLE_LEADS;
-    }
-    return SAMPLE_LEADS.filter((lead) => lead.status === selectedStage);
-  }, [selectedStage]);
+    if (selectedStage === 'ALL') return allLeads;
+    return allLeads.filter((lead) => lead.clientStage === selectedStage);
+  }, [selectedStage, allLeads]);
 
   const filtered = useMemo(() => {
     const dataset = filteredByStage;
@@ -93,13 +116,13 @@ export default function LeadStagesPage() {
       <PageMeta title='Lead stages' description='Track pipeline health by stage' />
       <div className='mb-2 flex items-center gap-3'>
         <button
-          onClick={() => navigate('/sales/assigned')}
+          onClick={() => navigate('/sales/stages')}
           className='inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]'
         >
           <ArrowLeft className='h-4 w-4' /> Back to Lead Management
         </button>
       </div>
-      <PageBreadcrumb pageTitle='Lead Stages' items={[{ label: 'Lead Management', href: '/sales/assigned' }]} />
+      <PageBreadcrumb pageTitle='Lead Stages' items={[{ label: 'My Leads', href: '/sales/stages' }]} />
 
       <section className='mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
         {stageCards.map((card) => {
@@ -141,7 +164,7 @@ export default function LeadStagesPage() {
             <Button
               size='sm'
               variant='outline'
-              onClick={() => console.log('LeadStages:onRefresh')}
+              onClick={() => refetch()}
               startIcon={<RefreshCcw className='h-4 w-4' />}
               className='h-10'
             >
@@ -184,6 +207,12 @@ export default function LeadStagesPage() {
         </div>
 
         <MyLeads leads={filtered} pageSize={8} showHeader={false} />
+        {loading && (
+          <div className='mt-3 text-sm text-gray-500'>Loading assigned leads…</div>
+        )}
+        {error && (
+          <div className='mt-3 text-sm text-rose-600'>Failed to load: {String(error.message)}</div>
+        )}
       </ComponentCard>
     </>
   );

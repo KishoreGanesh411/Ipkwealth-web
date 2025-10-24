@@ -21,7 +21,7 @@ export default function CallConnectPage() {
   return (
     <>
       <PageMeta title="Call connect" description="Engage the customer directly" />
-      <PageBreadcrumb pageTitle="Call Connect" items={[{ label: "Assigned Leads", href: "/sales/assigned" }]} />
+      <PageBreadcrumb pageTitle="Call Connect" items={[{ label: "My Leads", href: "/sales/stages" }]} />
 
       <ComponentCard title="Connection details">
         <div className="grid gap-6 lg:grid-cols-[1.6fr_1fr]">

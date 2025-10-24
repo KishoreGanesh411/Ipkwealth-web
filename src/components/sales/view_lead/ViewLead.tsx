@@ -18,6 +18,7 @@ import AddEventCard from "./AddEventCard";
 import TimelineList from "./TimelineList";
 import { pickLeadStage, pickLeadStatus } from "./interface/utils";
 import type { LeadEvent, LeadProfile } from "./interface/types";
+import FirstContactCard from "./FirstContactCard";
 
 type LeadDetailResp = { leadDetailWithTimeline: LeadProfile };
 type LeadDetailVars = { leadId: string; eventsLimit?: number };
@@ -197,6 +198,36 @@ export default function ViewLead() {
       />
 
       <div className="flex flex-col gap-6 lg:gap-8">
+        {(lead.clientStage === 'NEW_LEAD' || !lead.lastContactedAt) && (
+          <FirstContactCard
+            submitting={updatingProgress}
+            onSubmit={async ({ productExplained, channel, notExplainedReason, nextFollowUpAt, note }) => {
+              if (!leadId) return;
+              setUpdatingProgress(true);
+              try {
+                await mutChangeStage({
+                  variables: {
+                    input: {
+                      leadId,
+                      stage: productExplained ? 'FIRST_TALK_DONE' : 'FOLLOWING_UP',
+                      channel: channel as any,
+                      productExplained,
+                      note: note ?? (notExplainedReason ? `Reason: ${notExplainedReason}` : null),
+                      nextFollowUpAt: nextFollowUpAt ?? null,
+                    },
+                  },
+                });
+                if (productExplained) toast.success('Marked first talk done');
+                else toast.success('Follow-up scheduled');
+                await refetch();
+              } catch (e: any) {
+                toast.error(e?.message || 'Failed to save');
+              } finally {
+                setUpdatingProgress(false);
+              }
+            }}
+          />
+        )}
         <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-[minmax(0,420px),minmax(0,1fr)]">
           <StatusCard
             statusValue={pickLeadStatus<string>(lead.status)}

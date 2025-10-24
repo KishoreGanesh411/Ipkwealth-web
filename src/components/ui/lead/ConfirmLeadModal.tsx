@@ -1,4 +1,4 @@
-import { useEffect, useState, type ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 import { Modal } from "../../ui/modal";
 import Button from "../../ui/button/Button";
 import Label from "../../form/Label";
@@ -117,6 +117,9 @@ export default function ConfirmLeadModal({
 
   const referral = titleCaseWords(lead.referralName ?? "");
   const remark = titleCaseWords(lead.remark ?? "");
+  const assignedRmDisplay = lead.assignedRmName?.trim()
+    ? lead.assignedRmName.trim()
+    : "Auto assign (system)";
 
   const gender = valueToLabel(lead.gender as string, genderOptions);
   const age = lead.age ? String(lead.age) : "";
@@ -173,6 +176,7 @@ export default function ConfirmLeadModal({
                 isBad={!!lead.email && vr.invalid.includes("Email (invalid format)")}
               />
               <Row label="Lead Source" value={leadSource} isBad={!lead.leadSource?.trim()} />
+              <Row label="Assigned RM" value={assignedRmDisplay} />
               {lead.leadSource === "referral" && (
                 <Row
                   label="Referral / Lead Code"

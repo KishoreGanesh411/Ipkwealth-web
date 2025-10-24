@@ -6,6 +6,8 @@ import Button from "@/components/ui/button/Button";
 import BulkRegistrationButton from "@/components/lead/bulk-register/BulkRegistrationButton";
 import BulkImportModal from "@/components/lead/bulk-register/BulkImportModal"; // ⬅ add
 import { createLead } from "@/core/graphql/lead/lead";
+import { useMutation } from "@apollo/client";
+import { ASSIGN_LEAD_WITH_MODE } from "@/core/graphql/lead/lead.gql";
 import { toast } from "react-toastify";
 import CreateLeadForm from "@/components/lead/Leadform/Leadform";
 import AdditionalInsightsForm from "@/components/lead/Leadform/additional";
@@ -14,10 +16,15 @@ import ConfirmLeadModal from "@/components/ui/lead/ConfirmLeadModal";
 import { validateLead } from "@/components/ui/lead/Validators";
 import Alert from "@/components/ui/alert/Alert";
 import { RemarkIcon } from "@/icons";
+import { useAuth } from "@/context/AuthContex";
+import { useRms } from "@/core/graphql/user/useRms";
 
 export default function LeadEntry() {
   const [lead, setLead] = useState({
     firstName: "", lastName: "", email: "", phone: "", leadSource: "",
+    // assignment
+    assignMode: "AUTO" as "AUTO" | "MANUAL",
+    assignedRmId: "", assignedRmName: "",
     leadSourceOther: "",
     referralName: "", referralCode: "", referralMode: "NAME" as "NAME" | "LEAD_CODE",
     gender: "", age: "" as number | "", profession: "",
@@ -32,8 +39,18 @@ export default function LeadEntry() {
   const isReferral = lead.leadSource === "referral";
   const phoneOk = useMemo(() => /^[0-9+\-\s()]{8,}$/.test(lead.phone.trim()), [lead.phone]);
 
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  // Only admins should query active RMs to avoid 400 for marketing users
+  const { rms, loading: rmsLoading } = useRms(isAdmin);
+  const rmOptions = useMemo(
+    () => rms.map((rm) => ({ value: rm.id, label: rm.name })),
+    [rms],
+  );
+
   const { isOpen, openModal, closeModal } = useModal();
   const [submitting, setSubmitting] = useState(false);
+  const [assignWithMode] = useMutation(ASSIGN_LEAD_WITH_MODE);
 
   // NEW: bulk modal state (upload flow)
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -98,6 +115,7 @@ export default function LeadEntry() {
         leadSource: normalizedLeadSource || undefined,
         referralName: referralByName,
         referralCode: referralByCode,
+        // assignment is applied post-create via assignLeadWithMode
         gender: lead.gender || undefined,
         age: lead.age ? Number(lead.age) : undefined,
         location: lead.location || undefined,
@@ -114,9 +132,24 @@ export default function LeadEntry() {
         remark: lead.remark || undefined,
       };
       const created = await createLead(payload);
+      // After creation, apply manual assignment if selected and allowed
+      if (
+        isAdmin &&
+        (lead.assignMode ?? "AUTO") === "MANUAL" &&
+        lead.assignedRmId &&
+        created?.id
+      ) {
+        try {
+          await assignWithMode({
+            variables: { input: { leadId: created.id, mode: "MANUAL", rmId: lead.assignedRmId } },
+          });
+        } catch {}
+      }
       toast.success(created?.leadCode ? `Lead created: ${created.leadCode}` : "Lead created");
       setLead({
         firstName: "", lastName: "", email: "", phone: "", leadSource: "",
+        assignMode: "AUTO",
+        assignedRmId: "", assignedRmName: "",
         leadSourceOther: "",
         referralName: "", referralCode: "", referralMode: "NAME",
         gender: "", age: "" as number | "", profession: "",
@@ -149,7 +182,15 @@ export default function LeadEntry() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <div className="rounded-2xl bg-white p-6 shadow-sm dark:bg-[#0B1220]">
-          <CreateLeadForm lead={lead} setLead={setLead} phoneOk={phoneOk} isReferral={isReferral} />
+          <CreateLeadForm
+            lead={lead}
+            setLead={setLead}
+            phoneOk={phoneOk}
+            isReferral={isReferral}
+            canAssignRm={isAdmin}
+            rmOptions={rmOptions}
+            rmLoading={rmsLoading}
+          />
         </div>
         <div className="rounded-2xl bg-white p-6 shadow-sm dark:bg-[#0B1220]">
           <AdditionalInsightsForm lead={lead} setLead={setLead} isCompanyRequired={isCompanyRequired} />

@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { useMutation } from "@apollo/client";
-import { CREATE_LEAD, ASSIGN_LEAD } from "@/core/graphql/lead/lead.gql";
+import { CREATE_LEAD, ASSIGN_LEAD_WITH_MODE } from "@/core/graphql/lead/lead.gql";
 import Label from "../../form/Label";
 import Button from "../../ui/button/Button";
 import { Modal } from "../../ui/modal";
@@ -40,8 +40,8 @@ type Progress = {
 
 type CreateLeadVars = { input: any }; // use GraphQL shape when sending
 type CreateLeadResult = { createIpkLeadd?: { id?: string | null } | null };
-type AssignLeadVars = { id: string };
-type AssignLeadResult = { assignLead?: { assignedRM?: string | null } | null };
+type AssignLeadVars = { input: { leadId: string; mode: "AUTO" | "MANUAL"; rmId?: string } };
+type AssignLeadResult = { assignLeadWithMode?: { lead?: { assignedRM?: string | null } | null } | null };
 
 const CONCURRENCY = 4;
 const toStr = (v: unknown) => (v == null ? "" : String(v));
@@ -128,7 +128,7 @@ export default function BulkImportModal({ isOpen, onClose, onImported, rowsFromF
   });
 
   const [createLeadMut] = useMutation<CreateLeadResult, CreateLeadVars>(CREATE_LEAD);
-  const [assignLeadMut] = useMutation<AssignLeadResult, AssignLeadVars>(ASSIGN_LEAD);
+  const [assignLeadMut] = useMutation<AssignLeadResult, AssignLeadVars>(ASSIGN_LEAD_WITH_MODE);
 
   const [processing, setProcessing] = useState(false);
   const [progress, setProgress] = useState<Progress>({
@@ -296,8 +296,8 @@ export default function BulkImportModal({ isOpen, onClose, onImported, rowsFromF
         const id = c.data?.createIpkLeadd?.id;
         if (!id) throw new Error("Create lead returned no id");
 
-        const a = await assignLeadMut({ variables: { id } });
-        const assignedRM = a.data?.assignLead?.assignedRM || "Unassigned";
+        const a = await assignLeadMut({ variables: { input: { leadId: id, mode: "AUTO" } } });
+        const assignedRM = a.data?.assignLeadWithMode?.lead?.assignedRM || "Unassigned";
         rmCounts[assignedRM] = (rmCounts[assignedRM] ?? 0) + 1;
 
         successCount++;

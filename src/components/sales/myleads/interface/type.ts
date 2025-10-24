@@ -1,4 +1,5 @@
-﻿export enum LeadStage {
+export enum LeadStage {
+  NEW_LEAD = 'NEW_LEAD',
   FIRST_TALK_DONE = 'FIRST_TALK_DONE',
   FOLLOWING_UP = 'FOLLOWING_UP',
   CLIENT_INTERESTED = 'CLIENT_INTERESTED',
@@ -29,7 +30,7 @@ export type Lead = {
   location?: string | null;
   agingDays?: number;
   leadSource: string;
-  status?: LeadStatus;
+  status?: LeadStage | LeadStatus;
   clientStage?: LeadStage;
   gender?: 'Male' | 'Female' | 'Other' | string;
   product?: string;
@@ -49,3 +50,4 @@ export type MyLeadsProps = {
   /** Optional external search query when using showHeader=false. */
   query?: string;
 };
+

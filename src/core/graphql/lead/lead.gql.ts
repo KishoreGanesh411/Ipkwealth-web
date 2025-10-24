@@ -11,9 +11,11 @@ export const LEAD_FIELDS = gql`
     phone
     leadSource
     assignedRM
+    assignedRmId
     status
     clientStage
     createdAt
+    lastContactedAt
     # telemetry for dormant view / metrics
     firstSeenAt
     lastSeenAt
@@ -123,9 +125,13 @@ export const CREATE_LEAD = gql`
   ${LEAD_FIELDS}
 `;
 
-export const ASSIGN_LEAD = gql`
-  mutation AssignLead($id: ID!) {
-    assignLead(id: $id) { ...LeadFields }
+// Use backend's mode-based assignment API for both auto and manual
+export const ASSIGN_LEAD_WITH_MODE = gql`
+  mutation AssignLeadWithMode($input: AssignLeadInput!) {
+    assignLeadWithMode(input: $input) {
+      lead { ...LeadFields }
+      message
+    }
   }
   ${LEAD_FIELDS}
 `;

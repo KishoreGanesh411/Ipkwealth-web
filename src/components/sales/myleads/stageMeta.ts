@@ -1,6 +1,7 @@
 import { LeadStage } from './interface/type';
 
 const STAGE_SEQUENCE: LeadStage[] = [
+  LeadStage.NEW_LEAD,
   LeadStage.FIRST_TALK_DONE,
   LeadStage.FOLLOWING_UP,
   LeadStage.CLIENT_INTERESTED,
@@ -12,6 +13,11 @@ const STAGE_SEQUENCE: LeadStage[] = [
 ];
 
 const STAGE_META: Record<LeadStage, { label: string; pillClass: string; barClass: string }> = {
+  [LeadStage.NEW_LEAD]: {
+    label: 'New leads',
+    pillClass: 'bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-200',
+    barClass: 'bg-blue-400',
+  },
   [LeadStage.FIRST_TALK_DONE]: {
     label: 'First talk done',
     pillClass: 'bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200',

@@ -22,6 +22,8 @@ export type LeadShape = {
   sipAmount?: number | "";
   clientType?: string;
   remark?: string;
+  assignedRmId?: string;
+  assignedRmName?: string;
 };
 
 export type ValidationResult = {
