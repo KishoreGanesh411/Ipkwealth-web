@@ -11,6 +11,7 @@ export const LEAD_FIELDS = gql`
     phone
     leadSource
     assignedRM
+    assignedRmId
     status
     clientStage
     createdAt
@@ -124,8 +125,8 @@ export const CREATE_LEAD = gql`
 `;
 
 export const ASSIGN_LEAD = gql`
-  mutation AssignLead($id: ID!) {
-    assignLead(id: $id) { ...LeadFields }
+  mutation AssignLead($id: ID!, $rmId: ID) {
+    assignLead(id: $id, rmId: $rmId) { ...LeadFields }
   }
   ${LEAD_FIELDS}
 `;

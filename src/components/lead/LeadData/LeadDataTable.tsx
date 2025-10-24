@@ -18,6 +18,8 @@ import {
   leadOptions,
   humanizeEnum,
 } from "@/components/lead/types";
+import { useAuth } from "@/context/AuthContex";
+import { useRms } from "@/core/graphql/user/useRms";
 
 /* ----------------------------- GQL shapes ----------------------------- */
 type LeadItemGql = {
@@ -39,6 +41,7 @@ type LeadItemGql = {
   assignedRM?: string | null;
   // Note: some APIs expose assignedRm { name }, keep fallback usage safe:
   assignedRm?: { name?: string | null } | null;
+  assignedRmId?: string | null;
 
   status?: string | null;
 };
@@ -171,6 +174,13 @@ const EMPTY_ITEMS: ReadonlyArray<LeadItemGql> = Object.freeze([]);
 
 export default function LeadDataTable() {
   const client = useApolloClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const { rms, loading: rmsLoading, error: rmsError } = useRms();
+  const assignableRmOptions = useMemo(
+    () => rms.map((rm) => ({ value: rm.id, label: rm.name })),
+    [rms],
+  );
 
   const [mode, setMode] = useState<ViewMode>("pending");
   const [page, setPage] = useState(1);
@@ -182,6 +192,7 @@ export default function LeadDataTable() {
   const [genDone, setGenDone] = useState(false);
   const [filters, setFilters] = useState<LeadFilters>({ from: null, to: null, rm: null, source: null });
   const [filterOpen, setFilterOpen] = useState(false);
+  const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
 
   const isPending = mode === "pending";
   const isDormant = mode === "dormant";
@@ -243,6 +254,7 @@ export default function LeadDataTable() {
         source: toLeadSource(l.leadSource),
         createdAt: l.createdAt ?? null,
         assignedRm: toTitleOrNull(l.assignedRM ?? l.assignedRm?.name ?? null),
+        assignedRmId: l.assignedRmId ?? null,
         status: toStatus(l.status),
         firstSeenAt: l.firstSeenAt ?? null,
         lastSeenAt: l.lastSeenAt ?? null,
@@ -251,7 +263,7 @@ export default function LeadDataTable() {
     [items],
   );
 
-  const rmOptions = useMemo(() => {
+  const filterRmOptions = useMemo(() => {
     const names = new Set<string>();
     for (const r of rows) if (r.assignedRm) names.add(r.assignedRm);
     return Array.from(names).sort();
@@ -313,15 +325,57 @@ export default function LeadDataTable() {
   const [assignLeadsMut, { loading: loadingBatch }] = useMutation(ASSIGN_LEADS);
   const generating = loadingSingle || loadingBatch || networkStatus === 3;
 
+  useEffect(() => {
+    if (rmsError) {
+      setNotice({
+        variant: "error",
+        title: "Failed to load RM list",
+        message: rmsError.message,
+      });
+    }
+  }, [rmsError]);
+
   const onEdit = (r: Row) =>
     setNotice({ variant: "info", title: "Edit Lead", message: `Editing ${r.name} (${r.phone ?? ""})` });
 
   const onDelete = () =>
     setNotice({ variant: "info", title: "Not Implemented", message: "Contact Admin to delete this." });
 
-  const refetchActive = async () => {
+  const refetchActive = useCallback(async () => {
     await client.refetchQueries({ include: "active" });
-  };
+  }, [client]);
+
+  const handleAssignRm = useCallback(
+    async (leadId: string, rmId: string | null) => {
+      if (!leadId || !isAdmin) return;
+      const current = rows.find((r) => r.id === leadId);
+      if (current && (current.assignedRmId ?? null) === (rmId ?? null)) return;
+
+      try {
+        setUpdatingLeadId(leadId);
+        await assignLeadMut({ variables: { id: leadId, rmId: rmId ?? null } });
+        await refetchActive();
+        await runLeads({ variables });
+
+        const rmName = rmId
+          ? assignableRmOptions.find((opt) => opt.value === rmId)?.label ?? "selected RM"
+          : "Auto assign";
+        setNotice({
+          variant: "success",
+          title: "RM updated",
+          message: rmId ? `Lead assigned to ${rmName}.` : "Lead set to auto assign.",
+        });
+      } catch (err) {
+        let message = "Unknown error";
+        if (err instanceof ApolloError) message = err.graphQLErrors[0]?.message || err.message;
+        else if (err instanceof Error) message = err.message;
+        setNotice({ variant: "error", title: "Assignment Failed", message });
+      } finally {
+        setUpdatingLeadId(null);
+      }
+    },
+    [rows, assignLeadMut, refetchActive, runLeads, variables, assignableRmOptions, isAdmin],
+  );
 
   const generateLead = async () => {
     if (isDormant) return; // not allowed in Dormant view
@@ -515,6 +569,11 @@ export default function LeadDataTable() {
                       key={id}
                       row={row}
                       showAdvancedCols={showAdvancedCols}
+                      canAssignRm={isAdmin}
+                      rmOptions={assignableRmOptions}
+                      rmLoading={rmsLoading}
+                      assigning={updatingLeadId === row.id}
+                      onAssignRm={handleAssignRm}
                       isSelected={selected.has(id)}
                       onToggle={toggleOne}
                       onEdit={onEdit}
@@ -555,7 +614,7 @@ export default function LeadDataTable() {
         onClose={() => setFilterOpen(false)}
         value={filters}
         onApply={setFilters}
-        rmOptions={rmOptions}
+        rmOptions={filterRmOptions}
       />
     </div>
   );

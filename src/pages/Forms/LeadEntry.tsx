@@ -14,10 +14,13 @@ import ConfirmLeadModal from "@/components/ui/lead/ConfirmLeadModal";
 import { validateLead } from "@/components/ui/lead/Validators";
 import Alert from "@/components/ui/alert/Alert";
 import { RemarkIcon } from "@/icons";
+import { useAuth } from "@/context/AuthContex";
+import { useRms } from "@/core/graphql/user/useRms";
 
 export default function LeadEntry() {
   const [lead, setLead] = useState({
     firstName: "", lastName: "", email: "", phone: "", leadSource: "",
+    assignedRmId: "", assignedRmName: "",
     leadSourceOther: "",
     referralName: "", referralCode: "", referralMode: "NAME" as "NAME" | "LEAD_CODE",
     gender: "", age: "" as number | "", profession: "",
@@ -31,6 +34,14 @@ export default function LeadEntry() {
   const isCompanyRequired = lead.profession === "BUSINESS" || lead.profession === "EMPLOYEE";
   const isReferral = lead.leadSource === "referral";
   const phoneOk = useMemo(() => /^[0-9+\-\s()]{8,}$/.test(lead.phone.trim()), [lead.phone]);
+
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  const { rms, loading: rmsLoading } = useRms();
+  const rmOptions = useMemo(
+    () => rms.map((rm) => ({ value: rm.id, label: rm.name })),
+    [rms],
+  );
 
   const { isOpen, openModal, closeModal } = useModal();
   const [submitting, setSubmitting] = useState(false);
@@ -98,6 +109,7 @@ export default function LeadEntry() {
         leadSource: normalizedLeadSource || undefined,
         referralName: referralByName,
         referralCode: referralByCode,
+        assignedRmId: lead.assignedRmId ? lead.assignedRmId : undefined,
         gender: lead.gender || undefined,
         age: lead.age ? Number(lead.age) : undefined,
         location: lead.location || undefined,
@@ -117,6 +129,7 @@ export default function LeadEntry() {
       toast.success(created?.leadCode ? `Lead created: ${created.leadCode}` : "Lead created");
       setLead({
         firstName: "", lastName: "", email: "", phone: "", leadSource: "",
+        assignedRmId: "", assignedRmName: "",
         leadSourceOther: "",
         referralName: "", referralCode: "", referralMode: "NAME",
         gender: "", age: "" as number | "", profession: "",
@@ -149,7 +162,15 @@ export default function LeadEntry() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <div className="rounded-2xl bg-white p-6 shadow-sm dark:bg-[#0B1220]">
-          <CreateLeadForm lead={lead} setLead={setLead} phoneOk={phoneOk} isReferral={isReferral} />
+          <CreateLeadForm
+            lead={lead}
+            setLead={setLead}
+            phoneOk={phoneOk}
+            isReferral={isReferral}
+            canAssignRm={isAdmin}
+            rmOptions={rmOptions}
+            rmLoading={rmsLoading}
+          />
         </div>
         <div className="rounded-2xl bg-white p-6 shadow-sm dark:bg-[#0B1220]">
           <AdditionalInsightsForm lead={lead} setLead={setLead} isCompanyRequired={isCompanyRequired} />

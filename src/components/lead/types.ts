@@ -7,6 +7,8 @@ export interface LeadFormData {
   email?: string;               // was string → optional fits your UI
   phone: string;
   leadSource: string;           // narrowed below via LeadSource if you want
+  assignedRmId?: string;        // optional manual assignment by admin users
+  assignedRmName?: string;      // cached label for confirmation modal/UI
   /** When leadSource === "others" */
   leadSourceOther?: string;
   /** When leadSource === "referral" */
@@ -29,6 +31,9 @@ export interface Lead {
   phone: string;
   leadSource: string;
   remark?: string;
+
+  assignedRM?: string | null;
+  assignedRmId?: string | null;
 
   createdAt: string;
   updatedAt: string;
