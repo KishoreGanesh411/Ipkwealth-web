@@ -2,7 +2,7 @@ import { gql } from '@apollo/client';
 import { useQuery } from '@apollo/client/react';
 
 // Flip to true only after you actually implement `users` on the backend.
-const HAS_USERS_QUERY = false;
+const HAS_USERS_QUERY = true;
 
 const RMS_QUERY = gql`
   query RmsActive {
@@ -13,10 +13,16 @@ const RMS_QUERY = gql`
   }
 `;
 
+type RmNode = {
+  id: string;
+  name: string;
+};
+
 export function useRms() {
-  const { data, loading, error } = HAS_USERS_QUERY
-    ? useQuery(RMS_QUERY, { fetchPolicy: 'cache-first' })
-    : ({ data: undefined, loading: false, error: undefined } as any);
+  const { data, loading, error } = useQuery<{ users: RmNode[] }>(RMS_QUERY, {
+    fetchPolicy: 'cache-first',
+    skip: !HAS_USERS_QUERY,
+  });
 
   return {
     rms: (HAS_USERS_QUERY ? data?.users ?? [] : []) as Array<{ id: string; name: string }>,
