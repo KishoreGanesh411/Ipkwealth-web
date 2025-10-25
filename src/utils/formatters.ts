@@ -1,4 +1,3 @@
-// src/utils/formatters.ts
 export function humanize(value?: string | null): string {
   if (!value) return "";
   return value

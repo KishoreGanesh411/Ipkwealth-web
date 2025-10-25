@@ -18,6 +18,7 @@ import {
   User,
   Code,
   DollarSign,
+  Copy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -215,14 +216,12 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       muted: !hasReferral,
       visible: hasReferral,
     },
-    {
-      key: "sipAmount",
-      icon: DollarSign,
-      label: "SIP amount",
-      value: sipDisplay,
-      muted: !hasSipAmount,
-    },
   ].filter((field) => field.visible !== false);
+
+  const metaFieldsFiltered = metaFields.filter(
+    (field) =>
+      !["occupation", "investmentRange", "location", "product", "age", "gender", "sipAmount"].includes(field.key),
+  );
 
   /**
    * Build an array of quick contact chips. The list always begins with an
@@ -301,6 +300,39 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
     ];
     return items;
   }, [lead.leadSource, lead.firstSeenAt, lead.createdAt, lead.product, lead.investmentRange, lead.sipAmount]);
+
+  const highlightSummary = leadSummary.slice(0, 2);
+  const detailSummary = leadSummary.slice(2);
+  const highlightEntries = [...highlightSummary];
+  const highlightFillers = [{ label: "Stage", value: stageDisplay.label }];
+  highlightFillers.forEach((tile) => {
+    if (highlightEntries.length < 3) highlightEntries.push(tile);
+  });
+
+  const detailEntries = [...detailSummary];
+  const detailFillers: Array<{ label: string; value: string }> = [];
+  detailFillers.forEach((tile) => {
+    if (detailEntries.length < 4) detailEntries.push(tile);
+  });
+
+  const rawPrimaryPhone =
+    lead.mobile ?? (lead.phone as any) ?? (lead.phoneNormalized as any) ?? null;
+  const phoneDisplay = rawPrimaryPhone ? String(rawPrimaryPhone).trim() : "Not provided";
+  const phoneHref = rawPrimaryPhone ? `tel:${String(rawPrimaryPhone).replace(/\s+/g, "")}` : undefined;
+  const emailDisplay = lead.email?.trim() || "No email";
+  const emailHref = lead.email ? `mailto:${lead.email}` : undefined;
+  const locationDisplay = lead.location?.trim() || "Location unknown";
+  const personalAgeDisplay = hasValidAge ? ageDisplay : "—";
+
+  const personalDetails = [
+    { label: "Age", value: personalAgeDisplay },
+    { label: "Gender", value: genderDisplay },
+    { label: "Email", value: emailDisplay, href: emailHref },
+    { label: "Contact", value: phoneDisplay, href: phoneHref },
+    { label: "Location", value: locationDisplay },
+    { label: "Occupation", value: occupationPrimary || "Not captured" },
+    { label: "Designation", value: designation || "Not captured" },
+  ];
 
   /**
    * Prepare initial values for the edit modal. We map DB fields into
@@ -415,87 +447,139 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   return (
     <>
       <div className="card card-padded">
-        <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
+        <div className="flex flex-col gap-4 md:flex-row md:items-stretch md:justify-between">
           {/* Left column: avatar + name + status */}
-          <div className="flex flex-col gap-4 sm:flex-row sm:items-center">
-            <div className="relative flex h-16 w-16 flex-shrink-0 items-center justify-center">
-              <div className="grid h-16 w-16 place-items-center rounded-full bg-emerald-500/10 text-lg font-semibold text-emerald-700 transition-colors dark:bg-emerald-500/20 dark:text-emerald-200">
-                {initials(lead.name)}
-              </div>
-              {canEditProfile && (
-                <button
-                  type="button"
-                  onClick={handleEditClick}
-                  disabled={loading}
-                  aria-label="Edit lead details"
-                  title="Edit lead details"
-                  className="absolute -bottom-2 left-1/2 inline-flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-white shadow-lg transition-transform hover:scale-105 hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-75 sm:-bottom-3 sm:left-auto sm:right-0 sm:translate-x-0 sm:border-white/90 md:-right-2 dark:border-emerald-500/40 dark:bg-emerald-500 dark:hover:bg-emerald-400"
-                >
-                  <PencilLine className="h-4 w-4" />
-                </button>
-              )}
-            </div>
-            <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <h1 className="text-xl font-semibold capitalize text-gray-900 dark:text-white">
-                  {lead.name ?? "Unnamed lead"}
-                </h1>
-                <LeadStatusBadge status={displayStatus} size="md" />
-                <span
-                  className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${stageDisplay.pillClass}`}
-                >
-                  <StageIcon className="h-3.5 w-3.5" />
-                  {stageDisplay.label}
-                </span>
-              </div>
-              {stageDisplay.hint && (
-                <p className={`mt-1 text-xs font-medium ${stageHintClass}`}>{stageDisplay.hint}</p>
-              )}
-              {quickChips.length > 0 && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                  {quickChips.map(({ key, icon: Icon, label, href }) => (
-                    <a
-                      key={key}
-                      href={href}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="chip"
-                    >
-                      <Icon className="h-4 w-4" />
-                      <span>{label}</span>
-                    </a>
-                  ))}
+          <div className="relative w-full max-w-2xl rounded-3xl border border-gray-200 bg-white p-5 text-sm text-gray-900 shadow-xl dark:border-white/10 dark:bg-gray-900 dark:text-white">
+
+            <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center">
+              <div className="relative flex h-16 w-16 flex-shrink-0 items-center justify-center">
+                <div className="grid h-16 w-16 place-items-center rounded-full bg-emerald-500/10 text-lg font-semibold text-emerald-700 transition-colors dark:bg-emerald-400/20 dark:text-emerald-100">
+                  {initials(lead.name)}
                 </div>
-              )}
+                {canEditProfile && (
+                  <button
+                    type="button"
+                    onClick={handleEditClick}
+                    disabled={loading}
+                    aria-label="Edit lead details"
+                    title="Edit lead details"
+                    className="absolute -bottom-2 left-1/2 inline-flex h-9 w-9 -translate-x-1/2 items-center justify-center rounded-full border-2 border-white bg-emerald-500 text-white shadow-lg transition-transform hover:scale-105 hover:bg-emerald-600 focus-visible:outline focus-visible:outline-2 focus-visible:outline-emerald-500 focus-visible:outline-offset-2 disabled:cursor-not-allowed disabled:opacity-75 sm:-bottom-3 sm:left-auto sm:right-0 sm:translate-x-0 sm:border-white/90 md:-right-2 dark:border-emerald-500/40 dark:bg-emerald-500 dark:hover:bg-emerald-400"
+                  >
+                    <PencilLine className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-3">
+                  <h1 className="text-xl font-semibold capitalize text-gray-900 dark:text-white">
+                    {lead.name ?? "Unnamed lead"}
+                  </h1>
+                  <LeadStatusBadge status={displayStatus} size="md" />
+                  <span
+                    className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${stageDisplay.pillClass}`}
+                  >
+                    <StageIcon className="h-3.5 w-3.5" />
+                    {stageDisplay.label}
+                  </span>
+                </div>
+                {stageDisplay.hint && (
+                  <p className={`mt-1 text-xs font-medium ${stageHintClass}`}>{stageDisplay.hint}</p>
+                )}
+              </div>
             </div>
+
+            {personalDetails.length > 0 && (
+              <div className="relative mt-4 flex flex-wrap gap-2">
+                {personalDetails.map(({ label, value, href }) => (
+                  <div
+                    key={label}
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-gray-50 px-4 py-1.5 text-sm font-semibold shadow-sm dark:border-white/10 dark:bg-gray-800"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    <span className="text-xs uppercase tracking-wide text-emerald-500 dark:text-emerald-200">
+                      {label}
+                    </span>
+                    {href ? (
+                      <a href={href} className="text-gray-900 hover:underline dark:text-white">
+                        {value}
+                      </a>
+                    ) : (
+                      <span className="text-gray-900 dark:text-white">{value}</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
           {/* Right column: summary card */}
-          <div className="w-full max-w-sm rounded-2xl border border-emerald-100 bg-emerald-50/60 p-4 text-sm text-emerald-800 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-100 md:pr-6 md:text-right lg:pr-8">
-            <div className="flex items-center justify-between gap-3">
-              <span className="text-[11px] uppercase tracking-wide text-emerald-600/80 dark:text-emerald-200/80">
-                Lead code
-              </span>
-              <span
-                className={`text-base font-semibold ${
-                  lead.leadCode
-                    ? "text-emerald-700 dark:text-emerald-50"
-                    : "text-emerald-400 dark:text-emerald-200/70"
-                }`}
-              >
-                {lead.leadCode ?? "Not generated"}
-              </span>
-            </div>
-            <div className="mt-3 grid gap-3 text-left sm:grid-cols-3 md:text-right">
-              {leadSummary.map(({ label, value }) => (
-                <div key={label} className="flex flex-col gap-1">
-                  <span className="text-[10px] uppercase tracking-wide text-emerald-500/70 dark:text-emerald-200/70">
-                    {label}
-                  </span>
-                  <span className="text-sm font-semibold text-emerald-900 dark:text-emerald-50">
-                    {value}
+          <div className="relative w-full max-w-2xl overflow-hidden rounded-3xl border border-gray-200 bg-white text-sm text-gray-900 shadow-xl dark:border-white/10 dark:bg-gray-900 dark:text-white">
+            <div className="relative grid gap-4 p-4 sm:grid-cols-[1.2fr_auto]">
+              <div>
+                <p className="text-[11px] font-semibold uppercase tracking-[0.28em] text-emerald-500 dark:text-emerald-300">
+                  Lead code
+                </p>
+                <div className="mt-2 flex items-baseline gap-3">
+                  <p className="text-4xl font-semibold tracking-tight text-gray-900 dark:text-white">
+                    {lead.leadCode ?? "Not generated"}
+                  </p>
+                  <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold uppercase text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200">
+                    {stageDisplay.label}
                   </span>
                 </div>
-              ))}
+                <p className="mt-1 text-sm text-gray-500 dark:text-white/70">
+                  Share this code with teammates to find this profile instantly.
+                </p>
+              </div>
+              <div className="flex flex-col items-end justify-between gap-3">
+                <div className="text-right">
+                  <p className="text-[11px] font-semibold uppercase tracking-[0.24em] text-gray-500 dark:text-white/60">
+                    Entered on
+                  </p>
+                  <p className="text-lg font-semibold text-gray-900 dark:text-white">
+                    {leadSummary[1]?.value ?? "—"}
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={!lead.leadCode}
+                  onClick={() => lead.leadCode && navigator.clipboard.writeText(lead.leadCode)}
+                  className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-semibold transition ${
+                    lead.leadCode
+                      ? "border-emerald-200 bg-white text-emerald-700 hover:bg-emerald-600 hover:text-white dark:border-emerald-300 dark:bg-transparent"
+                      : "cursor-not-allowed border-gray-200 text-gray-400 dark:border-white/10 dark:text-white/40"
+                  }`}
+                >
+                  <Copy className="h-3.5 w-3.5" />
+                  Copy
+                </button>
+              </div>
+            </div>
+            <div className="border-t border-gray-100 bg-gray-50 px-4 py-3 dark:border-white/10 dark:bg-white/[0.03]">
+              <div className="flex flex-wrap gap-2">
+                {highlightEntries.map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="inline-flex items-center gap-2 rounded-full border border-gray-200 bg-white px-3 py-1 text-[12px] font-semibold uppercase tracking-wide text-gray-700 dark:border-white/10 dark:bg-gray-900 dark:text-white"
+                  >
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                    <span>{label}</span>
+                    <span>{value}</span>
+                  </div>
+                ))}
+              </div>
+              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+                {detailEntries.map(({ label, value }) => (
+                  <div
+                    key={label}
+                    className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-left shadow-sm dark:border-white/5 dark:bg-gray-900"
+                  >
+                    <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-white/60">
+                      {label}
+                    </p>
+                    <p className="mt-1 text-base font-semibold text-gray-900 dark:text-white">{value}</p>
+                  </div>
+                ))}
+              </div>
             </div>
           </div>
         </div>
@@ -515,7 +599,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
 
         {/* Dynamic meta fields: display all available data points */}
         <div className="mt-5 meta-grid">
-          {metaFields.map(({ key, visible: _visible, ...field }) => (
+          {metaFieldsFiltered.map(({ key, visible: _visible, ...field }) => (
             <MetaField key={key} {...field} />
           ))}
         </div>
