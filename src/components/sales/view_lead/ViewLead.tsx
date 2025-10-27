@@ -1,7 +1,7 @@
-import { useLocation, useParams } from "react-router-dom";
+import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { useMutation, useQuery } from "@apollo/client";
-import { Loader2, AlertCircle } from "lucide-react";
+import { Loader2, AlertCircle, Users } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { useAuth } from "@/context/AuthContex";
@@ -19,11 +19,13 @@ import TimelineList from "./TimelineList";
 import { pickLeadStage, pickLeadStatus } from "./interface/utils";
 import type { LeadEvent, LeadProfile } from "./interface/types";
 import FirstContactCard from "./FirstContactCard";
+import RmLeadsDrawer from "./RmLeadsDrawer";
 
 type LeadDetailResp = { leadDetailWithTimeline: LeadProfile };
 type LeadDetailVars = { leadId: string; eventsLimit?: number };
 
 export default function ViewLead() {
+  const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const location = useLocation();
   const passedLead = (location.state as { lead?: Partial<LeadProfile> } | null)?.lead;
@@ -102,6 +104,7 @@ export default function ViewLead() {
   const [outcome, setOutcome] = useState<string>("");
   const [reactivateToStage, setReactivateToStage] = useState<string | null>(null);
   const [updatingProgress, setUpdatingProgress] = useState(false);
+  const [isRmDrawerOpen, setRmDrawerOpen] = useState(false);
 
   const handleCreateEventEnhanced = async () => {
     if (!leadId) return;
@@ -188,6 +191,7 @@ export default function ViewLead() {
   }
 
   return (
+    <>
     <div className="space-y-6">
       <LeadProfileHeader
         lead={lead as any}
@@ -290,6 +294,43 @@ export default function ViewLead() {
         <TimelineList events={events} />
       </div>
     </div>
+    {/* Floating trigger (desktop) */}
+    <div className="fixed right-6 top-28 z-[60] hidden md:block">
+      <button
+        onClick={() => setRmDrawerOpen(true)}
+        className="inline-flex items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow ring-1 ring-gray-200 hover:bg-gray-50 dark:bg-gray-900 dark:text-white/80 dark:ring-white/10"
+        title="View all my leads"
+      >
+        <Users className="h-4 w-4 text-brand-600" />
+        <span>My Leads</span>
+      </button>
+    </div>
+
+    {/* Floating trigger (mobile / tablet) */}
+    <div className="fixed bottom-6 right-4 z-[60] md:hidden">
+      <button
+        onClick={() => setRmDrawerOpen(true)}
+        className="inline-flex items-center gap-2 rounded-full bg-brand-600 px-4 py-3 text-sm font-semibold text-white shadow-lg ring-1 ring-brand-700/20"
+        title="My Leads"
+        aria-label="Open my leads"
+      >
+        <Users className="h-5 w-5 text-white" />
+        <span className="sr-only">My Leads</span>
+      </button>
+    </div>
+
+    {/* Right-side drawer */}
+    <RmLeadsDrawer
+      isOpen={isRmDrawerOpen}
+      onClose={() => setRmDrawerOpen(false)}
+      onPick={(l) => {
+        setRmDrawerOpen(false);
+        if (l.id) {
+          navigate(`/sales/leads/${l.id}`, { state: { lead: { id: l.id, leadCode: l.leadCode, name: l.name } } });
+        }
+      }}
+    />
+    </>
   );
 }
 

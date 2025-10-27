@@ -1,4 +1,4 @@
-// src/components/lead/LeadData/LeadDataTable.tsx
+﻿// src/components/lead/LeadData/LeadDataTable.tsx
 import {
   memo, useCallback, useEffect, useMemo, useRef, useState, forwardRef,
 } from "react";
@@ -10,6 +10,7 @@ import { LeadTableHeader } from "./LeadTableHeader";
 import { LeadTableRow, Row } from "./LeadTableRow";
 import { LeadTableFooter } from "./LeadTableFooter";
 import { PAGE_SIZE, TopCenterLoader, useDebounced } from "./leadHelpers";
+import { Loader2 } from "lucide-react";
 import { Modal } from "@/components/ui/modal";
 import * as XLSX from "xlsx";
 import LeadFiltersModal, { LeadFilters } from "./LeadFilters";
@@ -87,7 +88,7 @@ const toTitleOrNull = (value?: string | null): string | null => {
 const toDisplayName = (lead: LeadItemGql): string => {
   const composed = lead.name || [lead.firstName, lead.lastName].filter(Boolean).join(" ");
   const trimmed = composed.trim();
-  if (!trimmed) return "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â";
+  if (!trimmed) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
   return titleCaseWords(trimmed);
 };
 
@@ -155,16 +156,16 @@ function DormantRow({
 }) {
   return (
     <tr className="hover:bg-gray-50/60 dark:hover:bg-white/5">
-      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.leadCode ?? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</td>
+      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.leadCode ?? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</td>
       <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.name}</td>
-      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.phone ?? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</td>
-      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.source ?? "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}</td>
+      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.phone ?? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</td>
+      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.source ?? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</td>
       <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.reenterCount ?? 0}</td>
       <td className="px-5 py-3 text-sm text-gray-600 dark:text-white/70">
-        {r.firstSeenAt ? new Date(r.firstSeenAt).toLocaleDateString() : "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
+        {r.firstSeenAt ? new Date(r.firstSeenAt).toLocaleDateString() : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
       </td>
       <td className="px-5 py-3 text-sm text-gray-600 dark:text-white/70">
-        {r.lastSeenAt ? new Date(r.lastSeenAt).toLocaleDateString() : "ÃƒÂ¢Ã¢â€šÂ¬Ã¢â‚¬Â"}
+        {r.lastSeenAt ? new Date(r.lastSeenAt).toLocaleDateString() : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
       </td>
     </tr>
   );
@@ -476,7 +477,7 @@ export default function LeadDataTable() {
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-      <TopCenterLoader show={loading || generating} text={generating ? "GeneratingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦"} />
+      <TopCenterLoader show={loading || generating} text={generating ? "GeneratingÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : "LoadingÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"} />
 
       {notice && (
         <div className="p-3">
@@ -555,11 +556,15 @@ export default function LeadDataTable() {
                 ))}
                 {visibleRows.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
-                    >
-                      {loading ? "LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "No leads to show."}
+                    <td colSpan={7} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                      {loading ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin text-emerald-500 dark:text-emerald-400" />
+                          Loading leads...
+                        </div>
+                      ) : (
+                        "No leads to show."
+                      )}
                     </td>
                   </tr>
                 )}
@@ -602,11 +607,15 @@ export default function LeadDataTable() {
                 })}
                 {visibleRows.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={showAdvancedCols ? 8 : 6}
-                      className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
-                    >
-                      {loading ? "LoadingÃƒÂ¢Ã¢â€šÂ¬Ã‚Â¦" : "No leads to show."}
+                    <td colSpan={showAdvancedCols ? 8 : 6} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                      {loading ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-600" aria-hidden />
+                          Loading leads...
+                        </div>
+                      ) : (
+                        "No leads to show."
+                      )}
                     </td>
                   </tr>
                 )}

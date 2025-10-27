@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { ArrowLeft, Download, RefreshCcw, Search } from 'lucide-react';
+﻿import { useMemo, useState } from 'react';
+import { ArrowLeft, Download, RefreshCcw, Search, Loader2 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 
@@ -208,7 +208,10 @@ export default function LeadStagesPage() {
 
         <MyLeads leads={filtered} pageSize={8} showHeader={false} />
         {loading && (
-          <div className='mt-3 text-sm text-gray-500'>Loading assigned leads…</div>
+          <div className='mt-3 flex items-center gap-2 text-sm text-gray-600 dark:text-white/70'>
+            <Loader2 className='h-4 w-4 animate-spin text-emerald-500 dark:text-emerald-400' />
+            Loading assigned leads...
+          </div>
         )}
         {error && (
           <div className='mt-3 text-sm text-rose-600'>Failed to load: {String(error.message)}</div>

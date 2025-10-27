@@ -24,6 +24,8 @@
     "date-fns": "^4.1.0",
     "firebase": "^12.3.0",
     "flatpickr": "^4.6.13",
+    "flowbite-react": "^0.12.9",
+    "framer-motion": "^12.23.24",
     "graphql": "^16.11.0",
     "lucide-react": "^0.544.0",
     "openai": "^5.20.1",
