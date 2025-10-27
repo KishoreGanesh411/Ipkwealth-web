@@ -1,4 +1,3 @@
-// src/components/lead/types.ts
 
 /** ---------- Step 1 (Create Lead) ---------- */
 export interface LeadFormData {

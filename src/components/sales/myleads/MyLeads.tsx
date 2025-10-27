@@ -23,7 +23,9 @@ export default function MyLeads({
   pageSize = 8,
   showHeader = true,
   query: externalQuery = "",
-}: MyLeadsProps) {
+  // Optional busy indicator to show a unified loading row
+  loading = false,
+}: MyLeadsProps & { loading?: boolean }) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
@@ -205,7 +207,17 @@ export default function MyLeads({
               );
             })}
 
-            {current.length === 0 && (
+            {loading && current.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={8} className="px-6 py-10">
+                  <div className="flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-white/70" role="status">
+                    <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-600" aria-hidden />
+                    Loading — please wait
+                  </div>
+                </TableCell>
+              </TableRow>
+            )}
+            {!loading && current.length === 0 && (
               <TableRow>
                 <TableCell colSpan={8} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-white/60">
                   No leads to show

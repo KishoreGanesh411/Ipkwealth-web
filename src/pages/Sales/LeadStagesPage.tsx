@@ -1,5 +1,5 @@
 ﻿import { useMemo, useState } from 'react';
-import { ArrowLeft, Download, RefreshCcw, Search, Loader2 } from 'lucide-react';
+import { Download, RefreshCcw, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 
@@ -114,17 +114,10 @@ export default function LeadStagesPage() {
   return (
     <>
       <PageMeta title='Lead stages' description='Track pipeline health by stage' />
-      <div className='mb-2 flex items-center gap-3'>
-        <button
-          onClick={() => navigate('/sales/stages')}
-          className='inline-flex items-center gap-2 rounded-xl border border-gray-200 px-3 py-2 text-sm text-gray-700 transition hover:bg-gray-50 dark:border-white/10 dark:text-gray-200 dark:hover:bg-white/[0.06]'
-        >
-          <ArrowLeft className='h-4 w-4' /> Back to Lead Management
-        </button>
-      </div>
       <PageBreadcrumb pageTitle='Lead Stages' items={[{ label: 'My Leads', href: '/sales/stages' }]} />
 
-      <section className='mb-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-4'>
+      {/* Compact, responsive stage grid: fills available width without large right gaps */}
+      <section className='mb-6 grid auto-rows-[112px] grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3'>
         {stageCards.map((card) => {
           const isActive = card.id === selectedStage;
           return (
@@ -132,21 +125,21 @@ export default function LeadStagesPage() {
               key={card.id}
               type='button'
               onClick={() => setSelectedStage(card.id)}
-              className={`rounded-2xl border border-gray-100 bg-white p-4 text-left shadow-sm transition hover:border-emerald-200 focus:outline-hidden focus:ring-2 focus:ring-emerald-300 dark:border-white/10 dark:bg-white/[0.02] ${
-                isActive ? 'border-emerald-300 ring-2 ring-emerald-300 dark:border-emerald-400/60 dark:ring-emerald-400/60' : ''
+              className={`flex h-full flex-col justify-between overflow-hidden rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm transition-colors duration-150 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.06] ${
+                isActive ? 'border-emerald-300 ring-1 ring-emerald-200 dark:border-emerald-400/60 dark:ring-emerald-400/40' : ''
               }`}
               aria-pressed={isActive}
             >
-              <p className='text-xs font-medium uppercase text-gray-500 dark:text-white/60'>
+              <p className='text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-white/60'>
                 {card.helper}
               </p>
-              <h3 className='mt-1 text-base font-semibold text-gray-900 dark:text-white'>
+              <h3 className='mt-1 truncate text-sm font-semibold text-gray-900 dark:text-white' title={card.label}>
                 {card.label}
               </h3>
               <span
-                className={`mt-3 inline-flex items-center rounded-full px-3 py-1 text-xs font-semibold ${
+                className={`mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
                   isActive && card.id === 'ALL'
-                    ? 'bg-emerald-500 text-white'
+                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200'
                     : card.badgeClass
                 }`}
               >
@@ -206,13 +199,7 @@ export default function LeadStagesPage() {
           </div>
         </div>
 
-        <MyLeads leads={filtered} pageSize={8} showHeader={false} />
-        {loading && (
-          <div className='mt-3 flex items-center gap-2 text-sm text-gray-600 dark:text-white/70'>
-            <Loader2 className='h-4 w-4 animate-spin text-emerald-500 dark:text-emerald-400' />
-            Loading assigned leads...
-          </div>
-        )}
+        <MyLeads leads={filtered} pageSize={8} showHeader={false} loading={loading} />
         {error && (
           <div className='mt-3 text-sm text-rose-600'>Failed to load: {String(error.message)}</div>
         )}

@@ -55,11 +55,8 @@ const salesNav: NavItem[] = [
     icon: <UserCircleIcon />,
     name: 'Lead Management',
     subItems: [
-      {
-        name: 'My Leads', path: '/sales/stages', children: [
-          { name: 'Lead Profile', path: '/sales/leads' },
-        ]
-      },
+      { name: 'My Leads', path: '/sales/stages' },
+      { name: 'Lead Profile', path: '/sales/leads' },
     ],
   },
   {

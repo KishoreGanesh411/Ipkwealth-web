@@ -153,3 +153,31 @@ export const UPDATE_LEAD_BIO = gql`
     }
   }
 `;
+
+/** Update only the remark/notes field */
+export const UPDATE_LEAD_REMARK = gql`
+  mutation UpdateLeadRemark($input: UpdateLeadRemarkInput!) {
+    updateLeadRemark(input: $input) {
+      id
+      remark
+      updatedAt
+    }
+  }
+`;
+
+/** First contact form submission (server persists structured JSON in remark) */
+export const RM_FIRST_CONTACT = gql`
+  mutation RmFirstContact($input: RmFirstContactInput!) {
+    rmFirstContact(input: $input) {
+      id
+      status
+      clientStage
+      approachAt
+      lastSeenAt
+      nextActionDueAt
+      lastContactedAt
+      remark
+      updatedAt
+    }
+  }
+`;

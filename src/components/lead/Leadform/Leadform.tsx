@@ -239,7 +239,7 @@ export default function CreateLeadForm({
                 assignedRmName: selected?.label ?? "",
               }));
             }}
-            placeholder={rmLoading ? "Loading active RMs…" : "Select RM"}
+            placeholder={rmLoading ? "Loading..." : "Select RM"}
             disabled={rmLoading || rmSelectOptions.length <= 1}
           />
           {(lead.assignMode ?? "AUTO") === "MANUAL" && (
@@ -304,3 +304,5 @@ export default function CreateLeadForm({
     </div>
   );
 }
+
+

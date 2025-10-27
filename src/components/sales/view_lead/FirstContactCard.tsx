@@ -6,7 +6,7 @@ type Props = {
   submitting?: boolean;
   onSubmit: (payload: {
     productExplained: boolean;
-    channel: string | null;
+    channel: string; // GraphQL requires InteractionChannel!
     notExplainedReason?: string | null;
     nextFollowUpAt?: string | null;
     note?: string | null;
@@ -40,44 +40,48 @@ export default function FirstContactCard({ submitting = false, onSubmit }: Props
           </div>
         </div>
 
-        {explained ? (
+        {/* Channel (always present, schema requires it) */}
+        <div>
+          <Label>Channel</Label>
+          <select
+            className='mt-1 h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 dark:border-white/10 dark:bg-white/10 dark:text-white/90'
+            value={channel}
+            onChange={(e) => setChannel(e.target.value)}
+            disabled={submitting}
+          >
+            {['CALL','WHATSAPP','SMS','EMAIL','MEETING','OTHER'].map((c) => (
+              <option key={c} value={c}>{c}</option>
+            ))}
+          </select>
+        </div>
+
+        {/* Reason only when not explained */}
+        {!explained && (
           <div>
-            <Label>Channel</Label>
-            <select
+            <Label>Reason (not explained)</Label>
+            <input
               className='mt-1 h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 dark:border-white/10 dark:bg-white/10 dark:text-white/90'
-              value={channel}
-              onChange={(e) => setChannel(e.target.value)}
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder='e.g., Not reachable / needs callback'
               disabled={submitting}
-            >
-              {['CALL','WHATSAPP','SMS','EMAIL','MEETING','OTHER'].map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+            />
           </div>
-        ) : (
-          <>
-            <div>
-              <Label>Reason (not explained)</Label>
-              <input
-                className='mt-1 h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 dark:border-white/10 dark:bg-white/10 dark:text-white/90'
-                value={reason}
-                onChange={(e) => setReason(e.target.value)}
-                placeholder='e.g., Not reachable / needs callback'
-                disabled={submitting}
-              />
-            </div>
-            <div>
-              <Label>Next follow-up</Label>
-              <input
-                type='datetime-local'
-                className='mt-1 h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 dark:border-white/10 dark:bg-white/10 dark:text-white/90'
-                value={next}
-                onChange={(e) => setNext(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
-          </>
         )}
+
+        {/* Next follow-up: required when explained, optional otherwise */}
+        <div>
+          <Label>
+            Next follow-up {explained && <span className='text-rose-500'>(required)</span>}
+          </Label>
+          <input
+            type='datetime-local'
+            className='mt-1 h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-800 focus:border-emerald-300 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 dark:border-white/10 dark:bg-white/10 dark:text-white/90'
+            value={next}
+            onChange={(e) => setNext(e.target.value)}
+            disabled={submitting}
+          />
+        </div>
 
         <div className='sm:col-span-2'>
           <Label>Notes</Label>
@@ -98,9 +102,9 @@ export default function FirstContactCard({ submitting = false, onSubmit }: Props
           onClick={async () => {
             await onSubmit({
               productExplained: explained,
-              channel: explained ? channel : null,
+              channel,
               notExplainedReason: explained ? null : (reason || null),
-              nextFollowUpAt: explained ? null : (next ? new Date(next).toISOString() : null),
+              nextFollowUpAt: next ? new Date(next).toISOString() : null,
               note: note || null,
             });
           }}

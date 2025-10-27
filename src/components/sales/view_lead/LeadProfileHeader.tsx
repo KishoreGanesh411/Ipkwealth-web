@@ -22,7 +22,8 @@ import {
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
-import { UPDATE_LEAD } from "@/core/graphql/leads.gql";
+// Note: Use specific field mutations supported by the API schema
+import { UPDATE_LEAD_BIO, UPDATE_LEAD_REMARK } from "./gql/view_lead.gql";
 import LeadStatusBadge from "@/components/sales/myleads/LeadStatusBadge";
 import { leadOptions, valueToLabel } from "@/components/lead/types";
 import {
@@ -73,7 +74,8 @@ type HeaderMetaField = {
 
 export default function LeadProfileHeader({ lead, loading, canEditProfile, onProfileRefresh }: Props) {
   const [isEditing, setIsEditing] = useState(false);
-  const [updateLeadMutation, { loading: saving }] = useMutation(UPDATE_LEAD);
+  const [mutateBio, { loading: savingBio }] = useMutation(UPDATE_LEAD_BIO);
+  const [mutateRemark, { loading: savingRemark }] = useMutation(UPDATE_LEAD_REMARK);
 
   // Normalize the lead status; treat ASSIGNED as PENDING for display
   const displayStatus = lead.status === "ASSIGNED" ? "PENDING" : lead.status;
@@ -102,6 +104,8 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   const normalizeText = (value?: string | null) => (value ?? "").toString().trim();
 
   const profession = normalizeText(lead.profession);
+  // Human-readable version for enum-like backend values such as SELF_EMPLOYED
+  const professionDisplay = profession ? humanize(profession) : "";
   const designation = normalizeText(lead.designation);
   const companyName = normalizeText(lead.companyName);
   const location = normalizeText(lead.location);
@@ -111,7 +115,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   const referralCode = normalizeText(lead.referralCode);
   const investmentRangeRaw = normalizeText(lead.investmentRange);
 
-  const occupationPrimary = profession || designation || companyName;
+  const occupationPrimary = professionDisplay || designation || companyName;
   const occupationKey = occupationPrimary ? occupationPrimary.toLowerCase() : "";
   const occupationSecondaryParts: string[] = [];
   if (designation && designation.toLowerCase() !== occupationKey) {
@@ -123,7 +127,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   const occupationSecondary =
     occupationSecondaryParts.length > 0 ? occupationSecondaryParts.join(" | ") : null;
   const occupationLines: string[] = [];
-  if (profession) occupationLines.push(profession);
+  if (professionDisplay) occupationLines.push(professionDisplay);
   if (designation) occupationLines.push(designation);
   if (companyName) occupationLines.push(companyName);
 
@@ -380,6 +384,12 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
     } as LeadEditFormValues;
   }, [lead]);
 
+  // Hooks must be called unconditionally and in the same order every render.
+  // These were previously below an early `if (loading) return ...`,
+  // which caused the hook order to change once loading flipped to false.
+  const remarkModal = useModal(false);
+  const bioModal = useModal(false);
+
   if (loading) {
     return (
       <div className="flex h-32 items-center justify-center text-sm text-gray-400 dark:text-white/40">
@@ -395,8 +405,6 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   };
 
   const handleModalClose = () => setIsEditing(false);
-  const remarkModal = useModal(false);
-  const bioModal = useModal(false);
 
   /**
    * Submit handler for the edit modal. We normalize phone numbers into phone
@@ -405,38 +413,37 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
    * converted to null.
    */
   const handleModalSubmit = async (values: LeadEditFormValues) => {
-    const trimOrNull = (val: any) => {
-      const str = String(val ?? "").trim();
-      return str.length ? str : null;
-    };
-    const sanitized: Record<string, any> = {
-      firstName: trimOrNull(values.firstName),
-      lastName: trimOrNull(values.lastName),
-      name: String(values.fullName ?? "").trim(),
-      email: trimOrNull(values.email),
-      phone: trimOrNull(values.primaryPhone),
-      mobile: trimOrNull(values.whatsappPhone),
-      location: trimOrNull(values.location),
-      profession: trimOrNull(values.profession),
-      designation: trimOrNull(values.designation),
-      companyName: trimOrNull(values.companyName),
-      product: trimOrNull(values.product),
-      investmentRange: trimOrNull(values.investmentRange),
-      gender: trimOrNull(values.gender),
-      remark: trimOrNull(values.remark),
-      referralName: trimOrNull(values.referralName),
-      leadSourceOther: trimOrNull(values.leadSourceOther),
-    };
-    const sipStr = String(values.sipAmount ?? "").replace(/,/g, "").trim();
-    if (sipStr) {
-      const sipValue = Number(sipStr);
-      sanitized.sipAmount = Number.isNaN(sipValue) ? null : sipValue;
-    } else {
-      sanitized.sipAmount = null;
+    // The current API supports granular mutations. Update what is supported
+    // and avoid calling legacy updateLead (which returns 400 on this backend).
+    const ops: Promise<any>[] = [];
+
+    // Remark
+    const nextRemark = String(values.remark ?? "").trim();
+    const currRemark = String((lead as any).remark ?? "").trim();
+    if (nextRemark !== currRemark) {
+      ops.push(
+        mutateRemark({ variables: { input: { leadId: lead.id, remark: nextRemark } } })
+      );
     }
+
+    // Bio text
+    const nextBio = String((values as any).bioText ?? "").trim();
+    const currBio = String((lead as any).bioText ?? "").trim();
+    if (nextBio !== currBio) {
+      ops.push(
+        mutateBio({ variables: { input: { leadId: lead.id, bioText: nextBio } } })
+      );
+    }
+
+    if (ops.length === 0) {
+      toast.info("Nothing to update");
+      setIsEditing(false);
+      return;
+    }
+
     try {
-      await updateLeadMutation({ variables: { id: lead.id, input: sanitized } });
-      toast.success("Lead details updated");
+      await Promise.all(ops);
+      toast.success("Profile updated");
       setIsEditing(false);
       onProfileRefresh?.();
     } catch (error: any) {
@@ -622,7 +629,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
         isOpen={isEditing}
         onClose={handleModalClose}
         initial={modalInitialValues}
-        saving={saving}
+        saving={savingBio || savingRemark}
         onSubmit={handleModalSubmit}
         title="Edit lead details"
       />

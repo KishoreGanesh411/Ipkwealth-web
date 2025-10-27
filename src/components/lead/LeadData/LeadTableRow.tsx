@@ -41,16 +41,16 @@ export function LeadTableRow({
   onDelete: () => void;
 }) {
   const key = row.id;
-  const autoValue = "__AUTO_ASSIGN__";
   const combinedOptions = useMemo(() => {
     const base = Array.from(rmOptions ?? []);
     if (row.assignedRmId && row.assignedRm) {
       const exists = base.some((opt) => opt.value === row.assignedRmId);
       if (!exists) base.push({ value: row.assignedRmId, label: row.assignedRm });
     }
-    return [{ value: autoValue, label: "Auto assign" }, ...base];
+    // Manual-assign only: no "Auto assign" option in dropdown
+    return base;
   }, [rmOptions, row.assignedRmId, row.assignedRm]);
-  const selectedValue = row.assignedRmId ?? autoValue;
+  const selectedValue = row.assignedRmId ?? "";
 
   return (
     <TableRow key={key}>
@@ -85,10 +85,7 @@ export function LeadTableRow({
             <Select
               options={combinedOptions}
               value={selectedValue}
-              onChange={(value: string) => {
-                if (value === autoValue) onAssignRm(row.id, null);
-                else onAssignRm(row.id, value);
-              }}
+              onChange={(value: string) => onAssignRm(row.id, value)}
               disabled={rmLoading || assigning}
               className="pl-3"
               placeholder="Assign RM"

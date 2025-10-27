@@ -10,6 +10,7 @@ import {
   UPDATE_LEAD_STATUS,
   CHANGE_STAGE,
   CREATE_LEAD_EVENT,
+  RM_FIRST_CONTACT,
 } from "./gql/view_lead.gql";
 
 import LeadProfileHeader from "./LeadProfileHeader";
@@ -48,6 +49,7 @@ export default function ViewLead() {
   const [mutUpdateStatus] = useMutation(UPDATE_LEAD_STATUS);
   const [mutChangeStage] = useMutation(CHANGE_STAGE);
   const [mutCreateEvent, { loading: creatingEvent }] = useMutation(CREATE_LEAD_EVENT);
+  const [mutRmFirstContact] = useMutation(RM_FIRST_CONTACT);
 
   const lead = data?.leadDetailWithTimeline;
 
@@ -209,20 +211,19 @@ export default function ViewLead() {
               if (!leadId) return;
               setUpdatingProgress(true);
               try {
-                await mutChangeStage({
+                await mutRmFirstContact({
                   variables: {
                     input: {
                       leadId,
-                      stage: productExplained ? 'FIRST_TALK_DONE' : 'FOLLOWING_UP',
-                      channel: channel as any,
                       productExplained,
-                      note: note ?? (notExplainedReason ? `Reason: ${notExplainedReason}` : null),
+                      channel: (channel || 'CALL') as any,
+                      notExplainedReason: notExplainedReason ?? null,
+                      note: note ?? null,
                       nextFollowUpAt: nextFollowUpAt ?? null,
                     },
                   },
                 });
-                if (productExplained) toast.success('Marked first talk done');
-                else toast.success('Follow-up scheduled');
+                toast.success('First contact saved');
                 await refetch();
               } catch (e: any) {
                 toast.error(e?.message || 'Failed to save');

@@ -316,7 +316,7 @@ export default function AssignedLeads({
                       className="h-5 w-5 animate-spin text-emerald-500 dark:text-emerald-400"
                       aria-hidden="true"
                     />
-                    <span className="font-medium text-gray-600 dark:text-white/70">Loading leads...</span>
+                    <span className="font-medium text-gray-600 dark:text-white/70">Loading — please wait</span>
                   </div>
                 </TableCell>
               </TableRow>

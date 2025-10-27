@@ -3,7 +3,7 @@ import {
   memo, useCallback, useEffect, useMemo, useRef, useState, forwardRef,
 } from "react";
 import { useLazyQuery, useMutation, useApolloClient, ApolloError } from "@apollo/client";
-import { LEADS_OPEN, ASSIGN_LEAD_WITH_MODE, ASSIGN_LEADS } from "@/core/graphql/lead/lead.gql";
+import { LEADS_OPEN, ASSIGN_LEAD, ASSIGN_LEADS, REASSIGN_LEAD } from "@/core/graphql/lead/lead.gql";
 import Alert from "@/components/ui/alert/Alert";
 import { Table, TableBody } from "@/components/ui/table";
 import { LeadTableHeader } from "./LeadTableHeader";
@@ -192,6 +192,12 @@ export default function LeadDataTable() {
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<Notice>(null);
+  // Auto-dismiss success notices after 6 seconds
+  useEffect(() => {
+    if (!notice || notice.variant !== "success") return;
+    const t = window.setTimeout(() => setNotice(null), 6000);
+    return () => window.clearTimeout(t);
+  }, [notice]);
   const [genDone, setGenDone] = useState(false);
   const [filters, setFilters] = useState<LeadFilters>({ from: null, to: null, rm: null, source: null });
   const [filterOpen, setFilterOpen] = useState(false);
@@ -330,7 +336,8 @@ export default function LeadDataTable() {
   }, []);
 
   // Actions (disabled in Dormant mode)
-  const [assignLeadMut, { loading: loadingSingle }] = useMutation(ASSIGN_LEAD_WITH_MODE);
+  const [assignLeadMut, { loading: loadingSingle }] = useMutation(ASSIGN_LEAD);
+  const [reassignLeadMut] = useMutation(REASSIGN_LEAD);
   const [assignLeadsMut, { loading: loadingBatch }] = useMutation(ASSIGN_LEADS);
   const generating = loadingSingle || loadingBatch || networkStatus === 3;
 
@@ -362,7 +369,11 @@ export default function LeadDataTable() {
 
       try {
         setUpdatingLeadId(leadId);
-        await assignLeadMut({ variables: { input: { leadId, mode: rmId ? "MANUAL" : "AUTO", rmId: rmId ?? undefined } } });
+        if (rmId) {
+          await reassignLeadMut({ variables: { input: { leadId, newRmId: rmId } } });
+        } else {
+          await assignLeadMut({ variables: { id: leadId } });
+        }
         await refetchActive();
         await runLeads({ variables });
 
@@ -407,7 +418,7 @@ export default function LeadDataTable() {
         return;
       }
       if (pendingOnPage.length === 1) {
-        await assignLeadMut({ variables: { input: { leadId: pendingOnPage[0], mode: "AUTO" } } });
+        await assignLeadMut({ variables: { id: pendingOnPage[0] } });
       } else {
         await assignLeadsMut({ variables: { ids: pendingOnPage } });
       }
@@ -477,7 +488,7 @@ export default function LeadDataTable() {
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-      <TopCenterLoader show={loading || generating} text={generating ? "GeneratingÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦" : "LoadingÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬Ãƒâ€šÃ‚Â¦"} />
+      <TopCenterLoader show={loading || generating} />
 
       {notice && (
         <div className="p-3">
@@ -560,7 +571,7 @@ export default function LeadDataTable() {
                       {loading ? (
                         <div className="flex items-center justify-center gap-2">
                           <Loader2 className="h-4 w-4 animate-spin text-emerald-500 dark:text-emerald-400" />
-                          Loading leads...
+                          Loading — please wait
                         </div>
                       ) : (
                         "No leads to show."
@@ -611,7 +622,7 @@ export default function LeadDataTable() {
                       {loading ? (
                         <div className="flex items-center justify-center gap-2">
                           <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-600" aria-hidden />
-                          Loading leads...
+                          Loading — please wait
                         </div>
                       ) : (
                         "No leads to show."
@@ -680,3 +691,5 @@ export default function LeadDataTable() {
     </div>
   );
 }
+
+

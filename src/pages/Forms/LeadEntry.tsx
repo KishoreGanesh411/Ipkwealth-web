@@ -6,8 +6,8 @@ import Button from "@/components/ui/button/Button";
 import BulkRegistrationButton from "@/components/lead/bulk-register/BulkRegistrationButton";
 import BulkImportModal from "@/components/lead/bulk-register/BulkImportModal"; // ⬅ add
 import { createLead } from "@/core/graphql/lead/lead";
-import { useMutation } from "@apollo/client";
-import { ASSIGN_LEAD_WITH_MODE } from "@/core/graphql/lead/lead.gql";
+import { useLazyQuery, useMutation } from "@apollo/client";
+import { ASSIGN_LEAD, REASSIGN_LEAD, LEADS_OPEN } from "@/core/graphql/lead/lead.gql";
 import { toast } from "react-toastify";
 import CreateLeadForm from "@/components/lead/Leadform/Leadform";
 import AdditionalInsightsForm from "@/components/lead/Leadform/additional";
@@ -50,7 +50,10 @@ export default function LeadEntry() {
 
   const { isOpen, openModal, closeModal } = useModal();
   const [submitting, setSubmitting] = useState(false);
-  const [assignWithMode] = useMutation(ASSIGN_LEAD_WITH_MODE);
+  const [assignLead] = useMutation(ASSIGN_LEAD);
+  const [reassignLead] = useMutation(REASSIGN_LEAD);
+  // Optional: auto-resolve referral name when a lead code is provided
+  const [findLeadByCode] = useLazyQuery(LEADS_OPEN, { fetchPolicy: "network-only" });
 
   // NEW: bulk modal state (upload flow)
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -100,10 +103,10 @@ export default function LeadEntry() {
       const occupations = Object.keys(occItem).length ? [occItem] : undefined;
 
       // Resolve referral by mode when source is referral
-      const referralByName = lead.leadSource === "referral" && (lead.referralMode ?? "NAME") === "NAME"
+      const referralByName = lead.leadSource === "referral"
         ? (lead.referralName?.trim() || undefined)
         : undefined;
-      const referralByCode = lead.leadSource === "referral" && (lead.referralMode ?? "NAME") === "LEAD_CODE"
+      const referralByCode = lead.leadSource === "referral"
         ? (lead.referralCode?.trim() || undefined)
         : undefined;
 
@@ -115,7 +118,7 @@ export default function LeadEntry() {
         leadSource: normalizedLeadSource || undefined,
         referralName: referralByName,
         referralCode: referralByCode,
-        // assignment is applied post-create via assignLeadWithMode
+        // assignment is applied post-create via reassignLead (manual) or assignLead (auto)
         gender: lead.gender || undefined,
         age: lead.age ? Number(lead.age) : undefined,
         location: lead.location || undefined,
@@ -140,9 +143,7 @@ export default function LeadEntry() {
         created?.id
       ) {
         try {
-          await assignWithMode({
-            variables: { input: { leadId: created.id, mode: "MANUAL", rmId: lead.assignedRmId } },
-          });
+          await reassignLead({ variables: { input: { leadId: created.id, newRmId: lead.assignedRmId } } });
         } catch {}
       }
       toast.success(created?.leadCode ? `Lead created: ${created.leadCode}` : "Lead created");
@@ -164,6 +165,26 @@ export default function LeadEntry() {
       closeModal();
     }
   };
+
+  // When referral is by code, try to look up the referrer's name and prefill referralName
+  useEffect(() => {
+    const wantLookup = lead.leadSource === "referral" && (lead.referralMode ?? "NAME") === "LEAD_CODE";
+    const code = String(lead.referralCode ?? "").trim();
+    if (!wantLookup || code.length < 5) return; // skip short/empty input
+    // Debounce network calls a bit
+    const t = window.setTimeout(async () => {
+      try {
+        const { data } = await findLeadByCode({ variables: { args: { page: 1, pageSize: 1, archived: false, status: null, search: code } } });
+        const hit = data?.leads?.items?.find?.((x: any) => String(x?.leadCode ?? "").trim().toUpperCase() === code.toUpperCase());
+        if (hit && (hit.name || hit.firstName)) {
+          setLead((s) => (s.referralName?.trim() ? s : { ...s, referralName: (hit.name ?? `${hit.firstName ?? ""} ${hit.lastName ?? ""}`).trim() }));
+        }
+      } catch {
+        // ignore lookup failures
+      }
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [lead.leadSource, lead.referralMode, lead.referralCode, findLeadByCode, setLead]);
 
   return (
     <div>

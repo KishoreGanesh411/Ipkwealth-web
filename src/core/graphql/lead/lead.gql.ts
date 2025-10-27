@@ -126,12 +126,19 @@ export const CREATE_LEAD = gql`
 `;
 
 // Use backend's mode-based assignment API for both auto and manual
-export const ASSIGN_LEAD_WITH_MODE = gql`
-  mutation AssignLeadWithMode($input: AssignLeadInput!) {
-    assignLeadWithMode(input: $input) {
-      lead { ...LeadFields }
-      message
-    }
+// Align with current backend schema:
+// - Auto-assign a single lead
+export const ASSIGN_LEAD = gql`
+  mutation AssignLead($id: ID!) {
+    assignLead(id: $id) { ...LeadFields }
+  }
+  ${LEAD_FIELDS}
+`;
+
+// - Manually reassign a lead to a specific RM
+export const REASSIGN_LEAD = gql`
+  mutation ReassignLead($input: ReassignLeadInput!) {
+    reassignLead(input: $input) { ...LeadFields }
   }
   ${LEAD_FIELDS}
 `;
