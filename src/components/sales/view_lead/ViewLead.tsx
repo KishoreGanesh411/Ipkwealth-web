@@ -1,21 +1,22 @@
 import { useLocation, useParams, useNavigate } from "react-router-dom";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
+import { format } from "date-fns";
 import { useMutation, useQuery } from "@apollo/client";
 import { Loader2, AlertCircle, Users } from "lucide-react";
 import { toast } from "react-toastify";
 
 import { useAuth } from "@/context/AuthContex";
-import {
-  LEAD_DETAIL_WITH_TIMELINE,
-  UPDATE_LEAD_STATUS,
-  CHANGE_STAGE,
-  CREATE_LEAD_EVENT,
-  RM_FIRST_CONTACT,
-} from "./gql/view_lead.gql";
+  import {
+    LEAD_DETAIL_WITH_TIMELINE,
+    UPDATE_LEAD_STATUS,
+    CHANGE_STAGE,
+    CREATE_LEAD_EVENT,
+    RM_FIRST_CONTACT,
+    UPDATE_LEAD_REMARK,
+  } from "./gql/view_lead.gql";
 
 import LeadProfileHeader from "./LeadProfileHeader";
-import StatusCard from "./StatusCard";
-import AddEventCard from "./AddEventCard";
+import LeadUnifiedUpdateCard from "./LeadUnifiedUpdateCard";
 import TimelineList from "./TimelineList";
 import { pickLeadStage, pickLeadStatus } from "./interface/utils";
 import type { LeadEvent, LeadProfile } from "./interface/types";
@@ -50,6 +51,7 @@ export default function ViewLead() {
   const [mutChangeStage] = useMutation(CHANGE_STAGE);
   const [mutCreateEvent, { loading: creatingEvent }] = useMutation(CREATE_LEAD_EVENT);
   const [mutRmFirstContact] = useMutation(RM_FIRST_CONTACT);
+  const [mutUpdateRemark] = useMutation(UPDATE_LEAD_REMARK);
 
   const lead = data?.leadDetailWithTimeline;
 
@@ -149,6 +151,12 @@ export default function ViewLead() {
           },
         },
       });
+      // Keep the Latest remark in sync with the newest note
+      try {
+        await mutUpdateRemark({ variables: { input: { leadId, remark: text } } });
+      } catch (_) {
+        // non-blocking; ignore failures
+      }
       toast.success("Event logged");
       setEventType("NOTE");
       setNote("");
@@ -204,13 +212,22 @@ export default function ViewLead() {
       />
 
       <div className="flex flex-col gap-6 lg:gap-8">
-        {(lead.clientStage === 'NEW_LEAD' || !lead.lastContactedAt) && (
+        {(
+          (lead.clientStage !== 'FIRST_TALK_DONE') &&
+          (lead.status === 'PENDING' || lead.clientStage === 'NEW_LEAD')
+        ) && (
           <FirstContactCard
             submitting={updatingProgress}
             onSubmit={async ({ productExplained, channel, notExplainedReason, nextFollowUpAt, note }) => {
               if (!leadId) return;
               setUpdatingProgress(true);
               try {
+                // Require a follow-up date for first contact
+                if (!nextFollowUpAt) {
+                  toast.warn('Next follow-up is required');
+                  setUpdatingProgress(false);
+                  return;
+                }
                 await mutRmFirstContact({
                   variables: {
                     input: {
@@ -223,7 +240,25 @@ export default function ViewLead() {
                     },
                   },
                 });
-                toast.success('First contact saved');
+                // Also update Latest remark with a concise summary
+                const parts: string[] = [];
+                parts.push(productExplained ? 'Product explained' : 'Product not explained');
+                if (channel) parts.push(`via ${channel}`);
+                if (!productExplained && notExplainedReason) parts.push(`Reason: ${notExplainedReason}`);
+                if (nextFollowUpAt) parts.push(`Next follow-up: ${new Date(nextFollowUpAt).toLocaleString()}`);
+                if (note) parts.push(`Notes: ${note}`);
+                const summary = parts.join(' | ');
+                try {
+                  await mutUpdateRemark({ variables: { input: { leadId, remark: summary } } });
+                } catch (_) {
+                  // ignore; non-blocking
+                }
+                const pretty = nextFollowUpAt ? format(new Date(nextFollowUpAt), 'dd MMM, HH:mm') : '';
+                toast.success(
+                  pretty
+                    ? `First contact saved. Follow-up scheduled for ${pretty}.`
+                    : 'First contact saved.'
+                );
                 await refetch();
               } catch (e: any) {
                 toast.error(e?.message || 'Failed to save');
@@ -233,66 +268,19 @@ export default function ViewLead() {
             }}
           />
         )}
-        <div className="grid gap-6 lg:grid-cols-2 xl:grid-cols-[minmax(0,420px),minmax(0,1fr)]">
-          <StatusCard
-            statusValue={pickLeadStatus<string>(lead.status)}
-            stageValue={pickLeadStage(lead.clientStage as any) as any}
-            onStatusChange={handleStatusChange}
-            onStageChange={handleStageChange}
-            onStatusStageChange={async ({ newStatus, newStage, dormantReason }) => {
-              if (!newStatus && !newStage) return;
-              setUpdatingProgress(true);
-              try {
-                if (newStatus) await handleStatusChange(newStatus);
-                if (newStage) {
-                  await mutChangeStage({
-                    variables: {
-                      input: {
-                        leadId,
-                        stage: newStage,
-                        note: dormantReason ? `Dormant reason: ${dormantReason}` : null,
-                        channel: null,
-                        nextFollowUpAt: null,
-                        productExplained: null,
-                      },
-                    },
-                  });
-                  toast.success("Stage updated");
-                  await refetch();
-                }
-              } catch (err: any) {
-                toast.error(err.message || "Unable to update");
-              } finally {
-                setUpdatingProgress(false);
-              }
-            }}
-            disabled={loading || updatingProgress}
-            saving={updatingProgress}
-          />
-          <AddEventCard
-            form={{
-              type: eventType as any,
-              note,
-              followUpOn,
-              channel,
-              outcome,
-              reactivateToStage,
-            }}
-            onChange={(f) => {
-              setEventType(f.type);
-              setNote(f.note);
-              setFollowUpOn(f.followUpOn);
-              setChannel(f.channel ?? "");
-              setOutcome(f.outcome ?? "");
-              setReactivateToStage(f.reactivateToStage ?? null);
-            }}
-            onCreateEvent={() => handleCreateEventEnhanced()}
-            submitting={creatingEvent}
-            currentStage={stageValue ?? null}
-          />
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch md:h-[70vh]">
+          <div className="h-full min-h-0">
+            <LeadUnifiedUpdateCard
+              leadId={leadId}
+              currentStatus={pickLeadStatus<string>(lead.status) as any}
+              currentStage={pickLeadStage(lead.clientStage as any) as any}
+              onSaved={() => refetch()}
+            />
+          </div>
+          <div className="h-full min-h-0">
+            <TimelineList events={events} />
+          </div>
         </div>
-
-        <TimelineList events={events} />
       </div>
     </div>
     {/* Floating trigger (desktop) */}

@@ -17,6 +17,7 @@ export const FRAG_LEAD_PHONE = gql`
 export const FRAG_LEAD_EVENT = gql`
   fragment LeadEventParts on LeadEventEntity {
     id
+    authorId
     type
     text
     tags
@@ -40,6 +41,7 @@ export const FRAG_LEAD_BASE = gql`
 
     leadSource
     referralCode
+    referralName
 
     gender
     age
@@ -57,6 +59,7 @@ export const FRAG_LEAD_BASE = gql`
     archived
 
     remark
+    remarks { text author createdAt }
     bioText
     clientTypes
     clientQa { question answer }
@@ -65,8 +68,11 @@ export const FRAG_LEAD_BASE = gql`
     updatedAt
     firstSeenAt
     lastSeenAt
+    lastContactedAt
     approachAt
     reenterCount
+
+    nextActionDueAt
 
     # Matches schema exactly:
     assignedRM
@@ -133,6 +139,20 @@ export const CHANGE_STAGE = gql`
 export const CREATE_LEAD_EVENT = gql`
   mutation CreateLeadEvent($input: LeadInteractionInput!) {
     addLeadInteraction(input: $input) {
+      id
+      type
+      text
+      tags
+      occurredAt
+      meta
+    }
+  }
+`;
+
+/** Create a simple note on the timeline */
+export const ADD_LEAD_NOTE = gql`
+  mutation AddLeadNote($input: LeadNoteInput!) {
+    addLeadNote(input: $input) {
       id
       type
       text

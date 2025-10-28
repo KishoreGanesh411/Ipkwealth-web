@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
 import timeGridPlugin from "@fullcalendar/timegrid";
@@ -7,12 +7,31 @@ import { EventInput, DateSelectArg, EventClickArg } from "@fullcalendar/core";
 import { Modal } from "../../../components/ui/modal";
 import { useModal } from "../../../hooks/useModal";
 import PageMeta from "../../../components/common/PageMeta";
+import { gql, useQuery } from "@apollo/client";
+import { format } from "date-fns";
 
 interface CalendarEvent extends EventInput {
   extendedProps: {
     calendar: string;
   };
 }
+
+const MY_FOLLOWUPS = gql`
+  query MyAssignedFollowUps($page: Int = 1, $pageSize: Int = 500) {
+    myAssignedLeads(args: { page: $page, pageSize: $pageSize }) {
+      items {
+        id
+        name
+        clientStage
+        status
+        nextActionDueAt
+      }
+      total
+      page
+      pageSize
+    }
+  }
+`;
 
 const SalesEvent: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
@@ -33,30 +52,42 @@ const SalesEvent: React.FC = () => {
     Warning: "warning",
   };
 
+  const { data, loading, refetch } = useQuery(MY_FOLLOWUPS, {
+    fetchPolicy: "cache-and-network",
+    variables: { page: 1, pageSize: 500 },
+  });
+
+  const leadEvents: CalendarEvent[] = useMemo(() => {
+    const items = (data?.myAssignedLeads?.items ?? []) as Array<{
+      id: string;
+      name?: string | null;
+      nextActionDueAt?: string | null;
+      clientStage?: string | null;
+      status?: string | null;
+    }>;
+    const now = Date.now();
+    return items
+      .filter((l) => Boolean(l.nextActionDueAt))
+      .map((l) => {
+        const ts = Date.parse(l.nextActionDueAt as string);
+        const overdue = ts < now;
+        const soon = !overdue && ts - now <= 24 * 60 * 60 * 1000;
+        const calendar = overdue ? "Danger" : soon ? "Warning" : "Success";
+        const time = format(new Date(ts), "HH:mm");
+        const title = `${l.name || "Lead"} • ${time}`;
+        return {
+          id: `lead:${l.id}`,
+          title,
+          start: new Date(ts).toISOString(),
+          allDay: false,
+          extendedProps: { calendar },
+        } as CalendarEvent;
+      });
+  }, [data?.myAssignedLeads?.items]);
+
   useEffect(() => {
-    // Initialize with some events
-    setEvents([
-      {
-        id: "1",
-        title: "Event Conf.",
-        start: new Date().toISOString().split("T")[0],
-        extendedProps: { calendar: "Danger" },
-      },
-      {
-        id: "2",
-        title: "Meeting",
-        start: new Date(Date.now() + 86400000).toISOString().split("T")[0],
-        extendedProps: { calendar: "Success" },
-      },
-      {
-        id: "3",
-        title: "Workshop",
-        start: new Date(Date.now() + 172800000).toISOString().split("T")[0],
-        end: new Date(Date.now() + 259200000).toISOString().split("T")[0],
-        extendedProps: { calendar: "Primary" },
-      },
-    ]);
-  }, []);
+    setEvents(leadEvents);
+  }, [leadEvents]);
 
   const handleDateSelect = (selectInfo: DateSelectArg) => {
     resetModalFields();
@@ -118,8 +149,8 @@ const SalesEvent: React.FC = () => {
   return (
     <>
       <PageMeta
-        title="React.js Calendar Dashboard | TailAdmin - Next.js Admin Dashboard Template"
-        description="This is React.js Calendar Dashboard page for TailAdmin - React.js Tailwind CSS Admin Dashboard Template"
+        title="Engagement Calendar"
+        description="Upcoming and overdue follow-ups"
       />
       <div className="rounded-2xl border  border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03]">
         <div className="custom-calendar">
@@ -128,7 +159,7 @@ const SalesEvent: React.FC = () => {
             plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin]}
             initialView="dayGridMonth"
             headerToolbar={{
-              left: "prev,next addEventButton",
+              left: "prev,next today",
               center: "title",
               right: "dayGridMonth,timeGridWeek,timeGridDay",
             }}
@@ -137,12 +168,7 @@ const SalesEvent: React.FC = () => {
             select={handleDateSelect}
             eventClick={handleEventClick}
             eventContent={renderEventContent}
-            customButtons={{
-              addEventButton: {
-                text: "Add Event +",
-                click: openModal,
-              },
-            }}
+            customButtons={{}}
           />
         </div>
         <Modal
@@ -254,11 +280,11 @@ const SalesEvent: React.FC = () => {
                 Close
               </button>
               <button
-                onClick={handleAddOrUpdateEvent}
+                onClick={() => { refetch(); closeModal(); }}
                 type="button"
                 className="btn btn-success btn-update-event flex w-full justify-center rounded-lg bg-brand-500 px-4 py-2.5 text-sm font-medium text-white hover:bg-brand-600 sm:w-auto"
               >
-                {selectedEvent ? "Update Changes" : "Add Event"}
+                Refresh
               </button>
             </div>
           </div>

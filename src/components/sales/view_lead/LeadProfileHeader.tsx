@@ -17,7 +17,6 @@ import {
   Building,
   User,
   Code,
-  DollarSign,
   Copy,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
@@ -36,8 +35,9 @@ import {
   humanize,
 } from "./interface/utils";
 import { parseISO, differenceInCalendarDays, isValid as isValidDate } from "date-fns";
-import type { LeadProfile, LeadEditFormValues } from "./interface/types";
-import LeadEditModal from "./LeadEditModal";
+import type { LeadProfile, LeadPhone } from "./interface/types";
+import type { LeadEditModalValues } from "../editLead/LeadEditModal";
+import LeadEditModal from "../editLead/LeadEditModal";
 import { useModal } from "@/hooks/useModal";
 import { Modal } from "@/components/ui/modal";
 
@@ -80,7 +80,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   // Normalize the lead status; treat ASSIGNED as PENDING for display
   const displayStatus = lead.status === "ASSIGNED" ? "PENDING" : lead.status;
   const stageDisplay = resolveStageDisplay({
-    rawStage: (lead as any).clientStageRaw,
+    rawStage: (lead.clientStageRaw as any) ?? undefined,
     normalizedStage: (lead.clientStage as any) ?? undefined,
     status: displayStatus as string,
   });
@@ -143,17 +143,31 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
     : "Not captured";
   const investmentSecondary = hasInvestmentRange && hasSipAmount ? sipDisplay : null;
 
-  const genderDisplay = genderRaw ? humanize(genderRaw) : "Unknown";
+  const genderDisplay = genderRaw ? humanize(genderRaw) : "";
+
+  // Compute next follow-up chip text from nextActionDueAt
+  const followUpChip = useMemo(() => {
+    const dueAt = lead.nextActionDueAt as string | undefined | null;
+    if (!dueAt) return { label: "", muted: true } as { label: string; muted: boolean };
+    const dueMs = Date.parse(dueAt) - Date.now();
+    const abs = Math.abs(dueMs);
+    const mins = Math.round(abs / 60000);
+    const hours = Math.round(abs / 3600000);
+    const days = Math.round(abs / 86400000);
+    let span = mins < 60 ? `${mins}m` : hours < 48 ? `${hours}h` : `${days}d`;
+    const label = dueMs >= 0 ? `Due in ${span}` : `Overdue by ${span}`;
+    return { label, muted: false };
+  }, [lead.nextActionDueAt]);
 
   const hasReferral = Boolean(referralName || referralCode);
   const referralPrimary = referralName || referralCode || "";
   const referralSecondary = referralName && referralCode ? `Code: ${referralCode}` : null;
 
-  const ageRaw = (lead as any).age;
+  const ageRaw = lead.age as any;
   const hasAgeField = typeof ageRaw !== "undefined";
   const ageNumber = Number(ageRaw);
   const hasValidAge = hasAgeField && Number.isFinite(ageNumber) && ageNumber > 0;
-  const ageDisplay = hasValidAge ? String(Math.round(ageNumber)) : "Unknown";
+  const ageDisplay = hasValidAge ? String(Math.round(ageNumber)) : "Not captured";
 
   const metaFields: HeaderMetaField[] = [
     {
@@ -164,6 +178,14 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       // show each on its own line for clarity
       lines: occupationLines.length ? occupationLines : undefined,
       muted: !(occupationPrimary || occupationSecondary),
+    },
+    {
+      key: "followUp",
+      icon: Clock3,
+      label: "Follow-up",
+      value: followUpChip.label || "Not scheduled",
+      muted: !(lead.nextActionDueAt),
+      visible: Boolean(lead.nextActionDueAt),
     },
     {
       key: "investmentRange",
@@ -177,7 +199,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       key: "location",
       icon: MapPin,
       label: "Location",
-      value: location || "Unknown",
+      value: location || "Not captured",
       muted: !location,
     },
     {
@@ -240,8 +262,8 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       chips.push({ key: "email", icon: Mail, label: lead.email, href: `mailto:${lead.email}` });
     }
     // Compose phone chips from relation if available
-    if (Array.isArray((lead as any).phones) && (lead as any).phones.length > 0) {
-      (lead as any).phones.forEach((phone: any, idx: number) => {
+    if (Array.isArray(lead.phones) && lead.phones.length > 0) {
+      lead.phones.forEach((phone: LeadPhone, idx: number) => {
         const number = String(phone?.number ?? "");
         if (!number) return;
         const key = `phone-${idx}`;
@@ -254,7 +276,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       });
     } else {
       // fallback: use mobile or phone on root
-      const rawNumber = lead.mobile ?? (lead.phone as any);
+      const rawNumber = lead.mobile ?? lead.phone;
       if (rawNumber) {
         chips.push({
           key: "phone-single",
@@ -265,7 +287,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       }
     }
     return chips;
-  }, [lead.email, lead.mobile, lead.phone, (lead as any).phones]);
+  }, [lead.email, lead.phone, lead.phones]);
 
   /** Basic summary fields displayed on the header card */
   const leadSummary = useMemo(() => {
@@ -308,7 +330,10 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   const highlightSummary = leadSummary.slice(0, 2);
   const detailSummary = leadSummary.slice(2);
   const highlightEntries = [...highlightSummary];
-  const highlightFillers = [{ label: "Stage", value: stageDisplay.label }];
+  const highlightFillers = [
+    { label: "Stage", value: stageDisplay.label },
+    { label: "Follow-up", value: followUpChip.label || "Not scheduled" },
+  ];
   highlightFillers.forEach((tile) => {
     if (highlightEntries.length < 3) highlightEntries.push(tile);
   });
@@ -320,13 +345,13 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   });
 
   const rawPrimaryPhone =
-    lead.mobile ?? (lead.phone as any) ?? (lead.phoneNormalized as any) ?? null;
+    lead.mobile ?? lead.phone ?? lead.phoneNormalized ?? null;
   const phoneDisplay = rawPrimaryPhone ? String(rawPrimaryPhone).trim() : "Not provided";
   const phoneHref = rawPrimaryPhone ? `tel:${String(rawPrimaryPhone).replace(/\s+/g, "")}` : undefined;
-  const emailDisplay = lead.email?.trim() || "No email";
+  const emailDisplay = lead.email?.trim() || "";
   const emailHref = lead.email ? `mailto:${lead.email}` : undefined;
-  const locationDisplay = lead.location?.trim() || "Location unknown";
-  const personalAgeDisplay = hasValidAge ? ageDisplay : "—";
+  const locationDisplay = lead.location?.trim() || "";
+  const personalAgeDisplay = hasValidAge ? ageDisplay : "";
 
   const personalDetails = [
     { label: "Age", value: personalAgeDisplay },
@@ -343,12 +368,12 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
    * user-facing inputs and normalize the phone fields into primary/WhatsApp
    * entries for easier editing.
    */
-  const modalInitialValues = useMemo((): LeadEditFormValues => {
+  const modalInitialValues = useMemo((): LeadEditModalValues => {
     // Determine a primary phone and WhatsApp phone from the phones array
     let primaryPhone: string | undefined;
     let whatsappPhone: string | undefined;
-    if (Array.isArray((lead as any).phones) && (lead as any).phones.length > 0) {
-      const list = (lead as any).phones;
+    if (Array.isArray(lead.phones) && lead.phones.length > 0) {
+      const list = lead.phones as any[];
       const primary = list.find((p: any) => Boolean(p.isPrimary));
       const whatsapp = list.find((p: any) => Boolean(p.isWhatsapp));
       primaryPhone = primary?.number ?? undefined;
@@ -356,7 +381,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
     }
     // fallback to root phone if needed
     if (!primaryPhone) {
-      primaryPhone = (lead as any).phone ?? (lead as any).mobile ?? undefined;
+      primaryPhone = lead.phone ?? lead.mobile ?? undefined;
     }
     return {
       leadCode: lead.leadCode ?? "",
@@ -373,15 +398,15 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       companyName: lead.companyName ?? "",
       product: lead.product ?? "",
       investmentRange: lead.investmentRange ?? "",
-      sipAmount: lead.sipAmount ? String(lead.sipAmount) : "",
+      sipAmount: (typeof lead.sipAmount === 'number' ? lead.sipAmount : ""),
       gender: (lead.gender ?? "").toUpperCase(),
       remark: lead.remark ?? "",
-      referralName: (lead as any).referralName ?? "",
-      leadSourceOther: (lead as any).leadSourceOther ?? "",
-      age: (lead as any).age ?? null,
-      referralCode: (lead as any).referralCode ?? "",
-      bioText: (lead as any).bioText ?? "",
-    } as LeadEditFormValues;
+      referralName: lead.referralName ?? "",
+      leadSourceOther: lead.leadSourceOther ?? "",
+      age: lead.age ?? null,
+      referralCode: lead.referralCode ?? "",
+      bioText: lead.bioText ?? "",
+    } as LeadEditModalValues;
   }, [lead]);
 
   // Hooks must be called unconditionally and in the same order every render.
@@ -412,14 +437,14 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
    * type(s). Only fields with non-empty values are sent; empty strings are
    * converted to null.
    */
-  const handleModalSubmit = async (values: LeadEditFormValues) => {
+  const handleModalSubmit = async (values: LeadEditModalValues) => {
     // The current API supports granular mutations. Update what is supported
     // and avoid calling legacy updateLead (which returns 400 on this backend).
     const ops: Promise<any>[] = [];
 
     // Remark
     const nextRemark = String(values.remark ?? "").trim();
-    const currRemark = String((lead as any).remark ?? "").trim();
+    const currRemark = String(lead.remark ?? "").trim();
     if (nextRemark !== currRemark) {
       ops.push(
         mutateRemark({ variables: { input: { leadId: lead.id, remark: nextRemark } } })
@@ -427,8 +452,8 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
     }
 
     // Bio text
-    const nextBio = String((values as any).bioText ?? "").trim();
-    const currBio = String((lead as any).bioText ?? "").trim();
+    const nextBio = String(values.bioText ?? "").trim();
+    const currBio = String(lead.bioText ?? "").trim();
     if (nextBio !== currBio) {
       ops.push(
         mutateBio({ variables: { input: { leadId: lead.id, bioText: nextBio } } })
@@ -450,6 +475,39 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       toast.error(error?.message ?? "Unable to update lead");
     }
   };
+
+  const latestRemarkText = useMemo(() => {
+    const list = Array.isArray(lead.remarks) ? lead.remarks : [];
+    const ts = (s?: string | null) => {
+      const t = s ? Date.parse(s) : NaN;
+      return Number.isFinite(t) ? t : 0;
+    };
+    if (list && list.length > 0) {
+      const sorted = list.slice().sort((a, b) => ts(b.createdAt) - ts(a.createdAt));
+      return (sorted[0]?.text ?? "").toString();
+    }
+    return (lead.remark ?? "").toString();
+  }, [lead.remarks, lead.remark]);
+
+  const remarksModalBody = useMemo(() => {
+    const list = Array.isArray(lead.remarks) ? lead.remarks : [];
+    const ts = (s?: string | null) => {
+      const t = s ? Date.parse(s) : NaN;
+      return Number.isFinite(t) ? t : 0;
+    };
+    if (list && list.length > 0) {
+      const sorted = list.slice().sort((a, b) => ts(b.createdAt) - ts(a.createdAt));
+      return sorted
+        .map((r) => {
+          const dt = r.createdAt ? formatDateDisplay(r.createdAt) : "";
+          const by = r.author ? ` — ${r.author}` : "";
+          const header = [dt, by].filter(Boolean).join("");
+          return header ? `${r.text}\n${header}` : r.text;
+        })
+        .join("\n\n");
+    }
+    return (lead.remark ?? "").toString();
+  }, [lead.remarks, lead.remark]);
 
   return (
     <>
@@ -594,12 +652,12 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
           <HoverPreviewCard
             label="Latest remark"
-            text={lead.remark ?? ""}
+            text={latestRemarkText}
             onViewMore={remarkModal.openModal}
           />
           <HoverPreviewCard
             label="Bio"
-            text={(lead as any).bioText ?? ""}
+            text={lead.bioText ?? ""}
             onViewMore={bioModal.openModal}
           />
         </div>
@@ -617,13 +675,13 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
         title="Lead remark"
         isOpen={remarkModal.isOpen}
         onClose={remarkModal.closeModal}
-        body={lead.remark ?? "No remark added yet."}
+        body={remarksModalBody || "No remark added yet."}
       />
       <RemarkBioModal
         title="Lead bio"
         isOpen={bioModal.isOpen}
         onClose={bioModal.closeModal}
-        body={(lead as any).bioText ?? "No bio added yet."}
+        body={lead.bioText ?? "No bio added yet."}
       />
       <LeadEditModal
         isOpen={isEditing}
@@ -740,6 +798,7 @@ function RemarkBioModal({ title, isOpen, onClose, body }: { title: string; isOpe
     </Modal>
   );
 }
+
 
 
 

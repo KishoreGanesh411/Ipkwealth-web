@@ -1,0 +1,193 @@
+import { useMemo, useState } from 'react';
+import { useMutation } from '@apollo/client';
+import { toast } from 'react-toastify';
+import { Flag, Milestone, Clock3, StickyNote, ChevronDown } from 'lucide-react';
+
+import {
+  UPDATE_LEAD_STATUS,
+  CHANGE_STAGE,
+  CREATE_LEAD_EVENT,
+  ADD_LEAD_NOTE,
+  UPDATE_LEAD_REMARK,
+} from './gql/view_lead.gql';
+
+import type { LeadStage, LeadStatus } from '@/components/sales/myleads/interface/type';
+
+type Props = {
+  leadId: string;
+  currentStatus: LeadStatus | string;
+  currentStage?: LeadStage | string | null;
+  onSaved?: () => void;
+};
+
+const CARD = 'rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.03] h-full min-h-0 flex flex-col overflow-hidden';
+const INPUT = 'rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-zinc-900 outline-none dark:border-white/10 dark:bg-white/5 dark:text-white';
+const BTN = 'rounded-xl bg-emerald-600 text-white px-4 py-2 border border-emerald-600 disabled:bg-zinc-300 disabled:text-white/70';
+
+const STATUS_OPTIONS: Array<LeadStatus | string> = ['PENDING','OPEN','IN_PROGRESS','ON_HOLD','CLOSED','ASSIGNED'];
+const STAGE_OPTIONS: Array<LeadStage | string> = [
+  'NEW_LEAD','FIRST_TALK_DONE','FOLLOWING_UP','CLIENT_INTERESTED','ACCOUNT_OPENED','NO_RESPONSE_DORMANT','NOT_INTERESTED_DORMANT','RISKY_CLIENT_DORMANT','HIBERNATED',
+];
+const CHANNEL_OPTIONS = ['CALL','WHATSAPP','SMS','EMAIL','MEETING','OTHER'];
+const OUTCOME_OPTIONS = ['ANSWERED','NO_ANSWER','INTERESTED','NOT_INTERESTED','FOLLOW_UP_NEEDED','WRONG_NUMBER'];
+
+export default function LeadUnifiedUpdateCard({ leadId, currentStatus, currentStage, onSaved }: Props) {
+  const [status, setStatus] = useState<string>(String(currentStatus ?? 'OPEN'));
+  const [stage, setStage] = useState<string>(String(currentStage ?? 'NEW_LEAD'));
+  const [followUp, setFollowUp] = useState<string>('');
+  const [channel, setChannel] = useState<string>('CALL');
+  const [outcome, setOutcome] = useState<string>('');
+  const [notes, setNotes] = useState<string>('');
+  const [saving, setSaving] = useState(false);
+
+  const [mutStatus] = useMutation(UPDATE_LEAD_STATUS);
+  const [mutStage] = useMutation(CHANGE_STAGE);
+  const [mutInteraction] = useMutation(CREATE_LEAD_EVENT);
+  const [mutNote] = useMutation(ADD_LEAD_NOTE);
+  const [mutRemark] = useMutation(UPDATE_LEAD_REMARK);
+
+  const nextFollowUpAt = useMemo(() => {
+    if (!followUp) return null;
+    const t = Date.parse(followUp);
+    return isNaN(t) ? null : new Date(t).toISOString();
+  }, [followUp]);
+
+  const onSave = async () => {
+    if (!leadId) return;
+    const ops: Promise<any>[] = [];
+    setSaving(true);
+    try {
+      // status change
+      if (String(status) !== String(currentStatus)) {
+        ops.push(mutStatus({ variables: { leadId, status } }));
+      }
+
+      // stage change (always)
+      ops.push(
+        mutStage({
+          variables: {
+            input: {
+              leadId,
+              stage,
+              note: notes || null,
+              channel: channel || null,
+              nextFollowUpAt: nextFollowUpAt ?? null,
+              productExplained: stage === 'FIRST_TALK_DONE' ? true : null,
+            },
+          },
+        })
+      );
+
+      // timeline entry + remark mirror
+      if (notes.trim()) {
+        // Always log via interaction so we can persist channel and nextFollowUpAt (and optional outcome)
+        ops.push(
+          mutInteraction({
+            variables: {
+              input: {
+                leadId,
+                text: notes,
+                channel: channel || null,
+                outcome: outcome || null,
+                nextFollowUpAt: nextFollowUpAt ?? undefined,
+                tags: ['ui:unified'],
+              },
+            },
+          })
+        );
+        // Mirror the text into the simple remark field
+        ops.push(mutRemark({ variables: { input: { leadId, remark: notes } } }));
+      }
+
+      await Promise.all(ops);
+      toast.success('Saved. Timeline and remark updated.');
+      setNotes('');
+      onSaved?.();
+    } catch (e: any) {
+      toast.error(e?.message || 'Failed to save');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <section className={CARD}>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2 text-gray-800 dark:text-white">
+          <Flag className="h-4 w-4 text-emerald-600" />
+          <h3 className="text-sm font-semibold">Progress & Activity</h3>
+        </div>
+        <button className={BTN} onClick={onSave} disabled={saving}>
+          {saving ? 'Saving…' : 'Save'}
+        </button>
+      </div>
+
+      <div className="grid gap-4 md:grid-cols-2 flex-1">
+        {/* Status */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">Lead status</label>
+          <div className="relative">
+            <select className={`${INPUT} w-full appearance-none pr-8`} value={status} onChange={(e) => setStatus(e.target.value)}>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-2.5 h-4 w-4 text-zinc-400" />
+          </div>
+        </div>
+
+        {/* Stage */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">Pipeline stage</label>
+          <div className="relative">
+            <select className={`${INPUT} w-full appearance-none pr-8`} value={stage} onChange={(e) => setStage(e.target.value)}>
+              {STAGE_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+            <Milestone className="pointer-events-none absolute right-2 top-2.5 h-4 w-4 text-zinc-400" />
+          </div>
+        </div>
+
+        {/* Follow-up */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">Next follow-up</label>
+          <div className="relative">
+            <input type="datetime-local" className={`${INPUT} w-full`} value={followUp} onChange={(e) => setFollowUp(e.target.value)} />
+            <Clock3 className="pointer-events-none absolute right-2 top-2.5 h-4 w-4 text-zinc-400" />
+          </div>
+        </div>
+
+        {/* Channel & Outcome */}
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">Channel</label>
+            <select className={`${INPUT} w-full`} value={channel} onChange={(e) => setChannel(e.target.value)}>
+              {CHANNEL_OPTIONS.map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">Outcome (optional)</label>
+            <select className={`${INPUT} w-full`} value={outcome} onChange={(e) => setOutcome(e.target.value)}>
+              <option value="">—</option>
+              {OUTCOME_OPTIONS.map((o) => (
+                <option key={o} value={o}>{o.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {/* Notes */}
+        <div className="md:col-span-2">
+          <label className="mb-1 block text-xs font-medium text-gray-500">Notes (also saved as Remark)</label>
+          <div className="relative">
+            <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className={`${INPUT} w-full resize-y`} placeholder="Add context, commitments, objections, etc." />
+            <StickyNote className="pointer-events-none absolute right-2 top-2.5 h-4 w-4 text-zinc-400" />
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+}

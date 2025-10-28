@@ -11,6 +11,7 @@ export type LeadEventType =
 
 export type TimelineEvent = {
   id: string;
+  authorId?: string;
   type: LeadEventType;
   occurredAt: string;
   authorName?: string | null;
@@ -124,9 +125,11 @@ export type LeadProfile = {
   email?: string | null;
   phone?: string | null;
   phoneNormalized?: string | null;
+  mobile?: string | null;
 
   leadSource?: string | null;
   referralCode?: string | null;
+  referralName?: string | null;
 
   gender?: "MALE" | "FEMALE" | "OTHER" | null;
   age?: number | null;
@@ -141,11 +144,14 @@ export type LeadProfile = {
 
   status: LeadStatus | string;
   clientStage?: LeadStage | string | null;
+  clientStageRaw?: string | null;
   archived: boolean;
 
   remark?: string | null;
+  remarks?: { text: string; author?: string | null; createdAt: string }[] | null;
   bioText?: string | null;
   clientTypes?: string | null;
+  leadSourceOther?: string | null;
 
   clientQa?: ClientQaItem[] | null;
 
@@ -153,8 +159,10 @@ export type LeadProfile = {
   updatedAt: string;
   firstSeenAt?: string | null;
   lastSeenAt?: string | null;
+  lastContactedAt?: string | null;
   approachAt?: string | null;
   reenterCount?: number | null;
+  nextActionDueAt?: string | null;
 
   assignedRm?: AssignedRm | null;
 

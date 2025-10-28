@@ -69,10 +69,10 @@ export default function FirstContactCard({ submitting = false, onSubmit }: Props
           </div>
         )}
 
-        {/* Next follow-up: required when explained, optional otherwise */}
+        {/* Next follow-up: required to enable Save */}
         <div>
           <Label>
-            Next follow-up {explained && <span className='text-rose-500'>(required)</span>}
+            Next follow-up <span className='text-rose-500'>(required)</span>
           </Label>
           <input
             type='datetime-local'
@@ -108,7 +108,7 @@ export default function FirstContactCard({ submitting = false, onSubmit }: Props
               note: note || null,
             });
           }}
-          disabled={submitting}
+          disabled={submitting || !next}
         >
           {submitting ? 'Saving…' : 'Save first contact'}
         </Button>
