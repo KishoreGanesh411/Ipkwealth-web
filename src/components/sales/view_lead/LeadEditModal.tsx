@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { Modal } from "../../ui/modal";
 import Button from "../../ui/button/Button";
 import Label from "../../form/Label";
@@ -141,13 +142,17 @@ export default function LeadEditModal({
     const whatsappDigits = String(form.whatsappPhone ?? "").replace(/[^\d]/g, "");
     if (whatsappDigits && whatsappDigits.length < 6) nextErrors.whatsappPhone = "Phone looks incomplete";
     // Validate SIP amount
-    if (
-      form.sipAmount !== "" &&
-      form.sipAmount !== null &&
-      form.sipAmount !== undefined &&
-      Number.isNaN(Number(String(form.sipAmount).replace(/[^0-9.]/g, "")))
-    ) {
-      nextErrors.sipAmount = "SIP must be a number";
+    if (String(form.product ?? "") === "SIP") {
+      if (
+        form.sipAmount !== "" &&
+        form.sipAmount !== null &&
+        form.sipAmount !== undefined &&
+        Number.isNaN(Number(String(form.sipAmount).replace(/[^0-9.]/g, "")))
+      ) {
+        nextErrors.sipAmount = "SIP must be a number";
+      }
+    } else {
+      delete nextErrors.sipAmount;
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -175,13 +180,17 @@ export default function LeadEditModal({
       product: normalize(form.product),
       investmentRange: normalize(form.investmentRange),
       sipAmount:
-        form.sipAmount !== "" && form.sipAmount !== null && form.sipAmount !== undefined
+        form.sipAmount !== "" &&
+        form.sipAmount !== null &&
+        form.sipAmount !== undefined &&
+        String(form.product ?? "") === "SIP"
           ? Number(String(form.sipAmount).replace(/[^0-9.]/g, ""))
           : null,
       gender: normalize(form.gender),
       remark: normalize(form.remark),
       referralName: normalize(form.referralName),
       leadSourceOther: normalize(form.leadSourceOther),
+      leadSource: normalize(form.leadSource),
       // additional fields
       age:
         form.age !== null && form.age !== undefined && form.age !== ""
@@ -190,6 +199,12 @@ export default function LeadEditModal({
       referralCode: normalize(form.referralCode),
       bioText: normalize(form.bioText),
     };
+    if (payload.product !== "IAP") {
+      payload.investmentRange = null;
+    }
+    if (payload.product !== "SIP") {
+      payload.sipAmount = null;
+    }
     await onSubmit(payload);
   };
 
@@ -217,6 +232,20 @@ export default function LeadEditModal({
           </div>
           {/* Name and contact section */}
           <div className="grid gap-4 rounded-2xl border border-gray-100 p-4 dark:border-white/10 sm:grid-cols-2">
+            <Field label="Lead source">
+              <select
+                className={INPUT}
+                value={String(form.leadSource ?? "")}
+                onChange={(e) => handle("leadSource", e.target.value)}
+              >
+                <option value="">Select lead source</option>
+                {leadOptions.map((o: any) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </Field>
             <Field label="Full name" error={errors.name}>
               <input
                 ref={firstRef}
@@ -254,28 +283,16 @@ export default function LeadEditModal({
                 autoComplete="email"
               />
             </Field>
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Primary phone" error={errors.primaryPhone}>
-                <input
-                  className={INPUT + (errors.primaryPhone ? " border-rose-400 focus:ring-rose-200" : "")}
-                  value={String(form.primaryPhone ?? "")}
-                  onChange={(e) => handle("primaryPhone", e.target.value)}
-                  placeholder="Primary number"
-                  inputMode="tel"
-                  autoComplete="tel"
-                />
-              </Field>
-              <Field label="WhatsApp number" error={errors.whatsappPhone}>
-                <input
-                  className={INPUT + (errors.whatsappPhone ? " border-rose-400 focus:ring-rose-200" : "")}
-                  value={String(form.whatsappPhone ?? "")}
-                  onChange={(e) => handle("whatsappPhone", e.target.value)}
-                  placeholder="WhatsApp number"
-                  inputMode="tel"
-                  autoComplete="tel"
-                />
-              </Field>
-            </div>
+            <Field label="Primary phone" error={errors.primaryPhone}>
+              <input
+                className={INPUT + (errors.primaryPhone ? " border-rose-400 focus:ring-rose-200" : "")}
+                value={String(form.primaryPhone ?? "")}
+                onChange={(e) => handle("primaryPhone", e.target.value)}
+                placeholder="Primary number"
+                inputMode="tel"
+                autoComplete="tel"
+              />
+            </Field>
             <Field label="Location">
               <input
                 className={INPUT}
@@ -346,90 +363,46 @@ export default function LeadEditModal({
               />
             </Field>
             <Field label="Product">
-              <input
+              <select
                 className={INPUT}
-                list="product-options"
                 value={String(form.product ?? "")}
                 onChange={(e) => handle("product", e.target.value)}
-                placeholder="IAP / SIP / MF / Insurance"
-              />
-              <datalist id="product-options">
+              >
+                <option value="">Select product</option>
                 {productOptions.map((o: any) => (
                   <option key={o.value} value={o.value}>
                     {o.label}
                   </option>
                 ))}
-              </datalist>
+              </select>
             </Field>
-            <Field label="Investment range">
-              <input
-                className={INPUT}
-                list="investment-options"
-                value={String(form.investmentRange ?? "")}
-                onChange={(e) => handle("investmentRange", e.target.value)}
-                placeholder="e.g. 10-25L"
-              />
-              <datalist id="investment-options">
-                {investmentOptions.map((o: any) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </datalist>
-            </Field>
-            <Field label="SIP amount (₹)" error={errors.sipAmount}>
-              <input
-                className={INPUT + (errors.sipAmount ? " border-rose-400 focus:ring-rose-200" : "")}
-                value={String(form.sipAmount ?? "")}
-                onChange={(e) => handle("sipAmount", e.target.value)}
-                placeholder="Monthly commitment"
-                inputMode="decimal"
-              />
-            </Field>
-            {/* Referral code field */}
-            <Field label="Referral code">
-              <input
-                className={INPUT}
-                value={String(form.referralCode ?? "")}
-                onChange={(e) => handle("referralCode", e.target.value)}
-                placeholder="Referral code"
-              />
-            </Field>
-            {/* Referral name field; show when lead source is referral */}
-            {(String(form.leadSource ?? "").toLowerCase() === "referral" || String(form.leadSource ?? "").toLowerCase() === "referred") && (
-              <Field label="Referral name (if any)">
-                <input
+            {String(form.product ?? "") === "IAP" && (
+              <Field label="Investment range">
+                <select
                   className={INPUT}
-                  value={String(form.referralName ?? "")}
-                  onChange={(e) => handle("referralName", e.target.value)}
-                  placeholder="Who referred this lead?"
+                  value={String(form.investmentRange ?? "")}
+                  onChange={(e) => handle("investmentRange", e.target.value)}
+                >
+                  <option value="">Select range</option>
+                  {investmentOptions.map((o: any) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+              </Field>
+            )}
+            {String(form.product ?? "") === "SIP" && (
+              <Field label="SIP amount (₹)" error={errors.sipAmount}>
+                <input
+                  className={INPUT + (errors.sipAmount ? " border-rose-400 focus:ring-rose-200" : "")}
+                  value={String(form.sipAmount ?? "")}
+                  onChange={(e) => handle("sipAmount", e.target.value)}
+                  placeholder="Monthly commitment"
+                  inputMode="decimal"
                 />
               </Field>
             )}
-            {/* Other lead source description */}
-            {String(form.leadSource ?? "").toLowerCase() === "others" && (
-              <Field label="If lead source = Others, specify">
-                <input
-                  className={INPUT}
-                  value={String(form.leadSourceOther ?? "")}
-                  onChange={(e) => handle("leadSourceOther", e.target.value)}
-                  placeholder="Describe the source"
-                />
-              </Field>
-            )}
-            {/* Notes / remark */}
-            <div className="col-span-2">
-              <Field label="Notes / remark">
-                <textarea
-                  rows={3}
-                  className={INPUT + " resize-none"}
-                  value={String(form.remark ?? "")}
-                  onChange={(e) => handle("remark", e.target.value)}
-                  placeholder="Add context that helps the RM engage better…"
-                />
-              </Field>
-            </div>
-            {/* Biography */}
             <div className="col-span-2">
               <Field label="Biography (optional)">
                 <textarea
@@ -457,7 +430,12 @@ export default function LeadEditModal({
           <Button size="sm" variant="outline" onClick={onClose} disabled={saving}>
             Cancel
           </Button>
-          <Button size="sm" type="submit" disabled={saving}>
+          <Button
+            size="sm"
+            type="submit"
+            disabled={saving}
+            startIcon={saving ? <Loader2 className="h-4 w-4 animate-spin" /> : undefined}
+          >
             {saving ? "Saving…" : "Confirm & Save"}
           </Button>
         </div>
