@@ -75,7 +75,7 @@ type Notice =
   | { variant: "success" | "warning" | "error" | "info"; title: string; message: string }
   | null;
 
-type ViewMode = "pending" | "all" | "dormant";
+type ViewMode = "Open" | "all" | "dormant";
 
 /* ------------------------------ Formatters ------------------------------ */
 
@@ -185,7 +185,7 @@ export default function LeadDataTable() {
     [rms],
   );
 
-  const [mode, setMode] = useState<ViewMode>("pending");
+  const [mode, setMode] = useState<ViewMode>("Open");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounced(search, 350);
@@ -209,7 +209,7 @@ export default function LeadDataTable() {
     leadName: string;
   } | null>(null);
 
-  const isPending = mode === "pending";
+  const isOpenView = mode === "Open";
   const isDormant = mode === "dormant";
 
   const dormantDays = Number(import.meta.env.VITE_DORMANT_DAYS ?? 60);
@@ -220,13 +220,13 @@ export default function LeadDataTable() {
         page,
         pageSize: PAGE_SIZE,
         archived: false,
-        status: isPending ? "OPEN" : null,
+         status: isOpenView ? "OPEN" : null,
         search: debouncedSearch || null,
         dormantOnly: isDormant ? true : null,
         dormantDays: isDormant ? dormantDays : null,
       },
     }),
-    [page, debouncedSearch, isPending, isDormant, dormantDays],
+    [page, debouncedSearch, isOpenView, isDormant, dormantDays],
   );
 
   const [runLeads, { data, loading, error, previousData, networkStatus }] = useLazyQuery<
@@ -505,7 +505,7 @@ export default function LeadDataTable() {
       <div className="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-white/[0.05] md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-base font-medium text-gray-800 dark:text-white/90">
-            Leads ({mode === "pending" ? "Pending Only" : mode === "dormant" ? "Dormant" : "All"})
+            Leads ({mode === "Open" ? "Open" : mode === "dormant" ? "Dormant" : "All"})
           </h2>
         </div>
 
@@ -521,7 +521,7 @@ export default function LeadDataTable() {
             className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none dark:border-white/10 dark:bg-white/10 dark:text-white/80"
             title="View Mode"
           >
-            <option value="pending">Pending</option>
+            <option value="open">open</option>
             <option value="all">All</option>
             <option value="dormant">Dormant</option>
           </select>

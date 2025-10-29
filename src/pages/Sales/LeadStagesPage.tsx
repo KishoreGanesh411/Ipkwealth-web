@@ -1,8 +1,9 @@
-﻿import { useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Download, RefreshCcw, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { useQuery } from '@apollo/client';
 
+import { useAuth } from '@/context/AuthContex';
 import ComponentCard from '@/components/common/ComponentCard';
 import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import PageMeta from '@/components/common/PageMeta';
@@ -10,7 +11,7 @@ import MyLeads from '@/components/sales/myleads/MyLeads';
 import { STAGE_META, STAGE_SEQUENCE } from '@/components/sales/myleads/stageMeta';
 import { LeadStage } from '@/components/sales/myleads/interface/type';
 import Button from '@/components/ui/button/Button';
-import { MY_ASSIGNED_LEADS } from '@/core/graphql/lead/lead.gql';
+import { LEADS_PAGED, MY_ASSIGNED_LEADS } from '@/core/graphql/lead/lead.gql';
 
 type StageFilter = 'ALL' | LeadStage;
 
@@ -24,20 +25,22 @@ type StageCardInfo = {
 
 export default function LeadStagesPage() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'ADMIN' || user?.role === 'MARKETING';
   const [selectedStage, setSelectedStage] = useState<StageFilter>('ALL');
   const [q, setQ] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
 
-  // Live data: fetch assigned leads (first 200)
+  // Live data: fetch assigned leads for RM; all leads for Admin/Marketing
   const { data, loading, error, refetch } = useQuery(
-    MY_ASSIGNED_LEADS,
+    isAdmin ? LEADS_PAGED : MY_ASSIGNED_LEADS,
     { variables: { args: { page: 1, pageSize: 200, archived: false, status: null, search: null } }, fetchPolicy: 'cache-and-network' }
   );
 
   // Map GQL -> MyLeads interface
   const allLeads = useMemo(() => {
-    const nodes = (data?.myAssignedLeads?.items ?? []) as any[];
-    return nodes.map((n) => ({
+    const nodes = (isAdmin ? (data as any)?.leads?.items : (data as any)?.myAssignedLeads?.items) ?? [];
+    return nodes.map((n: any) => ({
       id: n.id,
       leadCode: n.leadCode ?? null,
       name: (n.name || [n.firstName, n.lastName].filter(Boolean).join(' ')) ?? '-',
@@ -52,7 +55,7 @@ export default function LeadStagesPage() {
       assignedRm: n.assignedRM ?? null,
       isNew: (n.clientStage === 'NEW_LEAD') || !n.lastContactedAt,
     }));
-  }, [data?.myAssignedLeads?.items]);
+  }, [isAdmin, (data as any)?.leads?.items, (data as any)?.myAssignedLeads?.items]);
 
   const stageCounts = useMemo(() => {
     const counts = new Map<LeadStage, number>();
@@ -199,7 +202,7 @@ export default function LeadStagesPage() {
           </div>
         </div>
 
-        <MyLeads leads={filtered} pageSize={8} showHeader={false} loading={loading} />
+        <MyLeads leads={filtered} pageSize={8} showHeader={false} loading={loading} showAssignedRm={isAdmin} />
         {error && (
           <div className='mt-3 text-sm text-rose-600'>Failed to load: {String(error.message)}</div>
         )}

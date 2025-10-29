@@ -35,12 +35,16 @@ export default function LeadProfilePage() {
       variables: { id, stage: next },
       optimisticResponse: {
         __typename: "Mutation",
-        updateLead: { __typename: "IpkLeaddEntity", id, clientStage: next },
+        updateLead: { __typename: "IpkLeaddEntity", id, clientStage: next, leadCode: data.lead.leadCode },
       },
-      update(cache) {
+      update(cache, result) {
+        const newCode = (result?.data as any)?.updateLead?.leadCode as string | undefined;
         cache.modify({
           id: cache.identify({ __typename: "IpkLeaddEntity", id }),
-          fields: { clientStage: () => next },
+          fields: {
+            clientStage: () => next,
+            ...(newCode ? { leadCode: () => newCode } : {}),
+          },
         });
       },
     });

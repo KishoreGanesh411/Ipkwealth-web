@@ -71,7 +71,21 @@ export default function ViewLead() {
   const handleStatusChange = async (next: string) => {
     if (!leadId) return;
     try {
-      await mutUpdateStatus({ variables: { leadId, status: next } });
+      await mutUpdateStatus({
+        variables: { leadId, status: next },
+        update(cache, result) {
+          const payload = (result?.data as any)?.updateLeadStatus;
+          if (!payload?.id) return;
+          cache.modify({
+            id: cache.identify({ __typename: "IpkLeaddEntity", id: payload.id }),
+            fields: {
+              status: () => payload.status,
+              clientStage: () => payload.clientStage,
+              ...(payload.leadCode ? { leadCode: () => payload.leadCode } : {}),
+            },
+          });
+        },
+      });
       toast.success("Status updated");
       await refetch();
     } catch (e: any) {
@@ -92,6 +106,19 @@ export default function ViewLead() {
             nextFollowUpAt: null,
             productExplained: null,
           },
+        },
+        update(cache, result) {
+          const payload = (result?.data as any)?.changeStage;
+          if (!payload?.id) return;
+          cache.modify({
+            id: cache.identify({ __typename: "IpkLeaddEntity", id: payload.id }),
+            fields: {
+              clientStage: () => payload.clientStage,
+              approachAt: () => payload.approachAt,
+              lastSeenAt: () => payload.lastSeenAt,
+              ...(payload.leadCode ? { leadCode: () => payload.leadCode } : {}),
+            },
+          });
         },
       });
       toast.success("Stage updated");

@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { motion, AnimatePresence } from "motion/react";
 import { useMutation } from "@apollo/client";
 import { toast } from "react-toastify";
 import {
@@ -103,11 +104,14 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
 
   const normalizeText = (value?: string | null) => (value ?? "").toString().trim();
 
-  const profession = normalizeText(lead.profession);
+  // Occupation: prefer occupations[0] from new schema, fallback to legacy top-level fields
+  const occ0 = Array.isArray(lead.occupations) && lead.occupations.length > 0 ? lead.occupations[0] : undefined;
+  const legacyProfession = normalizeText(lead.profession);
+  const profession = normalizeText((occ0?.profession as any) ?? legacyProfession);
   // Human-readable version for enum-like backend values such as SELF_EMPLOYED
   const professionDisplay = profession ? humanize(profession) : "";
-  const designation = normalizeText(lead.designation);
-  const companyName = normalizeText(lead.companyName);
+  const designation = normalizeText((occ0?.designation as any) ?? lead.designation);
+  const companyName = normalizeText((occ0?.companyName as any) ?? lead.companyName);
   const location = normalizeText(lead.location);
   const product = normalizeText(lead.product);
   const genderRaw = normalizeText(lead.gender);
@@ -393,9 +397,21 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       primaryPhone: primaryPhone ?? "",
       whatsappPhone: whatsappPhone ?? "",
       location: lead.location ?? "",
-      profession: lead.profession ?? "",
-      designation: lead.designation ?? "",
-      companyName: lead.companyName ?? "",
+      // For edit modal, pass both legacy and new occupation shape (modal normalizes to occupations[])
+      profession: (occ0?.profession as any) ?? (lead.profession as any) ?? "",
+      designation: (occ0?.designation as any) ?? lead.designation ?? "",
+      companyName: (occ0?.companyName as any) ?? lead.companyName ?? "",
+      occupations: occ0
+        ? [
+            {
+              profession: (occ0?.profession as any) ?? undefined,
+              designation: (occ0?.designation as any) ?? undefined,
+              companyName: (occ0?.companyName as any) ?? undefined,
+              startedAt: (occ0 as any)?.startedAt ?? undefined,
+              endedAt: (occ0 as any)?.endedAt ?? undefined,
+            },
+          ]
+        : undefined,
       product: lead.product ?? "",
       investmentRange: lead.investmentRange ?? "",
       sipAmount: (typeof lead.sipAmount === 'number' ? lead.sipAmount : ""),
@@ -750,8 +766,15 @@ function HoverPreviewCard({
 }) {
   const preview = (text || "").trim();
   const empty = preview.length === 0;
+  const [hover, setHover] = useState(false);
   return (
-    <div className="group relative rounded-2xl border border-gray-100 bg-gray-50/60 p-4 text-sm transition-all hover:border-emerald-200 hover:bg-white dark:border-white/10 dark:bg-white/[0.03]">
+    <motion.div
+      className="relative rounded-2xl border border-gray-100 bg-gray-50/60 p-4 text-sm dark:border-white/10 dark:bg-white/[0.03]"
+      whileHover={{ y: -2, boxShadow: "0 8px 20px rgba(0,0,0,0.08)" }}
+      onHoverStart={() => setHover(true)}
+      onHoverEnd={() => setHover(false)}
+      transition={{ type: "spring", stiffness: 250, damping: 20 }}
+    >
       <div className="flex items-center justify-between">
         <div className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-white/60">{label}</div>
         <button
@@ -762,18 +785,26 @@ function HoverPreviewCard({
           View
         </button>
       </div>
-      <div className={`mt-2 line-clamp-2 whitespace-pre-wrap ${empty ? "text-gray-400 dark:text-white/40" : "text-gray-800 dark:text-white/80"}`}>
+      <div className={`mt-2 line-clamp-2 whitespace-pre-wrap text-[15px] ${empty ? "text-gray-400 dark:text-white/40" : "text-gray-800 dark:text-white/80"}`}>
         {empty ? "—" : preview}
       </div>
-      {/* Hover popover */}
-      {!empty && (
-        <div className="pointer-events-none absolute inset-x-4 -bottom-2 z-20 hidden origin-top rounded-xl border border-gray-200 bg-white p-3 text-[13px] text-gray-800 shadow-2xl transition-all duration-200 group-hover:block group-hover:-translate-y-1 group-hover:opacity-100 dark:border-white/10 dark:bg-gray-900 dark:text-white/80">
-          <div className="max-h-40 overflow-auto whitespace-pre-wrap">
-            {preview}
-          </div>
-        </div>
-      )}
-    </div>
+      {/* Hover popover (Framer Motion) */}
+      <AnimatePresence>
+        {!empty && hover && (
+          <motion.div
+            initial={{ opacity: 0, y: 8, scale: 0.98 }}
+            animate={{ opacity: 1, y: -4, scale: 1 }}
+            exit={{ opacity: 0, y: 8, scale: 0.98 }}
+            transition={{ duration: 0.18, ease: "easeOut" }}
+            className="pointer-events-none absolute inset-x-4 -bottom-2 z-20 origin-top rounded-xl border border-gray-200 bg-white p-3 text-sm text-gray-800 shadow-2xl dark:border-white/10 dark:bg-gray-900 dark:text-white/80"
+          >
+            <div className="max-h-40 overflow-auto whitespace-pre-wrap">
+              {preview}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
   );
 }
 

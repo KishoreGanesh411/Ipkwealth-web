@@ -5,19 +5,18 @@ export const UPDATE_LEAD_DETAILS = gql`
     updateLeadDetails(input: $input) {
       id
       name
-      email
-      phone
       location
       gender
       age
-      profession
-      companyName
-      designation
-      product
-      investmentRange
-      sipAmount
       referralCode
       referralName
+      occupations {
+        profession
+        companyName
+        designation
+        startedAt
+        endedAt
+      }
       bioText
       updatedAt
     }

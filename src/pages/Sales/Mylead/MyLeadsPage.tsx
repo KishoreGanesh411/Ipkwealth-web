@@ -8,7 +8,8 @@ import AssignedLeads from "@/components/sales/assigned/AssignedLeads";
 import type { Lead } from "@/components/sales/myleads/interface/type";
 import { LeadStage, LeadStatus } from "@/components/sales/myleads/interface/type";
 import { STAGE_SEQUENCE } from "@/components/sales/myleads/stageMeta";
-import { MY_ASSIGNED_LEADS } from "@/core/graphql/lead/lead.gql";
+import { MY_ASSIGNED_LEADS, LEADS_PAGED } from "@/core/graphql/lead/lead.gql";
+import { useAuth } from "@/context/AuthContex";
 
 const DEFAULT_PAGE_SIZE = 10;
 
@@ -53,6 +54,8 @@ type MyAssignedLeadNode = {
 };
 
 export default function MyLeadsPage() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
 
@@ -68,16 +71,16 @@ export default function MyLeadsPage() {
     return { args };
   }, [page, search]);
 
-  const { data, previousData, loading, networkStatus, error, refetch } = useQuery<
-    MyAssignedLeadsData,
-    MyAssignedLeadsVariables
-  >(MY_ASSIGNED_LEADS, {
-    variables,
-    fetchPolicy: "cache-and-network",
-    notifyOnNetworkStatusChange: true,
-  });
+  const { data, previousData, loading, networkStatus, error, refetch } = useQuery<any, MyAssignedLeadsVariables>(
+    isAdmin ? LEADS_PAGED : MY_ASSIGNED_LEADS,
+    {
+      variables,
+      fetchPolicy: "cache-and-network",
+      notifyOnNetworkStatusChange: true,
+    }
+  );
 
-  const pagePayload = data?.myAssignedLeads ?? previousData?.myAssignedLeads;
+  const pagePayload = (isAdmin ? (data?.leads ?? previousData?.leads) : (data?.myAssignedLeads ?? previousData?.myAssignedLeads));
 
   const leads = useMemo<Lead[]>(() => {
     if (!pagePayload?.items) return [];
@@ -107,12 +110,12 @@ export default function MyLeadsPage() {
 
   return (
     <>
-      <PageMeta title="Assigned Leads" description="Leads assigned to you" />
-      <PageBreadcrumb pageTitle="Assigned Leads" />
-      <ComponentCard title="IPK-wealth Assigned Leads">
+      <PageMeta title={isAdmin ? "All Leads" : "Assigned Leads"} description={isAdmin ? "All leads (admin)" : "Leads assigned to you"} />
+      <PageBreadcrumb pageTitle={isAdmin ? "All Leads" : "Assigned Leads"} />
+      <ComponentCard title={isAdmin ? "IPK-wealth All Leads" : "IPK-wealth Assigned Leads"}>
         {error ? (
           <div className="rounded-xl border border-rose-200 bg-rose-50 p-4 text-sm text-rose-700 dark:border-rose-500/40 dark:bg-rose-500/10 dark:text-rose-100">
-            <p className="font-semibold">Unable to load your leads.</p>
+            <p className="font-semibold">Unable to load leads.</p>
             <p className="mt-1 text-xs opacity-80">{error.message}</p>
           </div>
         ) : (

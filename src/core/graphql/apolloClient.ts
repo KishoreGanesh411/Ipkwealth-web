@@ -3,9 +3,9 @@ import {
   InMemoryCache,
   HttpLink,
   ApolloLink,
-  from,
+  from, setContext,
   DefaultOptions,
-} from "@apollo/client";
+} from "@apollo/client";`nimport { setContext } from "@apollo/client/link/context";\nimport { auth } from "@/core/firebase/firebaseInit";
 import { onError } from "@apollo/client/link/error";
 
 const API_URL = import.meta.env.VITE_GRAPHQL_URL ?? "http://localhost:3333/graphql";
@@ -13,9 +13,7 @@ const API_URL = import.meta.env.VITE_GRAPHQL_URL ?? "http://localhost:3333/graph
 const httpLink = new HttpLink({ uri: API_URL });
 
 /** Attach Authorization header from storage */
-const authLink = new ApolloLink((operation, forward) => {
-  const token =
-    localStorage.getItem("ipk_token") ?? sessionStorage.getItem("ipk_token");
+const authLink = setContext(async (_, { headers }) => { try { const token = await auth.currentUser?.getIdToken(); return { headers: { ...headers, Authorization: token ? `Bearer ${token}` : "" } }; } catch { return { headers }; } }); return { headers: { ...headers, Authorization: token ? `Bearer ${token}` : "" } }; } catch { return { headers }; } });
   operation.setContext(({ headers = {} }) => ({
     headers: { ...headers, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
   }));

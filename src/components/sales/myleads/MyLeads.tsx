@@ -25,12 +25,14 @@ export default function MyLeads({
   query: externalQuery = "",
   // Optional busy indicator to show a unified loading row
   loading = false,
-}: MyLeadsProps & { loading?: boolean }) {
+  showAssignedRm = false,
+}: MyLeadsProps & { loading?: boolean; showAssignedRm?: boolean }) {
   const navigate = useNavigate();
   const [query, setQuery] = useState("");
   const [page, setPage] = useState(1);
 
   const list = useMemo(() => (Array.isArray(leads) ? leads : []), [leads]);
+  const colSpan = 8 + (showAssignedRm ? 1 : 0);
 
   const activeQuery = showHeader ? query : externalQuery;
 
@@ -106,6 +108,9 @@ export default function MyLeads({
               <TableCell isHeader className="px-6 py-3">Mobile No</TableCell>
               <TableCell isHeader className="px-6 py-3">Stage</TableCell>
               <TableCell isHeader className="px-6 py-3">Status</TableCell>
+              {showAssignedRm && (
+                <TableCell isHeader className="px-6 py-3">Assigned RM</TableCell>
+              )}
               <TableCell isHeader className="px-6 py-3">Last contact</TableCell>
               <TableCell isHeader className="px-6 py-3 text-center">View more</TableCell>
               <TableCell isHeader className="px-6 py-3 text-right">Actions</TableCell>
@@ -170,6 +175,11 @@ export default function MyLeads({
                   <TableCell className="px-6 py-4">
                     <LeadStatusBadge status={lead.status} />
                   </TableCell>
+                  {showAssignedRm && (
+                    <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-white/80">
+                      {lead.assignedRm ?? 'Unassigned'}
+                    </TableCell>
+                  )}
 
                   <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-white/80">
                     {formatLastContact(lead.lastContactedAt)}
@@ -209,7 +219,7 @@ export default function MyLeads({
 
             {loading && current.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="px-6 py-10">
+                <TableCell colSpan={colSpan} className="px-6 py-10">
                   <div className="flex items-center justify-center gap-2 text-sm text-gray-600 dark:text-white/70" role="status">
                     <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-600" aria-hidden />
                     Loading — please wait
@@ -219,7 +229,7 @@ export default function MyLeads({
             )}
             {!loading && current.length === 0 && (
               <TableRow>
-                <TableCell colSpan={8} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-white/60">
+                <TableCell colSpan={colSpan} className="px-6 py-10 text-center text-sm text-gray-500 dark:text-white/60">
                   No leads to show
                 </TableCell>
               </TableRow>

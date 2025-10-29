@@ -9,9 +9,7 @@ import { UPDATE_LEAD_BIO } from "@/components/sales/view_lead/gql/view_lead.gql"
 import {
   genderOptions,
   professionOptions,
-  productOptions,
   leadOptions,
-  investmentOptions,
   valueToLabel,
   titleCaseWords,
 } from "@/components/lead/types";
@@ -29,8 +27,13 @@ type OptionalExtras = Partial<{
 
 export type LeadEditModalValues = Partial<LeadShape & OptionalExtras> & {
   fullName?: string;
-  primaryPhone?: string;
-  whatsappPhone?: string;
+  occupations?: Array<{
+    profession?: string;
+    companyName?: string;
+    designation?: string;
+    startedAt?: string | Date;
+    endedAt?: string | Date;
+  }>;
 };
 
 type LeadEditModalProps = {
@@ -85,6 +88,17 @@ export default function LeadEditModal({
   useEffect(() => {
     if (!isOpen) return;
     const next: LeadEditModalValues = { ...(initial || {}) };
+    // Normalize occupations: if missing but legacy fields exist, map to one occupation
+    const hasLegacyOcc = next.profession || next.companyName || next.designation;
+    if (!next.occupations && hasLegacyOcc) {
+      next.occupations = [
+        {
+          profession: next.profession,
+          companyName: next.companyName,
+          designation: next.designation,
+        },
+      ];
+    }
     setForm(next);
     setErrors({});
     setTimeout(() => firstRef.current?.focus(), 0);
@@ -98,16 +112,26 @@ export default function LeadEditModal({
     const nextErrors: Record<string, string> = {};
     const nameOrFirst = String(form.name ?? form.firstName ?? "").trim();
     if (!nameOrFirst) nextErrors.name = "Name is required";
-    if (form.email && !/\S+@\S+\.\S+/.test(String(form.email))) nextErrors.email = "Enter a valid email";
-    const primaryDigits = String(form.primaryPhone ?? "").replace(/[^\d]/g, "");
-    if (primaryDigits && primaryDigits.length < 6) nextErrors.primaryPhone = "Phone looks incomplete";
-    if (
-      form.sipAmount !== "" &&
-      form.sipAmount !== null &&
-      form.sipAmount !== undefined &&
-      Number.isNaN(Number(String(form.sipAmount).replace(/[^0-9.]/g, "")))
-    ) {
-      nextErrors.sipAmount = "SIP must be a number";
+
+    // Age: optional, must be a number between 0 and 120
+    const ageRaw = String(form.age ?? "").trim();
+    if (ageRaw) {
+      const n = Number(ageRaw);
+      if (Number.isNaN(n) || n < 0 || n > 120) {
+        nextErrors.age = "Enter a valid age (0-120)";
+      }
+    }
+
+    // Occupation rules similar to lead entry
+    const occ = form.occupations && form.occupations[0];
+    const prof = String(occ?.profession ?? form.profession ?? "").trim();
+    const company = String(occ?.companyName ?? form.companyName ?? "").trim();
+    const desig = String(occ?.designation ?? form.designation ?? "").trim();
+    if (prof === "SELF_EMPLOYED" && !desig) {
+      nextErrors.designation = "Designation is required for self-employed";
+    }
+    if ((prof === "BUSINESS" || prof === "EMPLOYEE") && !company) {
+      nextErrors.companyName = "Company is required for business/employee";
     }
     setErrors(nextErrors);
     return Object.keys(nextErrors).length === 0;
@@ -127,24 +151,26 @@ export default function LeadEditModal({
       name: normalize(form.name ?? `${form.firstName ?? ""} ${form.lastName ?? ""}`) ?? undefined,
       firstName: normalize(form.firstName),
       lastName: normalize(form.lastName),
-      email: normalize(form.email),
-      phone: normalize(String(form.primaryPhone ?? "").replace(/[^\d+]/g, "")),
       location: normalize(form.location),
-      companyName: normalize(form.companyName),
-      designation: normalize(form.designation),
-      profession: normalize(form.profession),
-      product: normalize(form.product),
-      investmentRange: normalize(form.investmentRange),
-      sipAmount:
-        form.sipAmount !== "" && form.sipAmount !== null && form.sipAmount !== undefined
-          ? Number(String(form.sipAmount).replace(/[^0-9.]/g, ""))
-          : null,
       gender: normalize(form.gender),
-      age:
-        form.age !== null && form.age !== undefined && form.age !== ""
-          ? Number(form.age)
-          : null,
+      age: form.age !== null && form.age !== undefined && form.age !== "" ? Number(form.age) : null,
       bioText: normalize(form.bioText),
+      occupations:
+        (form.occupations && form.occupations.length)
+          ? form.occupations.map((o) => ({
+              profession: normalize(o.profession) ?? undefined,
+              companyName: normalize(o.companyName) ?? undefined,
+              designation: normalize(o.designation) ?? undefined,
+              startedAt: o.startedAt ? new Date(o.startedAt as any).toISOString() : undefined,
+              endedAt: o.endedAt ? new Date(o.endedAt as any).toISOString() : undefined,
+            }))
+          : [
+              {
+                profession: normalize(form.profession) ?? undefined,
+                companyName: normalize(form.companyName) ?? undefined,
+                designation: normalize(form.designation) ?? undefined,
+              },
+            ],
     };
 
     try {
@@ -153,17 +179,10 @@ export default function LeadEditModal({
         name: payload.name,
         firstName: payload.firstName,
         lastName: payload.lastName,
-        email: payload.email,
-        phone: payload.phone,
         location: payload.location,
         gender: payload.gender,
         age: payload.age ?? undefined,
-        profession: payload.profession,
-        companyName: payload.companyName,
-        designation: payload.designation,
-        product: payload.product,
-        investmentRange: payload.investmentRange,
-        sipAmount: typeof payload.sipAmount === "number" ? payload.sipAmount : undefined,
+        occupations: payload.occupations,
         bioText: payload.bioText,
       };
       Object.keys(input).forEach((k) => input[k] === undefined && delete input[k]);
@@ -222,30 +241,7 @@ export default function LeadEditModal({
               </Field>
             </div>
 
-            <Field label="Primary email" error={errors.email}>
-              <input
-                className={INPUT + (errors.email ? " border-rose-400 focus:ring-rose-200" : "")}
-                value={String(form.email ?? "")}
-                onChange={(e) => handle("email", e.target.value)}
-                placeholder="name@email.com"
-                type="email"
-                autoComplete="email"
-              />
-            </Field>
-
-            <div className="grid grid-cols-2 gap-3">
-              <Field label="Primary phone" error={errors.primaryPhone}>
-                <input
-                  className={INPUT + (errors.primaryPhone ? " border-rose-400 focus:ring-rose-200" : "")}
-                  value={String(form.primaryPhone ?? "")}
-                  onChange={(e) => handle("primaryPhone", e.target.value)}
-                  placeholder="Primary number"
-                  inputMode="tel"
-                  autoComplete="tel"
-                />
-              </Field>
-              <div />
-            </div>
+            {/* Email/Phone are not editable here */}
 
             <Field label="Location">
               <input className={INPUT} value={String(form.location ?? "")} onChange={(e) => handle("location", e.target.value)} placeholder="City / Area" />
@@ -276,7 +272,20 @@ export default function LeadEditModal({
 
             <div className="grid grid-cols-3 gap-3">
               <Field label="Profession">
-                <select className={INPUT} value={String(form.profession ?? "")} onChange={(e) => handle("profession", e.target.value)}>
+                <select
+                  className={INPUT}
+                  value={String((form.occupations?.[0]?.profession ?? form.profession) ?? "")}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    // update nested occupation[0]
+                    setForm((prev) => {
+                      const occ = [...(prev.occupations ?? [{}])];
+                      if (!occ.length) occ.push({});
+                      occ[0] = { ...(occ[0] ?? {}), profession: val };
+                      return { ...(prev ?? {}), occupations: occ, profession: val };
+                    });
+                  }}
+                >
                   <option value="">Select profession</option>
                   {professionOptions.map((o: any) => (
                     <option key={o.value} value={o.value}>
@@ -286,63 +295,42 @@ export default function LeadEditModal({
                 </select>
               </Field>
               <Field label="Designation">
-                <input className={INPUT} value={String(form.designation ?? "")} onChange={(e) => handle("designation", e.target.value)} placeholder="Optional" />
+                <input
+                  className={INPUT}
+                  value={String((form.occupations?.[0]?.designation ?? form.designation) ?? "")}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm((prev) => {
+                      const occ = [...(prev.occupations ?? [{}])];
+                      if (!occ.length) occ.push({});
+                      occ[0] = { ...(occ[0] ?? {}), designation: val };
+                      return { ...(prev ?? {}), occupations: occ, designation: val };
+                    });
+                  }}
+                  placeholder="Optional"
+                />
               </Field>
               <Field label="Company / Organisation">
-                <input className={INPUT} value={String(form.companyName ?? "")} onChange={(e) => handle("companyName", e.target.value)} placeholder="Optional" />
+                <input
+                  className={INPUT}
+                  value={String((form.occupations?.[0]?.companyName ?? form.companyName) ?? "")}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setForm((prev) => {
+                      const occ = [...(prev.occupations ?? [{}])];
+                      if (!occ.length) occ.push({});
+                      occ[0] = { ...(occ[0] ?? {}), companyName: val };
+                      return { ...(prev ?? {}), occupations: occ, companyName: val };
+                    });
+                  }}
+                  placeholder="Optional"
+                />
               </Field>
             </div>
 
-            <Field label="Product">
-              <select className={INPUT} value={String(form.product ?? "")} onChange={(e) => handle("product", e.target.value)}>
-                <option value="">Select a product</option>
-                {productOptions.map((o: any) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            {/* Product/SIP are not editable here */}
 
-            {String(form.product ?? "").toUpperCase() === "IAP" && (
-              <Field label="Investment range">
-                <select className={INPUT} value={String(form.investmentRange ?? "")} onChange={(e) => handle("investmentRange", e.target.value)}>
-                  <option value="">Select range</option>
-                  {investmentOptions.map((o: any) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              </Field>
-            )}
-
-            {String(form.product ?? "").toUpperCase() === "SIP" && (
-              <Field label="SIP amount (?)" error={errors.sipAmount}>
-                <input
-                  className={INPUT + (errors.sipAmount ? " border-rose-400 focus:ring-rose-200" : "")}
-                  value={String(form.sipAmount ?? "")}
-                  onChange={(e: React.ChangeEvent<HTMLInputElement>) => {
-                    const raw = e.target.value.replace(/[^0-9.]/g, "");
-                    const normalized = raw.split(".").length > 2 ? raw.replace(/\.(?=.*\.)/g, "") : raw;
-                    handle("sipAmount", normalized);
-                  }}
-                  placeholder="Monthly commitment"
-                  inputMode="decimal"
-                />
-              </Field>
-            )}
-
-            <Field label="Lead source">
-              <select className={INPUT} value={String(form.leadSource ?? "")} onChange={(e) => handle("leadSource", e.target.value)}>
-                <option value="">Select source</option>
-                {leadOptions.map((o: any) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </select>
-            </Field>
+            {/* Lead source is view-only in the InfoTile */}
 
             <Field label="Biography (optional)">
               <textarea
@@ -358,8 +346,8 @@ export default function LeadEditModal({
           <div className="flex flex-col gap-2 rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/60 p-4 text-xs text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-100">
             <p className="font-semibold">Heads up before saving</p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>Updating name or contact info reflects everywhere the lead appears.</li>
-              <li>Keep SIP amount numeric; leave blank if not yet captured.</li>
+              <li>Only profile fields are editable here.</li>
+              <li>Lead code and source are read-only.</li>
             </ul>
           </div>
         </div>
@@ -399,4 +387,3 @@ function InfoTile({ label, value }: { label: string; value: string }) {
     </div>
   );
 }
-

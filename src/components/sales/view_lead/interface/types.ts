@@ -134,9 +134,18 @@ export type LeadProfile = {
   gender?: "MALE" | "FEMALE" | "OTHER" | null;
   age?: number | null;
   location?: string | null;
+  // Legacy top-level occupation fields (kept for backward compat)
   profession?: "SELF_EMPLOYED" | "BUSINESS" | "EMPLOYEE" | string | null;
   companyName?: string | null;
   designation?: string | null;
+  // New schema: occupations array
+  occupations?: Array<{
+    profession?: string | null;
+    companyName?: string | null;
+    designation?: string | null;
+    startedAt?: string | null;
+    endedAt?: string | null;
+  }> | null;
 
   product?: "IAP" | "SIP" | string | null;
   investmentRange?: string | null;

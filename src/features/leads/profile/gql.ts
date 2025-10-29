@@ -41,6 +41,7 @@ export const CHANGE_LEAD_STAGE_MUTATION = gql`
       __typename
       id
       clientStage
+      leadCode
     }
   }
 `;

@@ -20,6 +20,7 @@ import { leadOptions, valueToLabel } from "@/components/lead/types";
 import type { Lead } from "@/components/sales/myleads/interface/type";
 import { LeadStage, LeadStatus } from "@/components/sales/myleads/interface/type";
 import { STAGE_META, STAGE_SEQUENCE } from "@/components/sales/myleads/stageMeta";
+import { useAuth } from "@/context/AuthContex";
 
 type ExportFormat = "csv" | "xlsx";
 
@@ -51,6 +52,8 @@ export default function AssignedLeads({
   onPageChange,
 }: AssignedLeadsProps) {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
   const [query, setQuery] = useState(searchValue ?? "");
   const [localPage, setLocalPage] = useState(1);
@@ -201,6 +204,7 @@ export default function AssignedLeads({
             <TableRow>
               <TableCell isHeader className="px-6 py-3">Name</TableCell>
               <TableCell isHeader className="px-6 py-3">Lead ID</TableCell>
+              {isAdmin && <TableCell isHeader className="px-6 py-3">RM</TableCell>}
               <TableCell isHeader className="px-6 py-3">Mobile No</TableCell>
               <TableCell isHeader className="px-6 py-3">Stage</TableCell>
               <TableCell isHeader className="px-6 py-3">Status</TableCell>
@@ -257,6 +261,11 @@ export default function AssignedLeads({
                     )}
                   </TableCell>
 
+                  {isAdmin && (
+                    <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-white/80">
+                      {lead.assignedRm ?? "-"}
+                    </TableCell>
+                  )}
                   <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-white/80">
                     {lead.mobile ?? "-"}
                   </TableCell>

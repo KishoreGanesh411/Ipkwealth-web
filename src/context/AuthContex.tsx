@@ -13,9 +13,10 @@ import {
   HttpLink,
   InMemoryCache,
 } from "@apollo/client";
+import { setContext } from "@apollo/client/link/context";
 import { FirebaseError } from "firebase/app";
 import {
-  onAuthStateChanged,
+  onIdTokenChanged,
   signInWithEmailAndPassword,
   signOut,
   User as FirebaseUser,
@@ -133,14 +134,26 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
   const [idToken, setIdToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Recreate the client when token changes (simple & reliable)
+  // Recreate the Apollo client when token changes (simple & reliable)
   const client = useMemo(() => {
-    const uri = import.meta.env.VITE_GRAPHQL_URL || "/graphql"; // fall back to Vite proxy
+    const uri = import.meta.env.VITE_GRAPHQL_URL || "http://localhost:3333/graphql";
+    const httpLink = new HttpLink({ uri });
+    const authLink = setContext(async (_, { headers }) => {
+      try {
+        // Prefer latest token from Firebase if available; fallback to state
+        const token = (await auth.currentUser?.getIdToken()) || idToken || null;
+        return {
+          headers: {
+            ...headers,
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        };
+      } catch {
+        return { headers };
+      }
+    });
     return new ApolloClient({
-      link: new HttpLink({
-        uri,
-        headers: { Authorization: idToken ? `Bearer ${idToken}` : "" },
-      }),
+      link: authLink.concat(httpLink),
       cache: new InMemoryCache(),
     });
   }, [idToken]);
@@ -222,7 +235,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
 
   // Bootstrap: wait for Firebase to restore session
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (current) => {
+    const unsubscribe = onIdTokenChanged(auth, async (current) => {
       if (!current) {
         // signed-out → safe to end loading immediately
         setFirebaseUser(null);
@@ -236,9 +249,9 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
       setFirebaseUser(current);
 
       try {
-        const token = await current.getIdToken(/* forceRefresh */ false);
+        const token = await current.getIdToken(false);
         setIdToken(token);
-        console.log("Firebase Token" ,token)
+        
       } catch (error) {
         console.error("Failed to retrieve ID token", error);
         await signOut(auth);
@@ -260,7 +273,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
   const login = async (email: string, password: string): Promise<LoginResult> => {
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      // onAuthStateChanged will drive the rest
+      // onIdTokenChanged will drive the rest
       return { success: true };
     } catch (error) {
       console.error("Login failed", error);

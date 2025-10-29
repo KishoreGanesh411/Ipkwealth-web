@@ -1,18 +1,15 @@
-// src/core/apollo/client.ts
+import { setContext } from "@apollo/client/link/context";
+import { auth } from "@/core/firebase/firebaseInit";// src/core/apollo/client.ts
 import {
   ApolloClient,
   InMemoryCache,
-  createHttpLink,
-  type NormalizedCacheObject,
+  createHttpLink, ApolloLink, type NormalizedCacheObject,
 } from "@apollo/client";
 import type { TypePolicies } from "@apollo/client/cache";
 
 const uri = import.meta.env.VITE_GRAPHQL_URL ?? "http://localhost:3333/graphql";
 
-const httpLink = createHttpLink({
-  uri,
-  credentials: "include", // send cookies if you use session auth
-});
+const httpLink = createHttpLink({ uri });
 
 // Type-safe cache policies: no `any`, no custom keyFields function needed.
 const typePolicies: TypePolicies = {
@@ -36,6 +33,12 @@ const typePolicies: TypePolicies = {
 
 export const apolloClient: ApolloClient<NormalizedCacheObject> =
   new ApolloClient({
-    link: httpLink,
-    cache: new InMemoryCache({ typePolicies }),
-  });
+  link: setContext(async (_, { headers }) => {
+    try {
+      const token = await auth.currentUser?.getIdToken();
+      return { headers: { ...headers, Authorization: token ? `Bearer ${token}` : "" } };
+    } catch { return { headers }; }
+  }).concat(httpLink),
+  cache: new InMemoryCache({ typePolicies }),
+});
+

@@ -122,11 +122,7 @@ export default function LeadEntry() {
         gender: lead.gender || undefined,
         age: lead.age ? Number(lead.age) : undefined,
         location: lead.location || undefined,
-        // keep top-level occupation fields for backward compatibility
-        profession: lead.profession || undefined,
-        companyName: lead.companyName || undefined,
-        designation: lead.designation || undefined,
-        // new embedded array
+        // occupations embedded array as per schema (no top-level profession/company/designation)
         occupations,
         product: lead.product || undefined,
         investmentRange: lead.investmentRange || undefined,

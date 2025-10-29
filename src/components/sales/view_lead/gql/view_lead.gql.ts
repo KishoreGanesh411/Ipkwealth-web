@@ -46,9 +46,7 @@ export const FRAG_LEAD_BASE = gql`
     gender
     age
     location
-    profession
-    companyName
-    designation
+    occupations { profession companyName designation startedAt endedAt }
 
     product
     investmentRange
@@ -118,6 +116,7 @@ export const UPDATE_LEAD_STATUS = gql`
       id
       status
       clientStage
+      leadCode
       updatedAt
     }
   }
@@ -130,6 +129,7 @@ export const CHANGE_STAGE = gql`
       clientStage
       approachAt
       lastSeenAt
+      leadCode
       updatedAt
     }
   }
