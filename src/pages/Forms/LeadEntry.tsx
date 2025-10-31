@@ -20,7 +20,7 @@ import { useAuth } from "@/context/AuthContex";
 import { useRms } from "@/core/graphql/user/useRms";
 
 export default function LeadEntry() {
-  const [lead, setLead] = useState({
+  const [lead, setLead] = useState<any>({
     firstName: "", lastName: "", email: "", phone: "", leadSource: "",
     // assignment
     assignMode: "AUTO" as "AUTO" | "MANUAL",
@@ -173,7 +173,7 @@ export default function LeadEntry() {
         const { data } = await findLeadByCode({ variables: { args: { page: 1, pageSize: 1, archived: false, status: null, search: code } } });
         const hit = data?.leads?.items?.find?.((x: any) => String(x?.leadCode ?? "").trim().toUpperCase() === code.toUpperCase());
         if (hit && (hit.name || hit.firstName)) {
-          setLead((s) => (s.referralName?.trim() ? s : { ...s, referralName: (hit.name ?? `${hit.firstName ?? ""} ${hit.lastName ?? ""}`).trim() }));
+          setLead((s: any) => (s.referralName?.trim() ? s : { ...s, referralName: (hit.name ?? `${hit.firstName ?? ""} ${hit.lastName ?? ""}`).trim() }));
         }
       } catch {
         // ignore lookup failures

@@ -27,6 +27,8 @@ type OptionalExtras = Partial<{
 
 export type LeadEditModalValues = Partial<LeadShape & OptionalExtras> & {
   fullName?: string;
+  name?: string | null;
+  leadCode?: string | null;
   occupations?: Array<{
     profession?: string;
     companyName?: string;
@@ -110,7 +112,7 @@ export default function LeadEditModal({
 
   const validate = () => {
     const nextErrors: Record<string, string> = {};
-    const nameOrFirst = String(form.name ?? form.firstName ?? "").trim();
+    const nameOrFirst = String((form as any).name ?? form.firstName ?? "").trim();
     if (!nameOrFirst) nextErrors.name = "Name is required";
 
     // Age: optional, must be a number between 0 and 120
@@ -146,15 +148,20 @@ export default function LeadEditModal({
       return t.length ? t : null;
     };
 
-    const payload: LeadEditModalValues = {
+    const payload: any = {
       ...form,
-      name: normalize(form.name ?? `${form.firstName ?? ""} ${form.lastName ?? ""}`) ?? undefined,
-      firstName: normalize(form.firstName),
-      lastName: normalize(form.lastName),
-      location: normalize(form.location),
-      gender: normalize(form.gender),
-      age: form.age !== null && form.age !== undefined && form.age !== "" ? Number(form.age) : null,
-      bioText: normalize(form.bioText),
+      name: normalize((form as any).name ?? `${form.firstName ?? ""} ${form.lastName ?? ""}`) ?? undefined,
+      firstName: normalize(form.firstName) ?? undefined,
+      lastName: normalize(form.lastName) ?? undefined,
+      location: normalize(form.location) ?? undefined,
+      gender: normalize(form.gender) ?? undefined,
+      age: ((): number | undefined => {
+        const av: any = (form as any).age;
+        if (av === null || av === undefined || String(av) === "") return undefined;
+        const n = Number(av);
+        return Number.isFinite(n) ? n : undefined;
+      })(),
+      bioText: normalize((form as any).bioText) ?? undefined,
       occupations:
         (form.occupations && form.occupations.length)
           ? form.occupations.map((o) => ({
@@ -176,7 +183,7 @@ export default function LeadEditModal({
     try {
       const input: any = {
         leadId: (initial as any).id ?? (initial as any).leadId ?? leadIdFromUrl,
-        name: payload.name,
+        name: (payload as any).name,
         firstName: payload.firstName,
         lastName: payload.lastName,
         location: payload.location,
@@ -217,7 +224,7 @@ export default function LeadEditModal({
 
         <div className="flex-1 overflow-y-auto px-6 py-4 max-h-[70vh] space-y-6">
           <div className="grid gap-3 rounded-2xl border border-gray-100 bg-white/70 p-3 dark:border-white/10 dark:bg-white/[0.04] sm:grid-cols-2">
-            <InfoTile label="Lead code" value={String(form.leadCode ?? "Not generated")} />
+            <InfoTile label="Lead code" value={String((form as any).leadCode ?? "Not generated")} />
             <InfoTile label="Lead source" value={leadSourceLabel} />
           </div>
 
@@ -226,8 +233,8 @@ export default function LeadEditModal({
               <input
                 ref={firstRef}
                 className={INPUT}
-                value={String(form.name ?? "")}
-                onChange={(e) => handle("name", e.target.value)}
+                value={String((form as any).name ?? "")}
+                onChange={(e) => (handle as any)("name", e.target.value)}
                 placeholder="Enter full name"
               />
             </Field>

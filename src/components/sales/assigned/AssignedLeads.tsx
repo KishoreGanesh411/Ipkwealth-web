@@ -469,9 +469,9 @@ function formatLastContact(value?: string | null) {
   }
 }
 
-function formatLeadStatus(status?: LeadStatus) {
+function formatLeadStatus(status?: LeadStatus | LeadStage | string | null) {
   if (!status) return "Pending";
-  return status
+  return String(status)
     .toLowerCase()
     .split("_")
     .map((chunk) => chunk.charAt(0).toUpperCase() + chunk.slice(1))

@@ -1,10 +1,12 @@
 import { useLocation, useNavigate } from "react-router-dom";
 import { PhoneCall, PhoneForwarded } from "lucide-react";
+import { useQuery } from "@apollo/client";
 
 import ComponentCard from "@/components/common/ComponentCard";
 import PageBreadcrumb from "@/components/common/PageBreadCrumb";
 import PageMeta from "@/components/common/PageMeta";
 import type { Lead } from "@/components/sales/myleads/interface/type";
+import { LEAD_DETAIL_WITH_TIMELINE } from "@/core/graphql/lead/lead.gql";
 
 interface LocationState {
   lead?: Lead;
@@ -15,6 +17,16 @@ export default function CallConnectPage() {
   const location = useLocation();
   const state = (location.state as LocationState | null) ?? {};
   const lead = state.lead;
+
+  // Fetch the latest lead details (specifically remark) when we have an id
+  const { data } = useQuery(LEAD_DETAIL_WITH_TIMELINE, {
+    skip: !lead?.id,
+    variables: { id: lead?.id },
+    fetchPolicy: "cache-and-network",
+  });
+
+  const latestRemark: string | undefined =
+    data?.lead?.remark ?? lead?.remark ?? undefined;
 
   const goBack = () => navigate(-1);
 
@@ -54,7 +66,9 @@ export default function CallConnectPage() {
             <div className="rounded-xl bg-white p-4 shadow-sm ring-1 ring-emerald-200/50 dark:bg-white/[0.04] dark:ring-emerald-500/30">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Notes</h3>
               <p className="mt-1 text-sm text-gray-600 dark:text-gray-300">
-                Prepare your pitch, confirm the investment interest, and capture any call outcomes right after the conversation.
+                {latestRemark && latestRemark.trim().length > 0
+                  ? latestRemark
+                  : "Prepare your pitch, confirm the investment interest, and capture any call outcomes right after the conversation."}
               </p>
             </div>
 

@@ -22,7 +22,17 @@ import {
   resolveStageDisplay,
   humanize,
 } from "./interface/utils";
-import type { EditableLeadField, LeadProfile } from "./interface/types";
+import type { LeadProfile } from "./interface/types";
+
+// Local field keys that can be edited via the inline editor
+type EditableLeadField =
+  | keyof LeadProfile
+  | "referralName"
+  | "referralCode"
+  | "sipAmount"
+  | "investmentRange"
+  | "profession"
+  | "designation";
 
 type Props = {
   lead: LeadProfile;
@@ -158,11 +168,11 @@ export default function LeadMetaCard({ lead, loading, isAdmin, canEdit, onEditFi
       key: "assignedRm",
       icon: UserRound,
       label: "Assigned RM",
-      value: lead.assignedRmDetails?.name ?? lead.assignedRm ?? "Unassigned",
+      value: (lead as any).assignedRmDetails?.name ?? (lead as any).assignedRm?.name ?? (lead as any).assignedRm ?? "Unassigned",
       field: "assignedRm",
       editable: isAdmin,
       visible: isAdmin,
-      muted: !(lead.assignedRmDetails?.name ?? lead.assignedRm),
+      muted: !((lead as any).assignedRmDetails?.name ?? (lead as any).assignedRm?.name ?? (lead as any).assignedRm),
     },
     {
       key: "occupation",

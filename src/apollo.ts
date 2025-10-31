@@ -70,11 +70,11 @@ const refreshOnExpiredLink = onError(({ graphQLErrors, networkError, operation, 
         }));
         return fresh;
       })(),
-    ).flatMap((t) => (t ? forward(operation) : Observable.of()));
+    ).flatMap((t) => (t ? forward(operation) : Observable.of(undefined)));
 
   if (netStatus === 401 || msg) {
     if (msg === 'ID_TOKEN_EXPIRED') {
-      return doRetry();
+      return doRetry() as unknown as Observable<FetchResult>;
     }
     if (msg === 'ID_TOKEN_REVOKED' || msg === 'INVALID_ID_TOKEN') {
       (async () => {
@@ -87,27 +87,8 @@ const refreshOnExpiredLink = onError(({ graphQLErrors, networkError, operation, 
       return;
     }
   }
-});
-function getForwardOperationLink(
-  operation: Operation,
-  forward: NextLink
-): Observable<
-  FetchResult<{ [key: string]: any }, Record<string, any>, Record<string, any>>
-> {
-  return new Observable((observer) => {
-    try {
-      const subscriber = {
-        next: observer.next.bind(observer),
-        error: observer.error.bind(observer),
-        complete: observer.complete.bind(observer),
-      };
-
-      forward(operation).subscribe(subscriber);
-    } catch (error) {
-      observer.error(error);
-    }
   });
-}
+
 const client = new ApolloClient({
   link: from([refreshOnExpiredLink, authLink, apolloError, httpLink]),
   cache: new InMemoryCache(),

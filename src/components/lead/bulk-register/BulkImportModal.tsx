@@ -682,8 +682,8 @@ function PreviewUI({
               }
 
               const invalid = !trim(name) || !phone || !trim(source);
-              const loc = map.city !== "none" ? toStr(r[map.city]) : "";
-              const at = map.approachAt !== "none" ? parseApproachAt(r[map.approachAt]) : null;
+              const loc = map.city !== "none" ? toStr(r[(map.city as string)]) : "";
+              const at = map.approachAt !== "none" ? parseApproachAt(r[(map.approachAt as string)]) : null;
 
               const qaCount = qaCountFor(r as RowRecord);
               const qaTitle =

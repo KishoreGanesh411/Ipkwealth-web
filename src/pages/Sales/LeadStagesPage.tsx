@@ -60,7 +60,7 @@ export default function LeadStagesPage() {
   const stageCounts = useMemo(() => {
     const counts = new Map<LeadStage, number>();
     STAGE_SEQUENCE.forEach((stage) => counts.set(stage, 0));
-    allLeads.forEach((lead) => {
+    allLeads.forEach((lead: any) => {
       const st = (lead.clientStage as LeadStage | undefined) ?? undefined;
       if (st && counts.has(st)) counts.set(st, (counts.get(st) ?? 0) + 1);
     });
@@ -91,14 +91,14 @@ export default function LeadStagesPage() {
 
   const filteredByStage = useMemo(() => {
     if (selectedStage === 'ALL') return allLeads;
-    return allLeads.filter((lead) => lead.clientStage === selectedStage);
+    return allLeads.filter((lead: any) => lead.clientStage === selectedStage);
   }, [selectedStage, allLeads]);
 
   const filtered = useMemo(() => {
     const dataset = filteredByStage;
     if (!q.trim()) return dataset;
     const qq = q.toLowerCase();
-    return dataset.filter((lead) =>
+    return dataset.filter((lead: any) =>
       [
         lead.name,
         lead.email ?? '',

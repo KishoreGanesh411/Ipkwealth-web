@@ -60,6 +60,8 @@ type Props = {
   canEditProfile: boolean;
   /** callback invoked after a successful update to refresh parent data */
   onProfileRefresh?: () => void;
+  /** optional flag; accepted for compatibility */
+  isAdmin?: boolean;
 };
 
 type HeaderMetaField = {

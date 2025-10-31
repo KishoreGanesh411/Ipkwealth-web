@@ -24,6 +24,7 @@ interface TableRowProps extends HTMLAttributes<HTMLTableRowElement> {
 interface TableCellProps extends HTMLAttributes<HTMLTableCellElement> {
   children: ReactNode; // Cell content
   isHeader?: boolean; // If true, renders as <th>, otherwise <td>
+  colSpan?: number; // allow spanning columns
 }
 
 // Table Component
@@ -67,11 +68,12 @@ const TableCell: React.FC<TableCellProps> = ({
   children,
   isHeader = false,
   className,
+  colSpan,
   ...rest
 }) => {
   const CellTag = (isHeader ? "th" : "td") as "th" | "td";
   return (
-    <CellTag className={` ${className ?? ""}`} {...rest}>
+    <CellTag className={` ${className ?? ""}`} colSpan={colSpan} {...rest}>
       {children}
     </CellTag>
   );

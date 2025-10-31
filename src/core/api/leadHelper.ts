@@ -1,5 +1,6 @@
 // src/core/api/lead.ts
-import type { AssignedRM, Lead, LeadFormData } from "../../components/lead/types";
+import type { Lead, LeadFormData } from "../../components/lead/types";
+type AssignedRM = string;
 
 const KEY = "ipk_leads";
 const CURSOR_KEY = "ipk_rm_cursor";
@@ -56,7 +57,7 @@ export async function createLead(payload: LeadFormData): Promise<Lead> {
     // basic
     firstName: payload.firstName,
     lastName: payload.lastName,
-    email: payload.email,
+    email: payload.email || "",
     phone: payload.phone,
     leadSource: payload.leadSource,
     remark: payload.remark,

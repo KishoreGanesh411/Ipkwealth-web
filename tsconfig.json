@@ -10,6 +10,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true,
 
     // ✅ Alias setup
     "baseUrl": ".",

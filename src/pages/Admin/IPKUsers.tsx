@@ -13,12 +13,12 @@ import Button from "@/components/ui/button/Button";
 import { toast } from "react-toastify";
 
 type UserRow = {
-  id: string;
-  name: string;
-  email: string;
-  role: "ADMIN" | "RM" | "STAFF" | "MARKETING" | string;
+  id?: string;
+  name?: string;
+  email?: string;
+  role?: "ADMIN" | "RM" | "STAFF" | "MARKETING" | string;
   phone?: string | null;
-  status: "ACTIVE" | "INACTIVE";
+  status?: "ACTIVE" | "INACTIVE";
   archived?: boolean;
 };
 
@@ -152,7 +152,7 @@ export default function IPKUsers() {
                       </button>
                       <button
                         type="button"
-                        onClick={() => setConfirmDel({ id: u.id, name: u.name })}
+                        onClick={() => setConfirmDel({ id: u.id ?? "", name: u.name ?? "" })}
                         className="rounded-md border border-rose-200 bg-white px-3 py-1.5 text-xs text-rose-600 hover:bg-rose-50 dark:border-rose-900/40 dark:bg-transparent dark:text-rose-300 dark:hover:bg-rose-900/10"
                       >
                         Delete
@@ -195,7 +195,7 @@ export default function IPKUsers() {
                     type="email"
                     disabled={saving}
                     value={editor.user.email ?? ""}
-                    onChange={(e) => setEditor({ ...editor, user: { ...editor.user, email: e.target.value } })}
+                    onChange={(e) => setEditor({ ...editor, user: { ...(editor.user as any), email: e.target.value } })}
                     placeholder="name@company.com"
                   />
                 </div>
@@ -204,7 +204,7 @@ export default function IPKUsers() {
                   <Input
                     disabled={saving}
                     value={editor.user.phone ?? ""}
-                    onChange={(e) => setEditor({ ...editor, user: { ...editor.user, phone: e.target.value } })}
+                    onChange={(e) => setEditor({ ...editor, user: { ...(editor.user as any), phone: e.target.value } })}
                     placeholder="+91…"
                   />
                 </div>
@@ -214,7 +214,7 @@ export default function IPKUsers() {
                     disabled={saving}
                     options={roleOptions}
                     value={(editor.user.role as string) ?? ""}
-                    onChange={(v) => setEditor({ ...editor, user: { ...editor.user, role: v as any } })}
+                    onChange={(v) => setEditor({ ...editor, user: { ...(editor.user as any), role: v as any } })}
                     placeholder="Select Role"
                   />
                 </div>
@@ -224,7 +224,7 @@ export default function IPKUsers() {
                     disabled={saving}
                     options={statusOptions}
                     value={(editor.user.status as string) ?? "ACTIVE"}
-                    onChange={(v) => setEditor({ ...editor, user: { ...editor.user, status: v as any } })}
+                    onChange={(v) => setEditor({ ...editor, user: { ...(editor.user as any), status: v as any } })}
                     placeholder="Select Status"
                   />
                 </div>
@@ -235,7 +235,7 @@ export default function IPKUsers() {
                       type="password"
                       disabled={saving}
                       value={(editor.user as any).password ?? ""}
-                      onChange={(e) => setEditor({ ...editor, user: { ...editor.user, password: e.target.value as any } })}
+                    onChange={(e) => setEditor({ ...editor, user: { ...(editor.user as any), password: e.target.value as any } as any })}
                       placeholder="Set starter password"
                     />
                   </div>

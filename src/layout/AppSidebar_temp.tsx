@@ -1,5 +1,5 @@
 import { useAuth } from '@/context/AuthContex';
-import { Role } from '@/context/AuthContext_temp';
+import type { Role } from '@/context/AuthContex';
 import { GridIcon, CalenderIcon, ListIcon, UserCircleIcon, PlugInIcon } from '@/icons';
 
 const marketingNav = [
@@ -36,7 +36,7 @@ const salesNav = [
   },
 ];
 
-function getNav(role?: Role) {
+function getNav(role?: Role | "UNKNOWN") {
   if (role === 'RM') return { main: salesNav, others: [] };
   if (role === 'MARKETING')
     return {

@@ -15,7 +15,7 @@ type LeadRow = {
 };
 
 
-export default function MyLeadsTable( rows?: LeadRow[] ) {
+export default function MyLeadsTable({ rows = [] }: { rows?: LeadRow[] }) {
   const fmtDate = (d?: string | null) => (d ? String(d).slice(0, 10) : "-");
   const firstType = (v?: string | string[] | null) =>
     Array.isArray(v) ? v[0] : v || undefined;
@@ -75,7 +75,7 @@ export default function MyLeadsTable( rows?: LeadRow[] ) {
           </TableHeader>
 
           <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
-            {rows.map((r) => (
+            {(rows || []).map((r) => (
               <TableRow key={r.id}>
                 <TableCell className="py-3 text-start text-theme-sm text-gray-800 dark:text-white/90">
                   {r.leadCode}

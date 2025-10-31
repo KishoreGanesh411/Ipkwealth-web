@@ -25,7 +25,7 @@ export default function StatusCard({
   saving = false,
   onStatusStageChange,
 }: StatustCardProps) {
-  const normalizedStatus = statusValue === "ASSIGNED" ? "PENDING" : statusValue ?? "";
+  const normalizedStatus = String(statusValue ?? "") === "ASSIGNED" ? "PENDING" : (statusValue ?? "");
   const normalizedStage = stageValue ?? "";
 
   const [editedStatus, setEditedStatus] = useState<string>(normalizedStatus);

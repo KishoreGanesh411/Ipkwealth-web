@@ -143,7 +143,7 @@ const AppSidebar: React.FC = () => {
       const items = menuType === "main" ? navItems : othersItems;
       items.forEach((nav, index) => {
         if (nav.subItems) {
-          nav.subItems.forEach((subItem) => {
+          nav.subItems.forEach((subItem: NavSubItem) => {
             if (isActive(subItem.path)) {
               setOpenSubmenu({
                 type: menuType as "main" | "others",
@@ -332,7 +332,7 @@ const AppSidebar: React.FC = () => {
                       </div>
                       {hasChildren && (
                         <ul
-                          ref={(el) => (childRefs.current[key] = el)}
+                          ref={(el) => { childRefs.current[key] = el; return undefined; }}
                           className="mt-1 ml-5 space-y-1 overflow-hidden transition-all duration-300"
                           style={{ height: isOpen ? `${childHeights[key] || 0}px` : '0px' }}
                         >

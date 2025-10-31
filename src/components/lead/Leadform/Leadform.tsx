@@ -11,7 +11,7 @@ export type LeadFormState = Pick<
   LeadFormData,
   "firstName" | "lastName" | "email" | "phone" | "remark"
 > & {
-  leadSource: LeadSource;
+  leadSource: LeadSource | "";
   leadSourceOther?: string;
   // referral capture when source=referral
   referralMode?: "NAME" | "LEAD_CODE"; // UI toggle between name/code
@@ -24,8 +24,8 @@ export type LeadFormState = Pick<
 };
 
 interface CreateLeadFormProps {
-  lead: LeadFormState;
-  setLead: React.Dispatch<React.SetStateAction<LeadFormState>>;
+  lead: LeadFormState & Record<string, any>;
+  setLead: React.Dispatch<React.SetStateAction<LeadFormState & Record<string, any>>>;
   phoneOk: boolean;
   /** Optional; if omitted we'll infer from lead.leadSource */
   isReferral?: boolean;
