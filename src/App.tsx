@@ -8,6 +8,7 @@ import { ME } from "@/core/graphql/user/user.gql"; // expects { me { id email ro
 
 // Auth
 import SignIn from "@/pages/AuthPages/SignIn";
+import ResetPassword from "@/pages/AuthPages/ResetPassword";
 
 // Layout
 import AppLayout from "@/layout/AppLayout";
@@ -65,6 +66,7 @@ export default function App() {
         <Routes>
           {/* Public */}
           <Route path="/signin" element={<SignIn />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           <Route path="/unauthorized" element={<Unauthorized />} />
 
           {/* Private area with shared App layout */}

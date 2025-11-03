@@ -13,7 +13,7 @@ type Props = {
   }) => Promise<void> | void;
 };
 
-export default function FirstContactCard({ submitting = false, onSubmit }: Props) {
+export default function FirstContactCard({ submitting = false, onSubmit }: Props) { 
   const [explained, setExplained] = useState<boolean>(true);
   const [channel, setChannel] = useState<string>('CALL');
   const [reason, setReason] = useState<string>('');
