@@ -41,6 +41,7 @@ type Role = "ADMIN" | "RM" | "STAFF" | "MARKETING" | "ANALYST";
 /** Decides the landing route based on backend role */
 function RoleLanding() {
   const { data, loading, error } = useQuery(ME, { fetchPolicy: "cache-first" });
+  const DEMO = (import.meta as any).env?.VITE_DEMO === "true";
 
   if (loading)
     return (
@@ -48,9 +49,8 @@ function RoleLanding() {
         Loading...
       </div>
     );
-  if (error || !data?.me) return <Navigate to="/signin" replace />;
-
-  const role = data.me.role as Role;
+  if (!DEMO && (error || !data?.me)) return <Navigate to="/signin" replace />;
+  const role = (data?.me?.role as Role) || (DEMO ? ("RM" as Role) : ("RM" as Role));
   if (role === "RM") return <Navigate to="/sales/dashboard" replace />;
   if (role === "MARKETING") return <Navigate to="/marketing/dashboard" replace />;
   if (role === "ADMIN") return <Navigate to="/admin/dashboard" replace />; // adjust if you want a true Admin home

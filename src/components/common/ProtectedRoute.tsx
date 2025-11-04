@@ -9,7 +9,7 @@ type Props = {
 };
 
 export default function ProtectedRoute({ children, allow }: Props) {
-  const { firebaseUser, user, loading } = useAuth();
+  const { user, loading } = useAuth();
   const loc = useLocation();
 
   if (loading) {
@@ -20,7 +20,7 @@ export default function ProtectedRoute({ children, allow }: Props) {
     );
   }
 
-  if (!firebaseUser) {
+  if (!user) {
     return <Navigate to="/signin" state={{ from: loc }} replace />;
   }
 

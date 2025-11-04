@@ -59,7 +59,8 @@ export default function SignInForm() {
     setBusy(false);
 
     if (result.success) {
-      navigate("/", { replace: true, state: { loginSuccess: true } });
+      // Send RMs straight to sales dashboard; avoids extra redirects in demo mode
+      navigate("/sales/dashboard", { replace: true, state: { loginSuccess: true } });
       return;
     }
 

@@ -7,12 +7,7 @@ import React, {
   useRef,
   useState,
 } from "react";
-import {
-  ApolloClient,
-  ApolloProvider,
-  HttpLink,
-  InMemoryCache,
-} from "@apollo/client";
+import { ApolloClient, ApolloProvider, HttpLink, InMemoryCache } from "@apollo/client";
 import { setContext } from "@apollo/client/link/context";
 import { FirebaseError } from "firebase/app";
 import {
@@ -24,6 +19,8 @@ import {
 
 import { auth } from "@/core/firebase/firebaseInit";
 import { ME, UPSERT_SELF, HAS_UPSERT_SELF } from "@/core/graphql/user/user.gql";
+import { DemoLink } from "@/mocks/demoLink";
+import { demoUser, seedDemoData } from "@/mocks/demoData";
 
 export type Role = "ADMIN" | "RM" | "STAFF" | "MARKETING" | "ANALYST";
 export type AppUserRole = Role | "UNKNOWN";
@@ -126,9 +123,49 @@ const DEFAULT_LOGIN_ERROR: LoginErrorDescriptor = {
     "We couldn't sign you in. Please try again or contact your administrator.",
 };
 
-export const AuthProvider: React.FC<React.PropsWithChildren> = ({
-  children,
-}) => {
+// Default to demo mode unless explicitly disabled via VITE_DEMO=false
+const DEMO = String(((import.meta as any).env?.VITE_DEMO) ?? "true") === "true";
+
+export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
+  if (DEMO) {
+    // Offline demo provider: no Firebase, no network. Seeds mock data.
+    seedDemoData();
+    const client = new ApolloClient({ link: new DemoLink(), cache: new InMemoryCache() });
+    const [user, setUser] = useState<AppUser | null>({
+      id: demoUser.id,
+      email: demoUser.email,
+      name: demoUser.name,
+      role: demoUser.role as AppUserRole,
+      status: demoUser.status,
+    });
+    const [loading, setLoading] = useState(false);
+
+    const login = async (email: string, password: string) => {
+      if (email === "bharath@ipkwealth.com" && password === "Bharath@123") {
+        setUser({ id: demoUser.id, email: demoUser.email, name: demoUser.name, role: "RM", status: "ACTIVE" });
+        return { success: true } as const;
+      }
+      return {
+        success: false,
+        title: "Invalid credentials",
+        message: "Use bharath@ipkwealth.com / Bharath@123 for demo",
+        target: "password" as const,
+        fieldMessage: "Wrong password",
+        variant: "error" as const,
+      };
+    };
+    const logout = async () => setUser(null);
+    const refresh = async () => {};
+
+    return (
+      <AuthContext.Provider
+        value={{ firebaseUser: null, user, loading, idToken: null, login, logout, refresh }}
+      >
+        <ApolloProvider client={client}>{children}</ApolloProvider>
+      </AuthContext.Provider>
+    );
+  }
+
   const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
   const [user, setUser] = useState<AppUser | null>(null);
   const [idToken, setIdToken] = useState<string | null>(null);
