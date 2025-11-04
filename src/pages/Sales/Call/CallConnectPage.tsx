@@ -25,11 +25,11 @@ export default function CallConnectPage() {
     fetchPolicy: "cache-and-network",
   });
 
-  const latestRemark: string | undefined =
-    data?.lead?.remark ?? lead?.remark ?? undefined;
-
+  const rawRemark: any = data?.lead?.remark ?? lead?.remark ?? undefined;
+  const latestRemark: string | undefined = (rawRemark && typeof rawRemark === "object")
+    ? (typeof rawRemark.text === "string" ? rawRemark.text : (() => { try { return JSON.stringify(rawRemark); } catch { return String(rawRemark); } })())
+    : (rawRemark != null ? String(rawRemark) : undefined);
   const goBack = () => navigate(-1);
-
   return (
     <>
       <PageMeta title="Call connect" description="Engage the customer directly" />
@@ -140,3 +140,4 @@ function statusLabel(status: Lead["status"]) {
       return "Status pending";
   }
 }
+

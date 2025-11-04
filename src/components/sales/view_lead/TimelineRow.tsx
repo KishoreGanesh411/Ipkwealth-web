@@ -18,14 +18,18 @@ type Props = { event: TimelineEvent };
 export default function TimelineRow({ event }: Props) {
   const Icon = iconFor(event.type);
   const { user } = useAuth();
+  const meta = (event as any)?.meta || {};
   const author = (() => {
-    if (event.authorName) return event.authorName;
+    const nameFromEvent = (event as any)?.author?.name as string | undefined;
+    if (nameFromEvent) return nameFromEvent;
+    if ((event as any).authorName) return (event as any).authorName as string;
+    const nameFromMeta = (meta?.author?.name || meta?.authorName || meta?.actorName || meta?.by) as string | undefined;
+    if (nameFromMeta) return nameFromMeta;
     const aId = (event as any).authorId as string | undefined;
     const uId = (user as any)?.id as string | undefined;
     if (aId && uId && aId === uId) return user?.name || "You";
     return undefined;
   })();
-  const meta = (event as any)?.meta || {};
   const nextFollowUpRaw: string | undefined =
     (meta?.nextFollowUpAt as string | undefined) || (meta?.followUpOn as string | undefined);
   const channel: string | undefined = (meta?.channel as string | undefined);
@@ -53,17 +57,19 @@ export default function TimelineRow({ event }: Props) {
     return undefined;
   })();
 
+  const badgeCls = badgeClass(event.type, Boolean(nextFollowUpRaw));
+
   return (
     <div className="timeline-row">
       <div className="mt-1">
-        <div className="timeline-icon">
+        <div className={`timeline-icon rounded-full border px-2 py-1 text-xs font-medium ${badgeCls}`}>
           <Icon className="h-4 w-4" aria-hidden="true" />
         </div>
       </div>
 
       <div className="flex-1">
         <div className="timeline-meta">
-          <span className="font-medium text-gray-600 dark:text-white/70">
+          <span className={`ml-2 inline-flex items-center rounded-full border px-2 py-0.5 text-[11px] font-medium ${badgeCls}`}>
             {humanize(event.type)}
           </span>
           {inlineDetail && (
@@ -152,5 +158,24 @@ function renderSummary(ev: TimelineEvent) {
       return "Lead assigned";
     default:
       return humanize(ev.type);
+  }
+}
+
+function badgeClass(type?: string, hasFollowUp?: boolean) {
+  switch (type) {
+    case 'STATUS_CHANGE':
+      return 'bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-500/15 dark:text-blue-200 dark:border-blue-400/20';
+    case 'STAGE_CHANGE':
+      return 'bg-purple-50 text-purple-700 border-purple-200 dark:bg-purple-500/15 dark:text-purple-200 dark:border-purple-400/20';
+    case 'REMARK_UPDATED':
+      return 'bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-500/15 dark:text-emerald-200 dark:border-emerald-400/20';
+    case 'INTERACTION':
+      return hasFollowUp
+        ? 'bg-orange-50 text-orange-700 border-orange-200 dark:bg-orange-500/15 dark:text-orange-200 dark:border-orange-400/20'
+        : 'bg-yellow-50 text-yellow-700 border-yellow-200 dark:bg-yellow-500/15 dark:text-yellow-200 dark:border-yellow-400/20';
+    case 'HISTORY_SNAPSHOT':
+      return 'bg-gray-100 text-gray-600 border-gray-200 dark:bg-white/10 dark:text-white/70 dark:border-white/10';
+    default:
+      return 'bg-slate-100 text-slate-700 border-slate-200 dark:bg-white/10 dark:text-white/80 dark:border-white/10';
   }
 }

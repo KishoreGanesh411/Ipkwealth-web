@@ -1,4 +1,4 @@
-export default function BioBox({ remark, bioText }: { remark: string; bioText: string }) {
+export default function BioBox({ remark, bioText }: { remark: any; bioText: string }) {
   return (
     <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.02]">
       <h3 className="mb-3 text-sm font-semibold">Notes & Bio</h3>
@@ -19,3 +19,4 @@ export default function BioBox({ remark, bioText }: { remark: string; bioText: s
     </section>
   );
 }
+

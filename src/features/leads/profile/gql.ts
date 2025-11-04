@@ -16,6 +16,7 @@ export const LEAD_PROFILE_QUERY = gql`
       phones { __typename number normalized isPrimary }
       leadSource
       profession
+      approachAt
       createdAt
       events {
         __typename

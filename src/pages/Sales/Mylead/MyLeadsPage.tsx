@@ -1,4 +1,4 @@
-﻿import { useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { NetworkStatus, useQuery } from "@apollo/client";
 
 import ComponentCard from "@/components/common/ComponentCard";
@@ -45,6 +45,7 @@ type MyAssignedLeadNode = {
   status?: string | null;
   clientStage?: string | null;
   createdAt?: string | null;
+  approachAt?: string | null;
   firstSeenAt?: string | null;
   assignedAt?: string | null;
   assignedRM?: string | null;
@@ -141,7 +142,7 @@ function normalizeLead(node: MyAssignedLeadNode): Lead {
   const name = fallbackName && fallbackName.length > 0 ? fallbackName : "Unnamed lead";
   const mobile = node.mobile ?? node.phone ?? null;
   const location = node.location ?? node.city ?? null;
-  const rawAging = node.agingDays ?? computeAgingDays(node.firstSeenAt ?? node.createdAt);
+  const rawAging = node.agingDays ?? computeAgingDays(node.approachAt ?? node.createdAt);
   const agingDays =
     typeof rawAging === "number" && Number.isFinite(rawAging) ? Math.max(0, Math.floor(rawAging)) : undefined;
 
@@ -194,3 +195,7 @@ function isRecentAssignment(assignedAt: string, thresholdHours = 24) {
 function isLeadStage(value: string): value is LeadStage {
   return STAGE_SEQUENCE.includes(value as LeadStage);
 }
+
+
+
+

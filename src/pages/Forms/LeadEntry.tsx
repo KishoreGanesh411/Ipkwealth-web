@@ -204,7 +204,7 @@ export default function LeadEntry() {
             setLead={setLead}
             phoneOk={phoneOk}
             isReferral={isReferral}
-            canAssignRm={isAdmin}
+            canAssignRm={false}
             rmOptions={rmOptions}
             rmLoading={rmsLoading}
           />

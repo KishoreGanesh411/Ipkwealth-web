@@ -20,6 +20,8 @@ export const LEAD_FIELDS = gql`
     firstSeenAt
     lastSeenAt
     reenterCount
+    remark
+    approachAt
   }
 `;
 

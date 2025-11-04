@@ -334,6 +334,13 @@ function formatAgingDays(value?: number) {
   if (value === undefined || Number.isNaN(value)) return "-";
   if (value <= 0) return "Today";
   if (value === 1) return "1 day";
+  const months = Math.floor(value / 30);
+  const days = value % 30;
+  if (months >= 1) {
+    const mPart = `${months} ${months === 1 ? "month" : "months"}`;
+    const dPart = days > 0 ? ` ${days} ${days === 1 ? "day" : "days"}` : "";
+    return mPart + dPart;
+  }
   return `${value} days`;
 }
 
