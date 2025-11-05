@@ -119,7 +119,7 @@ export default function ConfirmLeadModal({
   const remark = titleCaseWords(lead.remark ?? "");
   const assignedRmDisplay = lead.assignedRmName?.trim()
     ? lead.assignedRmName.trim()
-    : "Auto assign (system)";
+    : "Unassigned";
 
   const gender = valueToLabel(lead.gender as string, genderOptions);
   const age = lead.age ? String(lead.age) : "";

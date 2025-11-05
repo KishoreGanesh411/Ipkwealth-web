@@ -13,6 +13,7 @@ type LeadSnapshotProps = {
     phone?: string | null;
     leadSource?: string | null;
     profession?: string | null;
+    approachAt?: string | null;
     createdAt?: string | null;
   };
   stageSelect: React.ReactNode;
@@ -23,15 +24,16 @@ export default function LeadSnapshot({ lead, stageSelect }: LeadSnapshotProps) {
 
   const phone = displayPhone(lead);
   const clientType = inferClientTypeFromProfession(lead.profession ?? undefined);
-  const createdAt = lead.createdAt ? new Date(lead.createdAt) : null;
-  const enteredOn = createdAt
+  const enteredRaw = lead.approachAt || lead.createdAt || null;
+  const enteredAt = enteredRaw ? new Date(enteredRaw) : null;
+  const enteredOn = enteredAt
     ? new Intl.DateTimeFormat(undefined, {
         day: "2-digit",
         month: "short",
         year: "numeric",
-      }).format(createdAt)
+      }).format(enteredAt)
     : "--";
-  const aging = createdAt ? describeLeadAge(createdAt) : "--";
+  const aging = enteredAt ? describeLeadAge(enteredAt) : "--";
 
   const leadHighlights = [
     { label: "Lead source", value: fallback(lead.leadSource) },

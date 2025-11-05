@@ -522,9 +522,27 @@ export default function LeadDataTable() {
             title="View Mode"
           >
             <option value="open">open</option>
-            <option value="all">All</option>
+            {isAdmin && <option value="all">All</option>}
             <option value="dormant">Dormant</option>
           </select>
+
+          {/* Quick filter: Unassigned vs All */}
+          {!isDormant && (
+            <select
+              value={filters.rm === 'UNASSIGNED' ? 'UNASSIGNED' : ''}
+              onChange={(e) => {
+                const v = e.target.value as '' | 'UNASSIGNED';
+                setFilters((p) => ({ ...p, rm: v === 'UNASSIGNED' ? 'UNASSIGNED' : null }));
+                setPage(1);
+              }}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none dark:border-white/10 dark:bg-white/10 dark:text-white/80"
+              title="Assigned Filter"
+              aria-label="Assigned filter"
+            >
+              <option value="">All</option>
+              <option value="UNASSIGNED">Unassigned</option>
+            </select>
+          )}
 
           <SearchBar
             ref={searchRef}
@@ -536,7 +554,7 @@ export default function LeadDataTable() {
             onReset={handleReset}
           />
 
-                    <button
+          <button
             type="button"
             onClick={() => setFilterOpen(true)}
             className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/5"
@@ -677,6 +695,7 @@ export default function LeadDataTable() {
           generateLead={generateLead}
           generating={generating}
           genDone={genDone}
+          showGenerate={filters.rm === 'UNASSIGNED'}
         />
       )}
 

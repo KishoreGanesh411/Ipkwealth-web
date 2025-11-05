@@ -297,7 +297,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
 
   /** Basic summary fields displayed on the header card */
   const leadSummary = useMemo(() => {
-    const enteredOnRaw = lead.firstSeenAt || lead.createdAt || null;
+    const enteredOnRaw = lead.approachAt || lead.createdAt || null;
     let agingDaysNum: number | null = null;
     if (enteredOnRaw) {
       try {
@@ -331,7 +331,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       { label: "Investment / SIP", value: invValue },
     ];
     return items;
-  }, [lead.leadSource, lead.firstSeenAt, lead.createdAt, lead.product, lead.investmentRange, lead.sipAmount]);
+  }, [lead.leadSource, lead.approachAt, lead.createdAt, lead.product, lead.investmentRange, lead.sipAmount]);
 
   const highlightSummary = leadSummary.slice(0, 2);
   const detailSummary = leadSummary.slice(2);
@@ -502,9 +502,14 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
     };
     if (list && list.length > 0) {
       const sorted = list.slice().sort((a, b) => ts(b.createdAt) - ts(a.createdAt));
-      return (sorted[0]?.text ?? "").toString();
+      return (sorted[0]?.text ?? '').toString();
     }
-    return (lead.remark ?? "").toString();
+    const raw: any = (lead as any).remark;
+    if (raw && typeof raw === 'object') {
+      if (typeof raw.text === 'string') return raw.text;
+      try { return JSON.stringify(raw, null, 2); } catch { return String(raw); }
+    }
+    return (raw ?? '').toString();
   }, [lead.remarks, lead.remark]);
 
   const remarksModalBody = useMemo(() => {
@@ -831,6 +836,7 @@ function RemarkBioModal({ title, isOpen, onClose, body }: { title: string; isOpe
     </Modal>
   );
 }
+
 
 
 

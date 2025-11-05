@@ -47,7 +47,7 @@ export default function LeadStagesPage() {
       email: n.email ?? null,
       mobile: n.phone ?? null,
       location: undefined,
-      agingDays: n.createdAt ? Math.max(0, Math.floor((Date.now() - Date.parse(n.createdAt)) / 86400000)) : undefined,
+      agingDays: (n.approachAt || n.createdAt) ? Math.max(0, Math.floor((Date.now() - Date.parse(n.approachAt || n.createdAt)) / 86400000)) : undefined,
       leadSource: n.leadSource ?? '-',
       // For the Status column we now show the new lead stage filter when present
       status: n.stageFilter || n.clientStage || n.status || undefined,
@@ -233,3 +233,4 @@ function FilterBox({
     </div>
   );
 }
+
