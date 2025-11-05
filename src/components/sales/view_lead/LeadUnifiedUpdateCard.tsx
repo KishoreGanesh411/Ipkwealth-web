@@ -4,12 +4,12 @@ import { toast } from 'react-toastify';
 import { Flag, Milestone, Clock3, StickyNote, ChevronDown } from 'lucide-react';
 
 import {
-  UPDATE_LEAD_STATUS,
   CHANGE_STAGE,
   CREATE_LEAD_EVENT,
   ADD_LEAD_NOTE,
   UPDATE_LEAD_REMARK,
 } from './gql/view_lead.gql';
+import { UPDATE_LEAD_DETAILS } from '@/components/sales/editLead/update_gql/update_lead.gql';
 
 import type { LeadStage, LeadStatus } from '@/components/sales/myleads/interface/type';
 
@@ -24,7 +24,16 @@ const CARD = 'rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:bor
 const INPUT = 'rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-zinc-900 outline-none dark:border-white/10 dark:bg-white/5 dark:text-white';
 const BTN = 'rounded-xl bg-emerald-600 text-white px-4 py-2 border border-emerald-600 disabled:bg-zinc-300 disabled:text-white/70';
 
-const STATUS_OPTIONS: Array<LeadStatus | string> = ['PENDING','OPEN','IN_PROGRESS','ON_HOLD','CLOSED','ASSIGNED'];
+// Replace legacy status options with Stage Filter options for the Sales flow
+const STATUS_OPTIONS: Array<string> = [
+  'FUTURE_INTERESTED',
+  'HIGH_PRIORITY',
+  'LOW_PRIORITY',
+  'NEED_CLARIFICATION',
+  'NOT_ELIGIBLE',
+  'NOT_INTERESTED',
+  'ON_PROCESS',
+];
 const STAGE_OPTIONS: Array<LeadStage | string> = [
   'NEW_LEAD','FIRST_TALK_DONE','FOLLOWING_UP','CLIENT_INTERESTED','ACCOUNT_OPENED','NO_RESPONSE_DORMANT','NOT_INTERESTED_DORMANT','RISKY_CLIENT_DORMANT','HIBERNATED',
 ];
@@ -40,7 +49,7 @@ export default function LeadUnifiedUpdateCard({ leadId, currentStatus, currentSt
   const [notes, setNotes] = useState<string>('');
   const [saving, setSaving] = useState(false);
 
-  const [mutStatus] = useMutation(UPDATE_LEAD_STATUS);
+  const [mutUpdateDetails] = useMutation(UPDATE_LEAD_DETAILS);
   const [mutStage] = useMutation(CHANGE_STAGE);
   const [mutInteraction] = useMutation(CREATE_LEAD_EVENT);
   const [mutNote] = useMutation(ADD_LEAD_NOTE);
@@ -57,9 +66,23 @@ export default function LeadUnifiedUpdateCard({ leadId, currentStatus, currentSt
     const ops: Promise<any>[] = [];
     setSaving(true);
     try {
-      // status change
+      // Stage filter change (shown as Status in UI)
       if (String(status) !== String(currentStatus)) {
-        ops.push(mutStatus({ variables: { leadId, status } }));
+        ops.push(
+          mutUpdateDetails({
+            variables: { input: { leadId, stageFilter: status } },
+            update(cache, result) {
+              const payload = (result?.data as any)?.updateLeadDetails;
+              if (!payload?.id) return;
+              cache.modify({
+                id: cache.identify({ __typename: 'IpkLeaddEntity', id: payload.id }),
+                fields: {
+                  stageFilter: () => status,
+                },
+              });
+            },
+          })
+        );
       }
 
       // stage change (always)
@@ -123,20 +146,7 @@ export default function LeadUnifiedUpdateCard({ leadId, currentStatus, currentSt
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 flex-1">
-        {/* Status */}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Lead status</label>
-          <div className="relative">
-            <select className={`${INPUT} w-full appearance-none pr-8`} value={status} onChange={(e) => setStatus(e.target.value)}>
-              {STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
-            <ChevronDown className="pointer-events-none absolute right-2 top-2.5 h-4 w-4 text-zinc-400" />
-          </div>
-        </div>
-
-        {/* Stage */}
+        {/* Stage (left) */}
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-500">Pipeline stage</label>
           <div className="relative">
@@ -146,6 +156,19 @@ export default function LeadUnifiedUpdateCard({ leadId, currentStatus, currentSt
               ))}
             </select>
             <Milestone className="pointer-events-none absolute right-2 top-2.5 h-4 w-4 text-zinc-400" />
+          </div>
+        </div>
+
+        {/* Status (right) */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">Lead status</label>
+          <div className="relative">
+            <select className={`${INPUT} w-full appearance-none pr-8`} value={status} onChange={(e) => setStatus(e.target.value)}>
+              {STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
+              ))}
+            </select>
+            <ChevronDown className="pointer-events-none absolute right-2 top-2.5 h-4 w-4 text-zinc-400" />
           </div>
         </div>
 

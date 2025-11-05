@@ -251,6 +251,7 @@ export const AuthProvider: React.FC<React.PropsWithChildren> = ({
       try {
         const token = await current.getIdToken(false);
         setIdToken(token);
+         console.log("🔥 Firebase ID Token:", token);
         
       } catch (error) {
         console.error("Failed to retrieve ID token", error);

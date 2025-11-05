@@ -1,5 +1,5 @@
 ﻿import { useCallback, useEffect, useRef, useState } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useSidebar } from "@/context/SidebarContext";
 import {
   GridIcon,
@@ -54,6 +54,7 @@ const salesNav: NavItem[] = [
   {
     icon: <UserCircleIcon />,
     name: 'Lead Management',
+    path: '/sales/stages',
     subItems: [
       { name: 'My Leads', path: '/sales/stages' },
       { name: 'Lead Profile', path: '/sales/leads' },
@@ -111,6 +112,7 @@ const AppSidebar: React.FC = () => {
   const hasOthers = othersItems.length > 0;
   const { isExpanded, isMobileOpen, isHovered, setIsHovered } = useSidebar();
   const location = useLocation();
+  const navigate = useNavigate();
 
   const [openSubmenu, setOpenSubmenu] = useState<{
     type: "main" | "others";
@@ -212,7 +214,11 @@ const AppSidebar: React.FC = () => {
         <li key={nav.name}>
           {nav.subItems ? (
             <button
-              onClick={() => handleSubmenuToggle(index, menuType)}
+              onClick={() => {
+                handleSubmenuToggle(index, menuType);
+                // If parent has a default path, navigate to it (e.g., Lead Management -> My Leads)
+                if (nav.path) navigate(nav.path);
+              }}
               className={`menu-item group ${openSubmenu?.type === menuType && openSubmenu?.index === index
                   ? "menu-item-active"
                   : "menu-item-inactive"

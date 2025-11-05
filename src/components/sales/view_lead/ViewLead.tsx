@@ -299,7 +299,7 @@ export default function ViewLead() {
           <div className="h-full min-h-0">
             <LeadUnifiedUpdateCard
               leadId={leadId}
-              currentStatus={pickLeadStatus<string>(lead.status) as any}
+              currentStatus={(lead.stageFilter as any) ?? (pickLeadStatus<string>(lead.status) as any)}
               currentStage={pickLeadStage(lead.clientStage as any) as any}
               onSaved={() => refetch()}
             />

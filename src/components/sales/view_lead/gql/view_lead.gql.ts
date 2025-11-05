@@ -53,6 +53,7 @@ export const FRAG_LEAD_BASE = gql`
     sipAmount
 
     status
+    stageFilter
     clientStage
     archived
 

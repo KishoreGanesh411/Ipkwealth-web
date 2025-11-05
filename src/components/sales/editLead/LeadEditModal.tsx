@@ -5,7 +5,7 @@ import { useMutation } from "@apollo/client";
 import Label from "../../form/Label";
 import { toast } from "react-toastify";
 import { UPDATE_LEAD_DETAILS } from "../editLead/update_gql/update_lead.gql";
-import { UPDATE_LEAD_BIO } from "@/components/sales/view_lead/gql/view_lead.gql";
+import { UPDATE_LEAD_BIO, CHANGE_STAGE } from "@/components/sales/view_lead/gql/view_lead.gql";
 import {
   genderOptions,
   professionOptions,
@@ -29,6 +29,8 @@ export type LeadEditModalValues = Partial<LeadShape & OptionalExtras> & {
   fullName?: string;
   name?: string | null;
   leadCode?: string | null;
+  clientStage?: string | null;
+  stageFilter?: string | null;
   occupations?: Array<{
     profession?: string;
     companyName?: string;
@@ -63,6 +65,7 @@ export default function LeadEditModal({
   const firstRef = useRef<HTMLInputElement | null>(null);
   const [mutUpdate, { loading: mutating }] = useMutation(UPDATE_LEAD_DETAILS);
   const [mutBio] = useMutation(UPDATE_LEAD_BIO);
+  const [mutStage] = useMutation(CHANGE_STAGE);
 
   const leadIdFromUrl = useMemo(() => {
     try {
@@ -191,11 +194,33 @@ export default function LeadEditModal({
         age: payload.age ?? undefined,
         occupations: payload.occupations,
         bioText: payload.bioText,
+        email: normalize((form as any).email) ?? undefined,
+        phone: normalize((form as any).phone) ?? undefined,
+        product: normalize((form as any).product) ?? undefined,
+        investmentRange: normalize((form as any).investmentRange) ?? undefined,
+        sipAmount: (() => {
+          const sv = String((form as any).sipAmount ?? '').trim();
+          if (!sv) return undefined;
+          const n = Number(sv);
+          return Number.isFinite(n) ? n : undefined;
+        })(),
+        referralCode: normalize((form as any).referralCode) ?? undefined,
+        referralName: normalize((form as any).referralName) ?? undefined,
+        leadSource: normalize((form as any).leadSource) ?? undefined,
+        stageFilter: normalize((form as any).stageFilter) ?? undefined,
       };
       Object.keys(input).forEach((k) => input[k] === undefined && delete input[k]);
       if (!input.leadId) throw new Error("Missing leadId for update");
 
       await mutUpdate({ variables: { input } });
+
+      // Update stage if changed
+      const nextStage = String((form as any).clientStage ?? '').trim();
+      const prevStage = String((initial as any)?.clientStage ?? '').trim();
+      const stageLeadId = input.leadId;
+      if (nextStage && nextStage !== prevStage && stageLeadId) {
+        await mutStage({ variables: { input: { leadId: stageLeadId, stage: nextStage } } });
+      }
 
       const leadId = input.leadId;
       const nextBio = String(payload.bioText ?? "").trim();
@@ -248,7 +273,15 @@ export default function LeadEditModal({
               </Field>
             </div>
 
-            {/* Email/Phone are not editable here */}
+            {/* Contact */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Email">
+                <input className={INPUT} value={String((form as any).email ?? "")} onChange={(e) => (handle as any)("email", e.target.value)} placeholder="email@example.com" />
+              </Field>
+              <Field label="Phone">
+                <input className={INPUT} value={String((form as any).phone ?? "")} onChange={(e) => (handle as any)("phone", e.target.value)} placeholder="10-digit mobile" />
+              </Field>
+            </div>
 
             <Field label="Location">
               <input className={INPUT} value={String(form.location ?? "")} onChange={(e) => handle("location", e.target.value)} placeholder="City / Area" />
@@ -335,9 +368,56 @@ export default function LeadEditModal({
               </Field>
             </div>
 
-            {/* Product/SIP are not editable here */}
+            {/* Opportunity */}
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Product">
+                <input className={INPUT} value={String((form as any).product ?? "")} onChange={(e) => (handle as any)("product", e.target.value)} placeholder="e.g. SIP" />
+              </Field>
+              <Field label="Investment range">
+                <input className={INPUT} value={String((form as any).investmentRange ?? "")} onChange={(e) => (handle as any)("investmentRange", e.target.value)} placeholder="e.g. 1L-5L" />
+              </Field>
+              <Field label="SIP amount">
+                <input className={INPUT} value={String((form as any).sipAmount ?? "")} onChange={(e) => (handle as any)("sipAmount", e.target.value)} placeholder="e.g. 5000" inputMode="numeric" />
+              </Field>
+            </div>
 
-            {/* Lead source is view-only in the InfoTile */}
+            {/* Referral + source */}
+            <div className="grid grid-cols-3 gap-3">
+              <Field label="Referral code">
+                <input className={INPUT} value={String((form as any).referralCode ?? "")} onChange={(e) => (handle as any)("referralCode", e.target.value)} />
+              </Field>
+              <Field label="Referral name">
+                <input className={INPUT} value={String((form as any).referralName ?? "")} onChange={(e) => (handle as any)("referralName", e.target.value)} />
+              </Field>
+              <Field label="Lead source">
+                <select className={INPUT} value={String((form as any).leadSource ?? "")} onChange={(e) => (handle as any)("leadSource", e.target.value)}>
+                  <option value="">Select source</option>
+                  {leadOptions.map((o: any) => (
+                    <option key={o.value} value={o.value}>{o.label}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
+
+            {/* Stage controls */}
+            <div className="grid grid-cols-2 gap-3">
+              <Field label="Pipeline stage">
+                <select className={INPUT} value={String((form as any).clientStage ?? "")} onChange={(e) => (handle as any)("clientStage", e.target.value)}>
+                  {[
+                    'NEW_LEAD','FIRST_TALK_DONE','FOLLOWING_UP','CLIENT_INTERESTED','ACCOUNT_OPENED','NO_RESPONSE_DORMANT','NOT_INTERESTED_DORMANT','RISKY_CLIENT_DORMANT','HIBERNATED',
+                  ].map((s) => (
+                    <option key={s} value={s}>{s.replace(/_/g,' ')}</option>
+                  ))}
+                </select>
+              </Field>
+              <Field label="Lead status (Stage filter)">
+                <select className={INPUT} value={String((form as any).stageFilter ?? "")} onChange={(e) => (handle as any)("stageFilter", e.target.value)}>
+                  {['FUTURE_INTERESTED','HIGH_PRIORITY','LOW_PRIORITY','NEED_CLARIFICATION','NOT_ELIGIBLE','NOT_INTERESTED','ON_PROCESS'].map((s) => (
+                    <option key={s} value={s}>{s.replace(/_/g,' ')}</option>
+                  ))}
+                </select>
+              </Field>
+            </div>
 
             <Field label="Biography (optional)">
               <textarea
@@ -353,8 +433,8 @@ export default function LeadEditModal({
           <div className="flex flex-col gap-2 rounded-2xl border border-dashed border-emerald-200 bg-emerald-50/60 p-4 text-xs text-emerald-700 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-100">
             <p className="font-semibold">Heads up before saving</p>
             <ul className="list-disc space-y-1 pl-5">
-              <li>Only profile fields are editable here.</li>
-              <li>Lead code and source are read-only.</li>
+              <li>You can update profile, opportunity, stage and lead status here.</li>
+              <li>Lead code remains read-only.</li>
             </ul>
           </div>
         </div>

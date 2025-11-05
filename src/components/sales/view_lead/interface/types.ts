@@ -152,6 +152,7 @@ export type LeadProfile = {
   sipAmount?: number | null;
 
   status: LeadStatus | string;
+  stageFilter?: string | null;
   clientStage?: LeadStage | string | null;
   clientStageRaw?: string | null;
   archived: boolean;

@@ -43,6 +43,7 @@ type MyAssignedLeadNode = {
   city?: string | null;
   leadSource?: string | null;
   status?: string | null;
+  stageFilter?: string | null;
   clientStage?: string | null;
   createdAt?: string | null;
   firstSeenAt?: string | null;
@@ -149,12 +150,13 @@ function normalizeLead(node: MyAssignedLeadNode): Lead {
   const isNew = assignedAt ? isRecentAssignment(assignedAt) : false;
 
   const statusRaw = typeof node.status === "string" ? node.status : undefined;
+  const stageFilterRaw = typeof node.stageFilter === "string" ? node.stageFilter : undefined;
   const clientStageRaw = typeof node.clientStage === "string" ? node.clientStage : undefined;
 
   const stageFromStatus = statusRaw && isLeadStage(statusRaw) ? (statusRaw as LeadStage) : undefined;
   const stageValue = (clientStageRaw && isLeadStage(clientStageRaw) ? clientStageRaw : undefined) ?? stageFromStatus;
-  const statusValue =
-    statusRaw && !isLeadStage(statusRaw) ? (statusRaw as LeadStatus) : undefined;
+  // Prefer stageFilter for the Status column; fallback to non-stage LeadStatus
+  const statusValue = (stageFilterRaw as any) ?? (statusRaw && !isLeadStage(statusRaw) ? (statusRaw as LeadStatus) : undefined);
 
   return {
     id: node.id,

@@ -19,6 +19,17 @@ export enum LeadStatus {
   LOST = 'LOST',
 }
 
+// New Stage Filter classification (separate from pipeline stage)
+export enum LeadStageFilter {
+  FUTURE_INTERESTED = 'FUTURE_INTERESTED',
+  HIGH_PRIORITY = 'HIGH_PRIORITY',
+  LOW_PRIORITY = 'LOW_PRIORITY',
+  NEED_CLARIFICATION = 'NEED_CLARIFICATION',
+  NOT_ELIGIBLE = 'NOT_ELIGIBLE',
+  NOT_INTERESTED = 'NOT_INTERESTED',
+  ON_PROCESS = 'ON_PROCESS',
+}
+
 export type ClientStatus = LeadStage;
 
 export type Lead = {
@@ -30,7 +41,8 @@ export type Lead = {
   location?: string | null;
   agingDays?: number;
   leadSource: string;
-  status?: LeadStage | LeadStatus;
+  // Status column in Sales pages shows the Stage Filter when available
+  status?: LeadStage | LeadStatus | LeadStageFilter | string | null;
   clientStage?: LeadStage;
   gender?: 'Male' | 'Female' | 'Other' | string;
   product?: string;

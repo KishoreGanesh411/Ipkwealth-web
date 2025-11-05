@@ -13,6 +13,7 @@ export const LEAD_FIELDS = gql`
     assignedRM
     assignedRmId
     status
+    stageFilter
     clientStage
     createdAt
     lastContactedAt
