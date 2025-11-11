@@ -1,16 +1,27 @@
-// src/components/lead/LeadData/LeadDataTable.tsx
+﻿// src/components/lead/LeadData/LeadDataTable.tsx
 import {
   memo, useCallback, useEffect, useMemo, useRef, useState, forwardRef,
 } from "react";
 import { useLazyQuery, useMutation, useApolloClient, ApolloError } from "@apollo/client";
-import { LEADS_OPEN, ASSIGN_LEAD, ASSIGN_LEADS } from "@/core/graphql/lead/lead.gql";
+import { LEADS_OPEN, ASSIGN_LEAD, ASSIGN_LEADS, REASSIGN_LEAD } from "@/core/graphql/lead/lead.gql";
 import Alert from "@/components/ui/alert/Alert";
 import { Table, TableBody } from "@/components/ui/table";
 import { LeadTableHeader } from "./LeadTableHeader";
 import { LeadTableRow, Row } from "./LeadTableRow";
 import { LeadTableFooter } from "./LeadTableFooter";
 import { PAGE_SIZE, TopCenterLoader, useDebounced } from "./leadHelpers";
+import { Loader2 } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
 import * as XLSX from "xlsx";
+import LeadFiltersModal, { LeadFilters } from "./LeadFilters";
+import {
+  titleCaseWords,
+  valueToLabel,
+  leadOptions,
+  humanizeEnum,
+} from "@/components/lead/types";
+import { useAuth } from "@/context/AuthContex";
+import { useRms } from "@/core/graphql/user/useRms";
 
 /* ----------------------------- GQL shapes ----------------------------- */
 type LeadItemGql = {
@@ -32,6 +43,7 @@ type LeadItemGql = {
   assignedRM?: string | null;
   // Note: some APIs expose assignedRm { name }, keep fallback usage safe:
   assignedRm?: { name?: string | null } | null;
+  assignedRmId?: string | null;
 
   status?: string | null;
 };
@@ -63,7 +75,34 @@ type Notice =
   | { variant: "success" | "warning" | "error" | "info"; title: string; message: string }
   | null;
 
-type ViewMode = "pending" | "all" | "dormant";
+type ViewMode = "Open" | "all" | "dormant";
+
+/* ------------------------------ Formatters ------------------------------ */
+
+const toTitleOrNull = (value?: string | null): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return titleCaseWords(trimmed);
+};
+
+const toDisplayName = (lead: LeadItemGql): string => {
+  const composed = lead.name || [lead.firstName, lead.lastName].filter(Boolean).join(" ");
+  const trimmed = composed.trim();
+  if (!trimmed) return "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â";
+  return titleCaseWords(trimmed);
+};
+
+const toLeadSource = (value?: string | null): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return valueToLabel(trimmed, leadOptions, true);
+};
+
+const toStatus = (value?: string | null): string | null => {
+  const trimmed = value?.trim();
+  if (!trimmed) return null;
+  return humanizeEnum(trimmed);
+};
 
 /* ------------------------ Search (memo + ref) ------------------------ */
 type SearchBarProps = { value: string; onChange: (v: string) => void; onReset: () => void };
@@ -117,16 +156,16 @@ function DormantRow({
 }) {
   return (
     <tr className="hover:bg-gray-50/60 dark:hover:bg-white/5">
-      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.leadCode ?? "—"}</td>
+      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.leadCode ?? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</td>
       <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.name}</td>
-      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.phone ?? "—"}</td>
-      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.source ?? "—"}</td>
+      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.phone ?? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</td>
+      <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.source ?? "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}</td>
       <td className="px-5 py-3 text-sm text-gray-800 dark:text-white/90">{r.reenterCount ?? 0}</td>
       <td className="px-5 py-3 text-sm text-gray-600 dark:text-white/70">
-        {r.firstSeenAt ? new Date(r.firstSeenAt).toLocaleDateString() : "—"}
+        {r.firstSeenAt ? new Date(r.firstSeenAt).toLocaleDateString() : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
       </td>
       <td className="px-5 py-3 text-sm text-gray-600 dark:text-white/70">
-        {r.lastSeenAt ? new Date(r.lastSeenAt).toLocaleDateString() : "—"}
+        {r.lastSeenAt ? new Date(r.lastSeenAt).toLocaleDateString() : "ÃƒÆ’Ã‚Â¢ÃƒÂ¢Ã¢â‚¬Å¡Ã‚Â¬ÃƒÂ¢Ã¢â€šÂ¬Ã‚Â"}
       </td>
     </tr>
   );
@@ -137,17 +176,40 @@ const EMPTY_ITEMS: ReadonlyArray<LeadItemGql> = Object.freeze([]);
 
 export default function LeadDataTable() {
   const client = useApolloClient();
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  // Only admins can load RM roster to avoid 400 for marketing users
+  const { rms, loading: rmsLoading, error: rmsError } = useRms(isAdmin);
+  const assignableRmOptions = useMemo(
+    () => rms.map((rm) => ({ value: rm.id, label: rm.name })),
+    [rms],
+  );
 
-  const [mode, setMode] = useState<ViewMode>("pending");
+  const [mode, setMode] = useState<ViewMode>("Open");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounced(search, 350);
 
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [notice, setNotice] = useState<Notice>(null);
+  // Auto-dismiss success notices after 6 seconds
+  useEffect(() => {
+    if (!notice || notice.variant !== "success") return;
+    const t = window.setTimeout(() => setNotice(null), 6000);
+    return () => window.clearTimeout(t);
+  }, [notice]);
   const [genDone, setGenDone] = useState(false);
+  const [filters, setFilters] = useState<LeadFilters>({ from: null, to: null, rm: null, source: null });
+  const [filterOpen, setFilterOpen] = useState(false);
+  const [updatingLeadId, setUpdatingLeadId] = useState<string | null>(null);
+  const [confirmAssign, setConfirmAssign] = useState<{
+    leadId: string;
+    rmId: string | null;
+    rmName: string;
+    leadName: string;
+  } | null>(null);
 
-  const isPending = mode === "pending";
+  const isOpenView = mode === "Open";
   const isDormant = mode === "dormant";
 
   const dormantDays = Number(import.meta.env.VITE_DORMANT_DAYS ?? 60);
@@ -158,13 +220,13 @@ export default function LeadDataTable() {
         page,
         pageSize: PAGE_SIZE,
         archived: false,
-        status: isPending ? "OPEN" : null,
+         status: isOpenView ? "OPEN" : null,
         search: debouncedSearch || null,
         dormantOnly: isDormant ? true : null,
         dormantDays: isDormant ? dormantDays : null,
       },
     }),
-    [page, debouncedSearch, isPending, isDormant, dormantDays],
+    [page, debouncedSearch, isOpenView, isDormant, dormantDays],
   );
 
   const [runLeads, { data, loading, error, previousData, networkStatus }] = useLazyQuery<
@@ -202,12 +264,13 @@ export default function LeadDataTable() {
       items.map((l) => ({
         id: l.id ?? "",
         leadCode: l.leadCode ?? null,
-        name: l.name || [l.firstName, l.lastName].filter(Boolean).join(" ") || "—",
+        name: toDisplayName(l),
         phone: l.phone ?? null,
-        source: l.leadSource ?? null,
+        source: toLeadSource(l.leadSource),
         createdAt: l.createdAt ?? null,
-        assignedRm: l.assignedRM ?? l.assignedRm?.name ?? null,
-        status: l.status ?? null,
+        assignedRm: toTitleOrNull(l.assignedRM ?? l.assignedRm?.name ?? null),
+        assignedRmId: l.assignedRmId ?? null,
+        status: toStatus(l.status),
         firstSeenAt: l.firstSeenAt ?? null,
         lastSeenAt: l.lastSeenAt ?? null,
         reenterCount: l.reenterCount ?? 0,
@@ -215,11 +278,47 @@ export default function LeadDataTable() {
     [items],
   );
 
+  const filterRmOptions = useMemo(() => {
+    const names = new Set<string>();
+    for (const r of rows) if (r.assignedRm) names.add(r.assignedRm);
+    return Array.from(names).sort();
+  }, [rows]);
+
+  const visibleRows = useMemo(() => {
+    const lower = (s?: string | null) => (s || '').toLowerCase().trim();
+    return rows.filter((r) => {
+      if (filters.rm) {
+        if (filters.rm === 'UNASSIGNED') {
+          if (r.assignedRm) return false;
+        } else if (lower(r.assignedRm) !== lower(filters.rm)) {
+          return false;
+        }
+      }
+      if (filters.source && lower(r.source) !== lower(filters.source)) return false;
+      if (filters.from || filters.to) {
+        if (!r.createdAt) return false;
+        const ts = Date.parse(r.createdAt);
+        if (Number.isNaN(ts)) return false;
+        const d = new Date(ts);
+        const only = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
+        if (filters.from) {
+          const [fy, fm, fd] = String(filters.from).split('-').map((x) => parseInt(x, 10));
+          if (only < Date.UTC(fy, fm - 1, fd)) return false;
+        }
+        if (filters.to) {
+          const [ty, tm, td] = String(filters.to).split('-').map((x) => parseInt(x, 10));
+          if (only > Date.UTC(ty, tm - 1, td)) return false;
+        }
+      }
+      return true;
+    });
+  }, [rows, filters]);
+
   // Selection helpers (unused in Dormant mode)
   const rowKey = (r: Row) => r.id;
-  const allSelected = rows.length > 0 && rows.every((r) => selected.has(rowKey(r)));
+  const allSelected = visibleRows.length > 0 && visibleRows.every((r) => selected.has(rowKey(r)));
   const toggleAll = (checked: boolean) => {
-    const ids = new Set(rows.map(rowKey));
+    const ids = new Set(visibleRows.map(rowKey));
     setSelected((prev) => {
       const next = new Set(prev);
       if (checked) ids.forEach((k) => next.add(k));
@@ -238,8 +337,19 @@ export default function LeadDataTable() {
 
   // Actions (disabled in Dormant mode)
   const [assignLeadMut, { loading: loadingSingle }] = useMutation(ASSIGN_LEAD);
+  const [reassignLeadMut] = useMutation(REASSIGN_LEAD);
   const [assignLeadsMut, { loading: loadingBatch }] = useMutation(ASSIGN_LEADS);
   const generating = loadingSingle || loadingBatch || networkStatus === 3;
+
+  useEffect(() => {
+    if (rmsError) {
+      setNotice({
+        variant: "error",
+        title: "Failed to load RM list",
+        message: rmsError.message,
+      });
+    }
+  }, [rmsError]);
 
   const onEdit = (r: Row) =>
     setNotice({ variant: "info", title: "Edit Lead", message: `Editing ${r.name} (${r.phone ?? ""})` });
@@ -247,9 +357,48 @@ export default function LeadDataTable() {
   const onDelete = () =>
     setNotice({ variant: "info", title: "Not Implemented", message: "Contact Admin to delete this." });
 
-  const refetchActive = async () => {
+  const refetchActive = useCallback(async () => {
     await client.refetchQueries({ include: "active" });
-  };
+  }, [client]);
+
+  const handleAssignRm = useCallback(
+    async (leadId: string, rmId: string | null) => {
+      if (!leadId || !isAdmin) return;
+      const current = rows.find((r) => r.id === leadId);
+      if (current && (current.assignedRmId ?? null) === (rmId ?? null)) return;
+
+      try {
+        setUpdatingLeadId(leadId);
+        if (rmId) {
+          await reassignLeadMut({ variables: { input: { leadId, newRmId: rmId } } });
+        } else {
+          await assignLeadMut({ variables: { id: leadId } });
+        }
+        await refetchActive();
+        await runLeads({ variables });
+
+        const rmName = rmId
+          ? assignableRmOptions.find((opt) => opt.value === rmId)?.label ?? "selected RM"
+          : "Auto assign";
+        const leadName = current?.name ?? "Selected lead";
+        setNotice({
+          variant: "success",
+          title: "RM updated",
+          message: rmId
+            ? `${leadName} re-assigned to ${rmName}.`
+            : `${leadName} set to auto assign.`,
+        });
+      } catch (err) {
+        let message = "Unknown error";
+        if (err instanceof ApolloError) message = err.graphQLErrors[0]?.message || err.message;
+        else if (err instanceof Error) message = err.message;
+        setNotice({ variant: "error", title: "Assignment Failed", message });
+      } finally {
+        setUpdatingLeadId(null);
+      }
+    },
+    [rows, assignLeadMut, refetchActive, runLeads, variables, assignableRmOptions, isAdmin],
+  );
 
   const generateLead = async () => {
     if (isDormant) return; // not allowed in Dormant view
@@ -294,7 +443,7 @@ export default function LeadDataTable() {
 
   // Download XLSX (context-aware)
   const handleDownloadXlsx = () => {
-    const chosen = selected.size > 0 && !isDormant ? rows.filter((r) => selected.has(r.id)) : rows;
+    const chosen = selected.size > 0 && !isDormant ? visibleRows.filter((r) => selected.has(r.id)) : visibleRows;
 
     const exportRows = isDormant
       ? chosen.map((r) => ({
@@ -325,6 +474,7 @@ export default function LeadDataTable() {
   const searchRef = useRef<HTMLInputElement>(null);
   const handleReset = () => {
     setSearch("");
+    setFilters({ from: null, to: null, rm: null, source: null });
     setSelected(new Set());
     setPage(1);
     requestAnimationFrame(() => {
@@ -334,11 +484,11 @@ export default function LeadDataTable() {
     setNotice({ variant: "success", title: "Filters Cleared", message: "Showing latest leads." });
   };
 
-  const showAdvancedCols = !isDormant && rows.some((l) => !!l.leadCode || !!l.assignedRm);
+  const showAdvancedCols = !isDormant && visibleRows.some((l) => !!l.leadCode || !!l.assignedRm);
 
   return (
     <div className="relative overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
-      <TopCenterLoader show={loading || generating} text={generating ? "Generating…" : "Loading…"} />
+      <TopCenterLoader show={loading || generating} />
 
       {notice && (
         <div className="p-3">
@@ -355,7 +505,7 @@ export default function LeadDataTable() {
       <div className="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-white/[0.05] md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-base font-medium text-gray-800 dark:text-white/90">
-            Leads ({mode === "pending" ? "Pending Only" : mode === "dormant" ? "Dormant" : "All"})
+            Leads ({mode === "Open" ? "Open" : mode === "dormant" ? "Dormant" : "All"})
           </h2>
         </div>
 
@@ -371,10 +521,28 @@ export default function LeadDataTable() {
             className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none dark:border-white/10 dark:bg-white/10 dark:text-white/80"
             title="View Mode"
           >
-            <option value="pending">Pending</option>
-            <option value="all">All</option>
+            <option value="open">open</option>
+            {isAdmin && <option value="all">All</option>}
             <option value="dormant">Dormant</option>
           </select>
+
+          {/* Quick filter: Unassigned vs All */}
+          {!isDormant && (
+            <select
+              value={filters.rm === 'UNASSIGNED' ? 'UNASSIGNED' : ''}
+              onChange={(e) => {
+                const v = e.target.value as '' | 'UNASSIGNED';
+                setFilters((p) => ({ ...p, rm: v === 'UNASSIGNED' ? 'UNASSIGNED' : null }));
+                setPage(1);
+              }}
+              className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none dark:border-white/10 dark:bg-white/10 dark:text-white/80"
+              title="Assigned Filter"
+              aria-label="Assigned filter"
+            >
+              <option value="">All</option>
+              <option value="UNASSIGNED">Unassigned</option>
+            </select>
+          )}
 
           <SearchBar
             ref={searchRef}
@@ -385,6 +553,15 @@ export default function LeadDataTable() {
             }}
             onReset={handleReset}
           />
+
+          <button
+            type="button"
+            onClick={() => setFilterOpen(true)}
+            className="rounded-md border border-gray-200 bg-white px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/5"
+            title="Filter"
+          >
+            Filter
+          </button>
 
           <button
             type="button"
@@ -403,16 +580,20 @@ export default function LeadDataTable() {
             <>
               <DormantHeader />
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                {rows.map((row) => (
+                {visibleRows.map((row) => (
                   <DormantRow key={row.id} r={row} />
                 ))}
-                {rows.length === 0 && (
+                {visibleRows.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={7}
-                      className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
-                    >
-                      {loading ? "Loading…" : "No leads to show."}
+                    <td colSpan={7} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                      {loading ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <Loader2 className="h-4 w-4 animate-spin text-emerald-500 dark:text-emerald-400" />
+                          Loading — please wait
+                        </div>
+                      ) : (
+                        "No leads to show."
+                      )}
                     </td>
                   </tr>
                 )}
@@ -422,31 +603,48 @@ export default function LeadDataTable() {
             <>
               <LeadTableHeader
                 showAdvancedCols={showAdvancedCols}
-                allSelected={rows.length > 0 && allSelected}
+                allSelected={visibleRows.length > 0 && allSelected}
                 toggleAll={toggleAll}
               />
               <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
-                {rows.map((row) => {
+                {visibleRows.map((row) => {
                   const id = rowKey(row);
                   return (
-                    <LeadTableRow
-                      key={id}
-                      row={row}
-                      showAdvancedCols={showAdvancedCols}
-                      isSelected={selected.has(id)}
-                      onToggle={toggleOne}
-                      onEdit={onEdit}
-                      onDelete={onDelete}
-                    />
+              <LeadTableRow
+                  key={id}
+                  row={row}
+                  showAdvancedCols={showAdvancedCols}
+                  canAssignRm={isAdmin}
+                  rmOptions={assignableRmOptions}
+                  rmLoading={rmsLoading}
+                  assigning={updatingLeadId === row.id}
+                  onAssignRm={(leadId: string, rmId: string | null) => {
+                    if (!isAdmin) return;
+                    const r = rows.find((x) => x.id === leadId);
+                    const leadName = r?.name ?? "Selected lead";
+                    const rmName = rmId
+                      ? assignableRmOptions.find((o) => o.value === rmId)?.label ?? "selected RM"
+                      : "Auto assign";
+                    setConfirmAssign({ leadId, rmId, rmName, leadName });
+                  }}
+                  isSelected={selected.has(id)}
+                  onToggle={toggleOne}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
                   );
                 })}
-                {rows.length === 0 && (
+                {visibleRows.length === 0 && (
                   <tr>
-                    <td
-                      colSpan={showAdvancedCols ? 8 : 6}
-                      className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400"
-                    >
-                      {loading ? "Loading…" : "No leads to show."}
+                    <td colSpan={showAdvancedCols ? 8 : 6} className="px-5 py-10 text-center text-sm text-gray-500 dark:text-gray-400">
+                      {loading ? (
+                        <div className="flex items-center justify-center gap-2">
+                          <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-emerald-300 border-t-emerald-600" aria-hidden />
+                          Loading — please wait
+                        </div>
+                      ) : (
+                        "No leads to show."
+                      )}
                     </td>
                   </tr>
                 )}
@@ -456,6 +654,39 @@ export default function LeadDataTable() {
         </Table>
       </div>
 
+      {confirmAssign && (
+        <Modal isOpen={true} onClose={() => setConfirmAssign(null)} className="max-w-md m-4">
+          <div className="rounded-2xl bg-white p-6 dark:bg-gray-900">
+            <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Confirm Assignment</h3>
+            <p className="mt-2 text-sm text-gray-700 dark:text-white/80">
+              Assign <span className="font-medium">{confirmAssign.leadName}</span> to
+              {" "}
+              <span className="font-medium">{confirmAssign.rmName}</span>?
+            </p>
+            <div className="mt-5 flex justify-end gap-3">
+              <button
+                type="button"
+                onClick={() => setConfirmAssign(null)}
+                className="rounded-md border border-gray-200 bg-white px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/10 dark:text-white/80 dark:hover:bg-white/5"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={async () => {
+                  const { leadId, rmId } = confirmAssign;
+                  setConfirmAssign(null);
+                  await handleAssignRm(leadId, rmId);
+                }}
+                className="rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+              >
+                Yes, Assign
+              </button>
+            </div>
+          </div>
+        </Modal>
+      )}
+
       {!isDormant && rows.length > 0 && (
         <LeadTableFooter
           page={page}
@@ -464,8 +695,20 @@ export default function LeadDataTable() {
           generateLead={generateLead}
           generating={generating}
           genDone={genDone}
+          showGenerate={filters.rm === 'UNASSIGNED'}
         />
       )}
+
+
+      <LeadFiltersModal
+        open={filterOpen}
+        onClose={() => setFilterOpen(false)}
+        value={filters}
+        onApply={setFilters}
+        rmOptions={filterRmOptions}
+      />
     </div>
   );
 }
+
+

@@ -1,26 +1,43 @@
 import { gql } from '@apollo/client';
 import { useQuery } from '@apollo/client/react';
 
-// Flip to true only after you actually implement `users` on the backend.
-const HAS_USERS_QUERY = false;
-
+/**
+ * Query active users and filter to role RM.
+ * Matches backend schema: getActiveUsers: [UserEntity!]!
+ * Accept an `enabled` flag to skip the query for non-admins to avoid 400s.
+ */
 const RMS_QUERY = gql`
-  query RmsActive {
-    users(where: { role: RM, status: ACTIVE, archived: false }) {
+  query GetActiveUsers {
+    getActiveUsers {
       id
       name
+      email
+      phone
+      role
     }
   }
 `;
 
-export function useRms() {
-  const { data, loading, error } = HAS_USERS_QUERY
-    ? useQuery(RMS_QUERY, { fetchPolicy: 'cache-first' })
-    : ({ data: undefined, loading: false, error: undefined } as any);
+type RmNode = {
+  id: string;
+  name: string;
+  email?: string | null;
+  phone?: string | null;
+};
+
+export function useRms(enabled: boolean = true) {
+  const { data, loading, error } = useQuery<{ getActiveUsers: Array<RmNode & { role?: string }> }>(RMS_QUERY, {
+    fetchPolicy: 'cache-first',
+    skip: !enabled,
+  });
+
+  const rms = enabled
+    ? (data?.getActiveUsers ?? []).filter((u) => (u.role ?? '').toUpperCase() === 'RM')
+    : [];
 
   return {
-    rms: (HAS_USERS_QUERY ? data?.users ?? [] : []) as Array<{ id: string; name: string }>,
-    loading: HAS_USERS_QUERY ? loading : false,
-    error: HAS_USERS_QUERY ? error : undefined,
+    rms: rms.map((u) => ({ id: u.id, name: u.name })),
+    loading: enabled ? loading : false,
+    error: enabled ? error : undefined,
   };
 }

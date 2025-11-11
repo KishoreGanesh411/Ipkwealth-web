@@ -1,5 +1,4 @@
-// src/core/graphql/lead/lead.gql.ts
-import { gql } from "@apollo/client";
+﻿import { gql } from "@apollo/client";
 
 export const LEAD_FIELDS = gql`
   fragment LeadFields on IpkLeaddEntity {
@@ -8,15 +7,21 @@ export const LEAD_FIELDS = gql`
     firstName
     lastName
     name
+    email
     phone
     leadSource
     assignedRM
+    assignedRmId
     status
+    clientStage
     createdAt
+    lastContactedAt
     # telemetry for dormant view / metrics
     firstSeenAt
     lastSeenAt
     reenterCount
+    remark
+    approachAt
   }
 `;
 
@@ -32,8 +37,88 @@ export const LEADS_PAGED = gql`
   ${LEAD_FIELDS}
 `;
 
-// keep existing import naming in your components
-export { LEADS_PAGED as LEADS_OPEN };
+export const MY_ASSIGNED_LEADS = gql`
+  query MyAssignedLeads($args: LeadListArgs!) {
+    myAssignedLeads(args: $args) {
+      items { ...LeadFields }
+      page
+      pageSize
+      total
+    }
+  }
+  ${LEAD_FIELDS}
+`;
+
+export const MY_ASSIGNED_LEAD_SUMMARY = gql`
+  query MyAssignedLeadSummary {
+    myAssignedLeadSummary {
+      totalAssigned
+      newToday
+      inProgress
+      hotLeads
+      dormant
+      closed
+      followUpsDueToday
+      followUpsOverdue
+    }
+  }
+`;
+
+export const LEAD_DETAIL_WITH_TIMELINE = gql`
+  query LeadDetailWithTimeline($id: ID!) {
+    lead(id: $id) {
+      ...LeadFields
+      clientStage
+      location
+      city
+      product
+      investmentRange
+      sipAmount
+      profession
+      companyName
+      clientTypes
+      gender
+      designation
+      mobile
+      phone
+      phones {
+        number
+        isPrimary
+        isWhatsapp
+      }
+      referralName
+      referralCode
+      remark
+      lastContactedAt
+      assignedRmDetails {
+        id
+        name
+        email
+        phone
+      }
+    }
+    leadEvents(leadId: $id) {
+      id
+      type
+      occurredAt
+      note
+      summary
+      prevStatus
+      nextStatus
+      prevStage
+      nextStage
+      followUpOn
+      createdAt
+      author {
+        id
+        name
+        initials
+        avatarUrl
+      }
+    }
+  }
+  ${LEAD_FIELDS}
+`;
 
 export const CREATE_LEAD = gql`
   mutation CreateIpkLeadd($input: CreateIpkLeaddInput!) {
@@ -42,9 +127,20 @@ export const CREATE_LEAD = gql`
   ${LEAD_FIELDS}
 `;
 
+// Use backend's mode-based assignment API for both auto and manual
+// Align with current backend schema:
+// - Auto-assign a single lead
 export const ASSIGN_LEAD = gql`
   mutation AssignLead($id: ID!) {
     assignLead(id: $id) { ...LeadFields }
+  }
+  ${LEAD_FIELDS}
+`;
+
+// - Manually reassign a lead to a specific RM
+export const REASSIGN_LEAD = gql`
+  mutation ReassignLead($input: ReassignLeadInput!) {
+    reassignLead(input: $input) { ...LeadFields }
   }
   ${LEAD_FIELDS}
 `;
@@ -56,7 +152,47 @@ export const ASSIGN_LEADS = gql`
   ${LEAD_FIELDS}
 `;
 
-/** 
+export const UPDATE_LEAD_PROGRESS = gql`
+  mutation UpdateLeadProgress($id: ID!, $input: UpdateLeadProgressInput!) {
+    updateLeadProgress(id: $id, input: $input) {
+      id
+      status
+      clientStage
+      remark
+      lastContactedAt
+      updatedAt
+    }
+  }
+`;
+
+export const CREATE_LEAD_EVENT = gql`
+  mutation CreateLeadEvent($input: CreateLeadEventInput!) {
+    createLeadEvent(input: $input) {
+      id
+      type
+      occurredAt
+      note
+      summary
+      prevStatus
+      nextStatus
+      prevStage
+      nextStage
+      followUpOn
+      createdAt
+      author {
+        id
+        name
+        initials
+        avatarUrl
+      }
+    }
+  }
+`;
+
+// keep existing import naming in your components
+export { LEADS_PAGED as LEADS_OPEN };
+
+/**
  * If/when your server adds the autoAssign flag,
  * switch this to:
  *

@@ -249,6 +249,79 @@ layer(base);
   @apply text-gray-700 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-white/5;
 }
 
+/* =========================
+   Design System Utilities
+   Reusable, responsive CSS helpers for cards, buttons, badges,
+   forms and timelines used across ViewLead and related pages.
+   Keep class names short and consistent for professional code style.
+   ========================= */
+
+/* ---- Cards ---- */
+@utility card            { @apply rounded-2xl border border-gray-100 bg-white shadow-sm dark:border-white/10 dark:bg-white/[0.02]; }
+@utility card-padded     { @apply p-5; }
+@utility card-muted      { @apply bg-gray-50/60 dark:bg-white/[0.04]; }
+@utility card-ghost      { @apply border-dashed bg-transparent shadow-none dark:border-white/10; }
+
+/* ---- Section headers ---- */
+@utility section-title   { @apply text-base font-semibold text-gray-900 dark:text-white; }
+@utility section-muted   { @apply text-xs text-gray-500 dark:text-white/60; }
+
+/* ---- Badges / Pills ---- */
+@utility pill            { @apply inline-flex items-center gap-2 rounded-full px-2.5 py-0.5 text-[11px] font-semibold; }
+@utility badge           { @apply inline-flex items-center gap-2 rounded-full border px-2.5 py-0.5 text-[11px] font-semibold; }
+@utility pill-neutral    { @apply bg-gray-100 text-gray-700 dark:bg-white/[0.08] dark:text-white/80; }
+@utility pill-brand      { @apply bg-brand-50 text-brand-700 dark:bg-brand-500/15 dark:text-brand-200; }
+@utility pill-info       { @apply bg-blue-light-50 text-blue-light-700 dark:bg-blue-light-600/20 dark:text-blue-light-100; }
+@utility pill-success    { @apply bg-success-50 text-success-700 dark:bg-success-600/20 dark:text-success-100; }
+@utility pill-warning    { @apply bg-warning-50 text-warning-700 dark:bg-warning-600/20 dark:text-warning-100; }
+@utility pill-danger     { @apply bg-error-50 text-error-700 dark:bg-error-600/20 dark:text-error-100; }
+
+/* ---- Buttons ---- */
+@utility btn             { @apply inline-flex items-center justify-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition; }
+@utility btn-primary     { @apply btn bg-brand-500 text-white hover:bg-brand-600; }
+@utility btn-success     { @apply btn bg-success-600 text-white hover:bg-success-700; }
+@utility btn-warning     { @apply btn bg-warning-500 text-white hover:bg-warning-600; }
+@utility btn-danger      { @apply btn bg-error-600 text-white hover:bg-error-700; }
+@utility btn-ghost       { @apply btn border border-gray-200 bg-white text-gray-700 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.06] dark:text-white; }
+@utility btn-outline     { @apply btn border border-brand-300 text-brand-700 hover:bg-brand-50 dark:border-brand-500/50 dark:text-brand-200 dark:hover:bg-brand-500/10; }
+@utility btn-sm          { @apply rounded-lg px-3 py-1.5 text-xs; }
+@utility btn-xs          { @apply rounded-lg px-2.5 py-1 text-[11px]; }
+@utility btn-icon        { @apply btn p-2; }
+
+/* ---- Form controls ---- */
+@utility form-label      { @apply mb-1 block text-xs font-medium text-gray-500 dark:text-white/60; }
+@utility form-input      { @apply h-10 w-full rounded-xl border border-gray-200 bg-white px-3 text-sm text-gray-900 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.06] dark:text-white; }
+@utility form-select     { @apply form-input; }
+@utility form-textarea   { @apply w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 focus:border-brand-300 focus:outline-hidden focus:ring-3 focus:ring-brand-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.06] dark:text-white; }
+@utility form-help       { @apply mt-1 text-[11px] text-gray-500 dark:text-white/60; }
+
+/* ---- Action labels (CRUD) ---- */
+@utility action-create   { @apply pill pill-success; }
+@utility action-read     { @apply pill pill-info; }
+@utility action-update   { @apply pill pill-brand; }
+@utility action-delete   { @apply pill pill-danger; }
+@utility action-bar      { @apply flex flex-wrap items-center gap-2; }
+
+/* ---- Chips ---- */
+@utility chip            { @apply inline-flex items-center gap-2 rounded-full border border-emerald-200 bg-emerald-50 px-4 py-1.5 text-sm font-semibold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 dark:border-emerald-400/40 dark:bg-emerald-500/10 dark:text-emerald-100; }
+
+/* ---- Timeline ---- */
+@utility timeline        { @apply space-y-6; }
+@utility timeline-row    { @apply flex gap-3; }
+@utility timeline-icon   { @apply mt-1 grid h-10 w-10 place-items-center rounded-full bg-emerald-500/10 text-emerald-600 dark:bg-emerald-500/20 dark:text-emerald-200; }
+@utility timeline-meta   { @apply flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-gray-400 dark:text-white/50; }
+@utility timeline-note   { @apply mt-2 rounded-lg border border-gray-100 bg-gray-50/70 p-3 text-sm text-gray-600 dark:border-white/10 dark:bg-white/[0.05] dark:text-white/70; }
+@utility timeline-next   { @apply mt-2 inline-flex items-center gap-2 rounded-full bg-sky-50 px-3 py-1 text-xs font-semibold text-sky-700 dark:bg-sky-500/10 dark:text-sky-200; }
+
+/* ---- Page containers ---- */
+@utility page-grid       { @apply grid gap-6 lg:grid-cols-[320px,minmax(0,1fr)]; }
+@utility meta-grid       { @apply grid gap-3 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6; }
+
+/* ---- Helpers ---- */
+@utility kbd             { @apply inline-flex items-center rounded-md border border-gray-300 bg-gray-50 px-1.5 py-0.5 text-[11px] font-semibold text-gray-600 shadow-sm dark:border-white/10 dark:bg-white/[0.06] dark:text-white/70; }
+@utility divider         { @apply h-px w-full bg-gray-100 dark:bg-white/10; }
+@utility subtle          { @apply text-gray-500 dark:text-white/60; }
+
 @utility menu-dropdown-badge {
   @apply block rounded-full px-2.5 py-0.5 text-xs font-medium uppercase text-brand-500 dark:text-brand-400;
 }

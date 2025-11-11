@@ -1,47 +1,374 @@
-// src/context/AuthContext.tsx
-import { createContext, useState, useContext, ReactNode } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { ApolloClient, ApolloProvider, HttpLink, InMemoryCache } from "@apollo/client";
+import { setContext } from "@apollo/client/link/context";
+import { FirebaseError } from "firebase/app";
+import {
+  onIdTokenChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  User as FirebaseUser,
+} from "firebase/auth";
 
-// Define the type for our context
-interface AuthContextType {
-  isAuthenticated: boolean;
-  login: () => void;
-  logout: () => void;
-}
+import { auth } from "@/core/firebase/firebaseInit";
+import { ME, UPSERT_SELF, HAS_UPSERT_SELF } from "@/core/graphql/user/user.gql";
+import { DemoLink } from "@/mocks/demoLink";
+import { demoUser, seedDemoData } from "@/mocks/demoData";
 
-// Create context with a default value of `undefined`
+export type Role = "ADMIN" | "RM" | "STAFF" | "MARKETING" | "ANALYST";
+export type AppUserRole = Role | "UNKNOWN";
+
+export type AppUser = {
+  id: string;
+  name: string;
+  email: string;
+  role: AppUserRole;
+  status?: string | null;
+};
+
+export type LoginErrorTarget = "email" | "password";
+export type LoginFailure = {
+  success: false;
+  code?: string;
+  title: string;
+  message: string;
+  target?: LoginErrorTarget;
+  fieldMessage?: string;
+  variant: "error" | "warning";
+};
+export type LoginResult = { success: true } | LoginFailure;
+
+type AuthContextType = {
+  firebaseUser: FirebaseUser | null;
+  user: AppUser | null;
+  loading: boolean;
+  idToken: string | null;
+  login: (email: string, password: string) => Promise<LoginResult>;
+  logout: () => Promise<void>;
+  refresh: () => Promise<void>;
+};
+
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-interface AuthProviderProps {
-  children: ReactNode;
-}
+const KNOWN_ROLES: Role[] = ["ADMIN", "RM", "STAFF", "MARKETING", "ANALYST"];
 
-export function AuthProvider({ children }: AuthProviderProps) {
-  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(() => {
-    return localStorage.getItem("isAuthenticated") === "true";
+type MeQueryResult = {
+  me: {
+    id: string;
+    name: string;
+    email: string;
+    role: string;
+    status?: string | null;
+  } | null;
+};
+
+type HasUpsertSelfQueryResult = {
+  __type: {
+    fields: { name: string }[];
+  } | null;
+};
+
+type LoginErrorDescriptor = {
+  title: string;
+  message: string;
+  target?: LoginErrorTarget;
+  fieldMessage?: string;
+  variant?: "error" | "warning";
+};
+
+const AUTH_ERROR_MESSAGES: Record<string, LoginErrorDescriptor> = {
+  "auth/wrong-password": {
+    title: "Incorrect password",
+    message: "Please check your password and try again.",
+    target: "password",
+    fieldMessage: "The password you entered is incorrect.",
+  },
+  "auth/invalid-credential": {
+    title: "Incorrect password",
+    message: "Please check your password and try again.",
+    target: "password",
+    fieldMessage: "The password you entered is incorrect.",
+  },
+  "auth/user-not-found": {
+    title: "Account not found",
+    message:
+      "We couldn't find an account for that email. Contact your administrator if you need access.",
+    target: "email",
+    fieldMessage: "No user exists with this email address.",
+  },
+  "auth/user-disabled": {
+    title: "Account disabled",
+    message:
+      "Your account has been disabled. Please contact your administrator for help.",
+  },
+  "auth/too-many-requests": {
+    title: "Too many attempts",
+    message:
+      "We've temporarily locked sign-in because of too many attempts. Please wait a moment and try again.",
+    target: "password",
+    variant: "warning",
+  },
+};
+
+const DEFAULT_LOGIN_ERROR: LoginErrorDescriptor = {
+  title: "Sign-in failed",
+  message:
+    "We couldn't sign you in. Please try again or contact your administrator.",
+};
+
+// Default to demo mode unless explicitly disabled via VITE_DEMO=false
+const DEMO = String(((import.meta as any).env?.VITE_DEMO) ?? "true") === "true";
+
+export const AuthProvider: React.FC<React.PropsWithChildren> = ({ children }) => {
+  if (DEMO) {
+    // Offline demo provider: no Firebase, no network. Seeds mock data.
+    seedDemoData();
+    const client = new ApolloClient({ link: new DemoLink(), cache: new InMemoryCache() });
+    const [user, setUser] = useState<AppUser | null>({
+      id: demoUser.id,
+      email: demoUser.email,
+      name: demoUser.name,
+      role: demoUser.role as AppUserRole,
+      status: demoUser.status,
+    });
+    const [loading, setLoading] = useState(false);
+
+    const login = async (email: string, password: string) => {
+      if (email === "bharath@ipkwealth.com" && password === "Bharath@123") {
+        setUser({ id: demoUser.id, email: demoUser.email, name: demoUser.name, role: "RM", status: "ACTIVE" });
+        return { success: true } as const;
+      }
+      return {
+        success: false,
+        title: "Invalid credentials",
+        message: "Use bharath@ipkwealth.com / Bharath@123 for demo",
+        target: "password" as const,
+        fieldMessage: "Wrong password",
+        variant: "error" as const,
+      };
+    };
+    const logout = async () => setUser(null);
+    const refresh = async () => {};
+
+    return (
+      <AuthContext.Provider
+        value={{ firebaseUser: null, user, loading, idToken: null, login, logout, refresh }}
+      >
+        <ApolloProvider client={client}>{children}</ApolloProvider>
+      </AuthContext.Provider>
+    );
+  }
+
+  const [firebaseUser, setFirebaseUser] = useState<FirebaseUser | null>(null);
+  const [user, setUser] = useState<AppUser | null>(null);
+  const [idToken, setIdToken] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // Recreate the Apollo client when token changes (simple & reliable)
+  const client = useMemo(() => {
+    const uri = import.meta.env.VITE_GRAPHQL_URL || "http://localhost:3333/graphql";
+    const httpLink = new HttpLink({ uri });
+    const authLink = setContext(async (_, { headers }) => {
+      try {
+        // Prefer latest token from Firebase if available; fallback to state
+        const token = (await auth.currentUser?.getIdToken()) || idToken || null;
+        return {
+          headers: {
+            ...headers,
+            Authorization: token ? `Bearer ${token}` : "",
+          },
+        };
+      } catch {
+        return { headers };
+      }
+    });
+    return new ApolloClient({
+      link: authLink.concat(httpLink),
+      cache: new InMemoryCache(),
+    });
+  }, [idToken]);
+
+  // one-time schema probe for UPSERT_SELF presence
+  const upsertSupportRef = useRef<{ checked: boolean; supported: boolean }>({
+    checked: false,
+    supported: false,
   });
 
-  const login = () => {
-    setIsAuthenticated(true);
-    localStorage.setItem("isAuthenticated", "true"); // ✅ Save in storage
+  const normalizeRole = useCallback((rawRole: string | null | undefined) => {
+    if (rawRole && KNOWN_ROLES.includes(rawRole as Role)) {
+      return rawRole as Role;
+    }
+    return "UNKNOWN";
+  }, []);
+
+  const loadProfile = useCallback(async () => {
+    // 🔴 IMPORTANT: do NOT flip loading to false here when idToken is missing
+    if (!idToken) {
+      setUser(null);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      // detect once if backend exposes upsertSelf
+      if (!upsertSupportRef.current.checked) {
+        try {
+          const { data: schemaData } =
+            await client.query<HasUpsertSelfQueryResult>({
+              query: HAS_UPSERT_SELF,
+              fetchPolicy: "network-only",
+            });
+          const mutationNames =
+            schemaData.__type?.fields?.map((f) => f.name) ?? [];
+          upsertSupportRef.current.supported =
+            mutationNames.includes("upsertSelf");
+        } catch (schemaError) {
+          console.warn("Unable to determine upsertSelf availability", schemaError);
+          upsertSupportRef.current.supported = false;
+        } finally {
+          upsertSupportRef.current.checked = true;
+        }
+      }
+
+      if (upsertSupportRef.current.supported) {
+        try {
+          await client.mutate({ mutation: UPSERT_SELF, errorPolicy: "ignore" });
+        } catch (mutationError) {
+          console.error("Failed to ensure authenticated user record", mutationError);
+        }
+      }
+
+      const { data } = await client.query<MeQueryResult>({
+        query: ME,
+        fetchPolicy: "network-only",
+      });
+
+      if (data?.me) {
+        setUser({
+          id: data.me.id,
+          name: data.me.name,
+          email: data.me.email,
+          role: normalizeRole(data.me.role),
+          status: data.me.status ?? null,
+        });
+      } else {
+        setUser(null);
+      }
+    } catch (error) {
+      console.error("Failed to load authenticated user", error);
+      setUser(null);
+    } finally {
+      // ✅ only end loading after ME completes (or fails)
+      setLoading(false);
+    }
+  }, [client, idToken, normalizeRole]);
+
+  // Bootstrap: wait for Firebase to restore session
+  useEffect(() => {
+    const unsubscribe = onIdTokenChanged(auth, async (current) => {
+      if (!current) {
+        // signed-out → safe to end loading immediately
+        setFirebaseUser(null);
+        setIdToken(null);
+        setUser(null);
+        setLoading(false);
+        return;
+      }
+
+      setLoading(true); // keep guard in loading while we fetch token + ME
+      setFirebaseUser(current);
+
+      try {
+        const token = await current.getIdToken(false);
+        setIdToken(token);
+        
+      } catch (error) {
+        console.error("Failed to retrieve ID token", error);
+        await signOut(auth);
+        setFirebaseUser(null);
+        setIdToken(null);
+        setUser(null);
+        setLoading(false);
+      }
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Run profile load when token is ready/changes
+  useEffect(() => {
+    void loadProfile();
+  }, [loadProfile]);
+
+  const login = async (email: string, password: string): Promise<LoginResult> => {
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      // onIdTokenChanged will drive the rest
+      return { success: true };
+    } catch (error) {
+      console.error("Login failed", error);
+
+      if (error instanceof FirebaseError) {
+        const info = AUTH_ERROR_MESSAGES[error.code] ?? DEFAULT_LOGIN_ERROR;
+        return {
+          success: false,
+          code: error.code,
+          title: info.title,
+          message: info.message,
+          target: info.target,
+          fieldMessage: info.fieldMessage,
+          variant: info.variant ?? "error",
+        };
+      }
+
+      return {
+        success: false,
+        title: DEFAULT_LOGIN_ERROR.title,
+        message: DEFAULT_LOGIN_ERROR.message,
+        variant: "error",
+      };
+    }
   };
 
-  const logout = () => {
-    setIsAuthenticated(false);
-    localStorage.removeItem("isAuthenticated"); // ✅ Remove from storage
+  const logout = async () => {
+    setLoading(true);
+    try {
+      await signOut(auth);
+    } finally {
+      setUser(null);
+      setIdToken(null);
+      setFirebaseUser(null);
+      setLoading(false);
+    }
   };
-
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, login, logout }}>
-      {children}
+    <AuthContext.Provider
+      value={{
+        firebaseUser,
+        user,
+        loading,
+        idToken,
+        login,
+        logout,
+        refresh: loadProfile,
+      }}
+    >
+      {/* Apollo client includes the Authorization header with current idToken */}
+      <ApolloProvider client={client}>{children}</ApolloProvider>
     </AuthContext.Provider>
   );
-}
+};
 
-export function useAuth(): AuthContextType {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error("useAuth must be used within an AuthProvider");
-  }
-  return context;
-}
+export const useAuth = () => {
+  const ctx = useContext(AuthContext);
+  if (!ctx) throw new Error("useAuth must be used within AuthProvider");
+  return ctx;
+};

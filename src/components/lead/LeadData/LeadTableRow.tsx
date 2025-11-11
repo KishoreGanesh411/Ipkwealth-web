@@ -1,5 +1,7 @@
-import { PencilIcon, TrashBinIcon } from "@/icons/index";
+// import { PencilIcon, TrashBinIcon } from "@/icons/index";
+import React, { useMemo } from "react";
 import { TableCell, TableRow } from "@/components/ui/table";
+import Select from "@/components/form/Select";
 
 export type Row = {
   id: string;
@@ -9,25 +11,46 @@ export type Row = {
   source?: string | null;
   createdAt?: string | null;
   assignedRm?: string | null;
+  assignedRmId?: string | null;
   status?: string | null;
 };
 
 export function LeadTableRow({
   row,
   showAdvancedCols,
-  isSelected,
-  onToggle,
-  onEdit,
-  onDelete,
+  canAssignRm,
+  rmOptions,
+  rmLoading,
+  assigning,
+  onAssignRm,
+  // isSelected,
+  // onToggle,
+  // onEdit,
+  // onDelete,
 }: {
   row: Row;
   showAdvancedCols: boolean;
+  canAssignRm: boolean;
+  rmOptions?: ReadonlyArray<{ value: string; label: string }>;
+  rmLoading?: boolean;
+  assigning?: boolean;
+  onAssignRm: (leadId: string, rmId: string | null) => void;
   isSelected: boolean;
   onToggle: (id: string, checked: boolean) => void;
   onEdit: (r: Row) => void;
   onDelete: () => void;
 }) {
   const key = row.id;
+  const combinedOptions = useMemo(() => {
+    const base = Array.from(rmOptions ?? []);
+    if (row.assignedRmId && row.assignedRm) {
+      const exists = base.some((opt) => opt.value === row.assignedRmId);
+      if (!exists) base.push({ value: row.assignedRmId, label: row.assignedRm });
+    }
+    // Manual-assign only: no "Auto assign" option in dropdown
+    return base;
+  }, [rmOptions, row.assignedRmId, row.assignedRm]);
+  const selectedValue = row.assignedRmId ?? "";
 
   return (
     <TableRow key={key}>
@@ -58,7 +81,16 @@ export function LeadTableRow({
 
       {showAdvancedCols && (
         <TableCell className="px-5 py-4 text-sm">
-          {row.assignedRm ? (
+          {canAssignRm ? (
+            <Select
+              options={combinedOptions}
+              value={selectedValue}
+              onChange={(value: string) => onAssignRm(row.id, value)}
+              disabled={rmLoading || assigning}
+              className="pl-3"
+              placeholder="Assign RM"
+            />
+          ) : row.assignedRm ? (
             <span className="inline-flex items-center rounded-full border border-green-200 bg-green-50 px-2.5 py-1 text-xs font-medium text-green-700 dark:border-green-900/40 dark:bg-green-900/30 dark:text-green-300">
               {row.assignedRm}
             </span>

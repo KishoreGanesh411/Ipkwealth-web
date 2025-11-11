@@ -11,7 +11,7 @@ export function useDebounced<T>(value: T, delay = 300) {
   return v;
 }
 
-export function TopCenterLoader({ show, text = "Loading…" }: { show: boolean; text?: string }) {
+export function TopCenterLoader({ show, text = "Loading..." }: { show: boolean; text?: string }) {
   if (!show) return null;
   return (
     <div className="pointer-events-none absolute left-1/2 top-3 z-20 -translate-x-1/2">
@@ -25,3 +25,4 @@ export function TopCenterLoader({ show, text = "Loading…" }: { show: boolean; 
     </div>
   );
 }
+

@@ -9,6 +9,8 @@ export type LeadShape = {
   leadSourceOther?: string;    // used only when leadSource === "others"
 
   referralName?: string;
+  referralCode?: string;       // optional when capturing by code
+  referralMode?: "NAME" | "LEAD_CODE";
   gender?: string;
   age?: number | "";
   profession?: string;         // "SELF_EMPLOYED" | "BUSINESS" | "EMPLOYEE" | ...
@@ -20,6 +22,8 @@ export type LeadShape = {
   sipAmount?: number | "";
   clientType?: string;
   remark?: string;
+  assignedRmId?: string;
+  assignedRmName?: string;
 };
 
 export type ValidationResult = {
@@ -44,9 +48,13 @@ export function validateLead(lead: LeadShape): ValidationResult {
   if (lead.phone && !PHONE_OK(lead.phone)) invalid.push("Phone (invalid format)");
   if (!EMAIL_OK(lead.email)) invalid.push("Email (invalid format)");
 
-  // Existing rule (keep)
-  if (lead.leadSource === "referral" && !lead.referralName?.trim()) {
-    missing.push("Referral Name / Lead Code");
+  // Referral: require according to the selected mode (default NAME)
+  if (lead.leadSource === "referral") {
+    const mode = lead.referralMode ?? "NAME";
+    const hasName = !!lead.referralName?.trim();
+    const hasCode = !!lead.referralCode?.trim();
+    const ok = mode === "LEAD_CODE" ? hasCode : hasName;
+    if (!ok) missing.push("Referral (name or code)");
   }
 
   // NEW: when "others", require the text box

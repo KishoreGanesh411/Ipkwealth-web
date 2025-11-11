@@ -14,7 +14,7 @@ interface CalendarEvent extends EventInput {
   };
 }
 
-const Calendar: React.FC = () => {
+const MarketingEvent: React.FC = () => {
   const [selectedEvent, setSelectedEvent] = useState<CalendarEvent | null>(
     null
   );
@@ -281,4 +281,4 @@ const renderEventContent = (eventInfo: any) => {
   );
 };
 
-export default Calendar;
+export default MarketingEvent;

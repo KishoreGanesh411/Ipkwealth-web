@@ -1,5 +1,5 @@
 // src/components/lead/Leadform/Leadform.tsx
-import React from "react";
+import React, { useMemo } from "react";
 import { UserIcon, EnvelopeIcon, MailIcon, TaskIcon } from "../../../icons";
 import Label from "../../../components/form/Label";
 import Input from "../../../components/form/input/InputField";
@@ -11,17 +11,27 @@ export type LeadFormState = Pick<
   LeadFormData,
   "firstName" | "lastName" | "email" | "phone" | "remark"
 > & {
-  leadSource: LeadSource;
+  leadSource: LeadSource | "";
   leadSourceOther?: string;
-  referralName?: string; // using this name in the UI
+  // referral capture when source=referral
+  referralMode?: "NAME" | "LEAD_CODE"; // UI toggle between name/code
+  referralName?: string; // optional
+  referralCode?: string; // optional
+  // assignment
+  assignMode?: "AUTO" | "MANUAL";
+  assignedRmId?: string;
+  assignedRmName?: string;
 };
 
 interface CreateLeadFormProps {
-  lead: LeadFormState;
-  setLead: React.Dispatch<React.SetStateAction<LeadFormState>>;
+  lead: LeadFormState & Record<string, any>;
+  setLead: React.Dispatch<React.SetStateAction<LeadFormState & Record<string, any>>>;
   phoneOk: boolean;
   /** Optional; if omitted we'll infer from lead.leadSource */
   isReferral?: boolean;
+  canAssignRm?: boolean;
+  rmOptions?: ReadonlyArray<{ value: string; label: string }>;
+  rmLoading?: boolean;
 }
 
 const IconWrap = ({ children }: { children: React.ReactNode }) => (
@@ -35,9 +45,30 @@ export default function CreateLeadForm({
   setLead,
   phoneOk,
   isReferral,
+  canAssignRm,
+  rmOptions,
+  rmLoading,
 }: CreateLeadFormProps) {
   const isOtherSource = lead.leadSource === "others";
   const showReferral = isReferral ?? lead.leadSource === "referral";
+  const showAssignRm = Boolean(canAssignRm);
+  const autoAssignValue = "__AUTO_ASSIGN__";
+  const rmSelectOptions = useMemo(() => {
+    const base = rmOptions ?? [];
+    const deduped: ReadonlyArray<{ value: string; label: string }> = base;
+    const extras: { value: string; label: string }[] = [];
+    if (lead.assignedRmId && lead.assignedRmName) {
+      const alreadyPresent = deduped.some((opt) => opt.value === lead.assignedRmId);
+      if (!alreadyPresent) {
+        extras.push({ value: lead.assignedRmId, label: lead.assignedRmName });
+      }
+    }
+    return [
+      // manual-only dropdown options
+      ...deduped,
+      ...extras,
+    ];
+  }, [rmOptions, lead.assignedRmId, lead.assignedRmName]);
 
   return (
     <div className="space-y-4">
@@ -138,6 +169,8 @@ export default function CreateLeadForm({
                 leadSource: val as LeadSource,
                 // clear fields when switching away
                 referralName: val === "referral" ? s.referralName ?? "" : "",
+                referralCode: val === "referral" ? s.referralCode ?? "" : "",
+                referralMode: val === "referral" ? (s.referralMode ?? "NAME") : s.referralMode,
                 leadSourceOther: val === "others" ? s.leadSourceOther ?? "" : "",
               }))
             }
@@ -162,25 +195,114 @@ export default function CreateLeadForm({
         )}
       </div>
 
+      {showAssignRm && (
+        <div>
+          <Label>Assign RM</Label>
+          <div className="mt-1 flex items-center gap-6">
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-white/80">
+              <input
+                type="radio"
+                name="assignMode"
+                className="h-4 w-4 accent-blue-600"
+                checked={(lead.assignMode ?? "AUTO") === "AUTO"}
+                onChange={() =>
+                  setLead((s) => ({ ...s, assignMode: "AUTO", assignedRmId: undefined, assignedRmName: undefined }))
+                }
+              />
+              Auto assign
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm text-gray-700 dark:text-white/80">
+              <input
+                type="radio"
+                name="assignMode"
+                className="h-4 w-4 accent-blue-600"
+                checked={(lead.assignMode ?? "AUTO") === "MANUAL"}
+                onChange={() => setLead((s) => ({ ...s, assignMode: "MANUAL" }))}
+              />
+              Manual assign
+            </label>
+          </div>
+          <Select
+            className="pl-3"
+            options={rmSelectOptions}
+            style={{ display: (lead.assignMode ?? "AUTO") === "MANUAL" ? "block" : "none" }}
+            value={(lead.assignMode ?? "AUTO") === "MANUAL" ? (lead.assignedRmId ?? "") : ""}
+            onChange={(val: string) => {
+              if (val === autoAssignValue) {
+                setLead((s) => ({ ...s, assignedRmId: undefined, assignedRmName: undefined }));
+                return;
+              }
+              const selected = rmSelectOptions.find((opt) => opt.value === val);
+              setLead((s) => ({
+                ...s,
+                assignedRmId: val,
+                assignedRmName: selected?.label ?? "",
+              }));
+            }}
+            placeholder={rmLoading ? "Loading..." : "Select RM"}
+            disabled={rmLoading || rmSelectOptions.length <= 1}
+          />
+          {(lead.assignMode ?? "AUTO") === "MANUAL" && (
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Only active RM users are shown.</p>
+          )}
+        </div>
+      )}
+
       {/* Referral Name / Lead Code */}
       {showReferral && (
         <div>
-          <Label>Referral Name / Lead Code</Label>
+          <div className="mb-2 flex items-center justify-between">
+            <Label>Referral</Label>
+            <div className="flex gap-2">
+              {(["NAME", "LEAD_CODE"] as const).map((mode) => {
+                const active = (lead.referralMode ?? "NAME") === mode;
+                return (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setLead((s) => ({ ...s, referralMode: mode }))}
+                    className={
+                      `rounded-full px-3 py-1 text-xs font-semibold transition ` +
+                      (active
+                        ? "bg-emerald-500 text-white"
+                        : "border border-gray-200 text-gray-700 hover:border-emerald-300 dark:border-white/10 dark:text-gray-200")
+                    }
+                    aria-pressed={active}
+                  >
+                    {mode === "NAME" ? "Lead name" : "Lead code"}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
           <div className="relative">
             <IconWrap>
               <UserIcon className="h-4 w-4" />
             </IconWrap>
-            <Input
-              className="pl-9"
-              value={lead.referralName ?? ""}
-              onChange={(e) =>
-                setLead((s) => ({ ...s, referralName: e.target.value }))
-              }
-              placeholder="Enter referral name or lead code"
-            />
+            {((lead.referralMode ?? "NAME") === "NAME") ? (
+              <Input
+                className="pl-9"
+                value={lead.referralName ?? ""}
+                onChange={(e) =>
+                  setLead((s) => ({ ...s, referralName: e.target.value }))
+                }
+                placeholder="Enter referral name"
+              />
+            ) : (
+              <Input
+                className="pl-9"
+                value={lead.referralCode ?? ""}
+                onChange={(e) =>
+                  setLead((s) => ({ ...s, referralCode: e.target.value }))
+                }
+                placeholder="Enter referral lead code (e.g., IPK25100002)"
+              />
+            )}
           </div>
         </div>
       )}
     </div>
   );
 }
+
+

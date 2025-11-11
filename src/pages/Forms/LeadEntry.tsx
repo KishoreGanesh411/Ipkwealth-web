@@ -6,6 +6,8 @@ import Button from "@/components/ui/button/Button";
 import BulkRegistrationButton from "@/components/lead/bulk-register/BulkRegistrationButton";
 import BulkImportModal from "@/components/lead/bulk-register/BulkImportModal"; // ⬅ add
 import { createLead } from "@/core/graphql/lead/lead";
+import { useLazyQuery, useMutation } from "@apollo/client";
+import { ASSIGN_LEAD, REASSIGN_LEAD, LEADS_OPEN } from "@/core/graphql/lead/lead.gql";
 import { toast } from "react-toastify";
 import CreateLeadForm from "@/components/lead/Leadform/Leadform";
 import AdditionalInsightsForm from "@/components/lead/Leadform/additional";
@@ -14,11 +16,18 @@ import ConfirmLeadModal from "@/components/ui/lead/ConfirmLeadModal";
 import { validateLead } from "@/components/ui/lead/Validators";
 import Alert from "@/components/ui/alert/Alert";
 import { RemarkIcon } from "@/icons";
+import { useAuth } from "@/context/AuthContex";
+import { useRms } from "@/core/graphql/user/useRms";
 
 export default function LeadEntry() {
-  const [lead, setLead] = useState({
+  const [lead, setLead] = useState<any>({
     firstName: "", lastName: "", email: "", phone: "", leadSource: "",
-    referralName: "", gender: "", age: "" as number | "", profession: "",
+    // assignment
+    assignMode: "AUTO" as "AUTO" | "MANUAL",
+    assignedRmId: "", assignedRmName: "",
+    leadSourceOther: "",
+    referralName: "", referralCode: "", referralMode: "NAME" as "NAME" | "LEAD_CODE",
+    gender: "", age: "" as number | "", profession: "",
     companyName: "", designation: "", location: "", product: "",
     investmentRange: "", sipAmount: "" as number | "", clientType: "", remark: "",
   });
@@ -30,8 +39,21 @@ export default function LeadEntry() {
   const isReferral = lead.leadSource === "referral";
   const phoneOk = useMemo(() => /^[0-9+\-\s()]{8,}$/.test(lead.phone.trim()), [lead.phone]);
 
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
+  // Only admins should query active RMs to avoid 400 for marketing users
+  const { rms, loading: rmsLoading } = useRms(isAdmin);
+  const rmOptions = useMemo(
+    () => rms.map((rm) => ({ value: rm.id, label: rm.name })),
+    [rms],
+  );
+
   const { isOpen, openModal, closeModal } = useModal();
   const [submitting, setSubmitting] = useState(false);
+  const [assignLead] = useMutation(ASSIGN_LEAD);
+  const [reassignLead] = useMutation(REASSIGN_LEAD);
+  // Optional: auto-resolve referral name when a lead code is provided
+  const [findLeadByCode] = useLazyQuery(LEADS_OPEN, { fetchPolicy: "network-only" });
 
   // NEW: bulk modal state (upload flow)
   const [bulkOpen, setBulkOpen] = useState(false);
@@ -68,19 +90,40 @@ export default function LeadEntry() {
   const handleConfirmSave = async () => {
     setSubmitting(true);
     try {
+      const normalizedLeadSource =
+        lead.leadSource === "others"
+          ? lead.leadSourceOther?.trim()
+          : lead.leadSource?.trim();
+
+      // Build occupations[] for new embedded occupation schema
+      const occItem: Record<string, any> = {};
+      if (lead.profession && String(lead.profession).trim()) occItem.profession = String(lead.profession).trim();
+      if (lead.companyName && String(lead.companyName).trim()) occItem.companyName = String(lead.companyName).trim();
+      if (lead.designation && String(lead.designation).trim()) occItem.designation = String(lead.designation).trim();
+      const occupations = Object.keys(occItem).length ? [occItem] : undefined;
+
+      // Resolve referral by mode when source is referral
+      const referralByName = lead.leadSource === "referral"
+        ? (lead.referralName?.trim() || undefined)
+        : undefined;
+      const referralByCode = lead.leadSource === "referral"
+        ? (lead.referralCode?.trim() || undefined)
+        : undefined;
+
       const payload = {
         firstName: lead.firstName || undefined,
         lastName: lead.lastName || undefined,
         email: lead.email || undefined,
         phone: lead.phone,
-        leadSource: lead.leadSource,
-        referralCode: lead.referralName || undefined,
+        leadSource: normalizedLeadSource || undefined,
+        referralName: referralByName,
+        referralCode: referralByCode,
+        // assignment is applied post-create via reassignLead (manual) or assignLead (auto)
         gender: lead.gender || undefined,
         age: lead.age ? Number(lead.age) : undefined,
         location: lead.location || undefined,
-        profession: lead.profession || undefined,
-        companyName: lead.companyName || undefined,
-        designation: lead.designation || undefined,
+        // occupations embedded array as per schema (no top-level profession/company/designation)
+        occupations,
         product: lead.product || undefined,
         investmentRange: lead.investmentRange || undefined,
         sipAmount: lead.sipAmount ? Number(lead.sipAmount) : undefined,
@@ -88,10 +131,25 @@ export default function LeadEntry() {
         remark: lead.remark || undefined,
       };
       const created = await createLead(payload);
+      // After creation, apply manual assignment if selected and allowed
+      if (
+        isAdmin &&
+        (lead.assignMode ?? "AUTO") === "MANUAL" &&
+        lead.assignedRmId &&
+        created?.id
+      ) {
+        try {
+          await reassignLead({ variables: { input: { leadId: created.id, newRmId: lead.assignedRmId } } });
+        } catch {}
+      }
       toast.success(created?.leadCode ? `Lead created: ${created.leadCode}` : "Lead created");
       setLead({
         firstName: "", lastName: "", email: "", phone: "", leadSource: "",
-        referralName: "", gender: "", age: "" as number | "", profession: "",
+        assignMode: "AUTO",
+        assignedRmId: "", assignedRmName: "",
+        leadSourceOther: "",
+        referralName: "", referralCode: "", referralMode: "NAME",
+        gender: "", age: "" as number | "", profession: "",
         companyName: "", designation: "", location: "", product: "",
         investmentRange: "", sipAmount: "" as number | "", clientType: "", remark: "",
       });
@@ -103,6 +161,26 @@ export default function LeadEntry() {
       closeModal();
     }
   };
+
+  // When referral is by code, try to look up the referrer's name and prefill referralName
+  useEffect(() => {
+    const wantLookup = lead.leadSource === "referral" && (lead.referralMode ?? "NAME") === "LEAD_CODE";
+    const code = String(lead.referralCode ?? "").trim();
+    if (!wantLookup || code.length < 5) return; // skip short/empty input
+    // Debounce network calls a bit
+    const t = window.setTimeout(async () => {
+      try {
+        const { data } = await findLeadByCode({ variables: { args: { page: 1, pageSize: 1, archived: false, status: null, search: code } } });
+        const hit = data?.leads?.items?.find?.((x: any) => String(x?.leadCode ?? "").trim().toUpperCase() === code.toUpperCase());
+        if (hit && (hit.name || hit.firstName)) {
+          setLead((s: any) => (s.referralName?.trim() ? s : { ...s, referralName: (hit.name ?? `${hit.firstName ?? ""} ${hit.lastName ?? ""}`).trim() }));
+        }
+      } catch {
+        // ignore lookup failures
+      }
+    }, 400);
+    return () => window.clearTimeout(t);
+  }, [lead.leadSource, lead.referralMode, lead.referralCode, findLeadByCode, setLead]);
 
   return (
     <div>
@@ -121,7 +199,15 @@ export default function LeadEntry() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
         <div className="rounded-2xl bg-white p-6 shadow-sm dark:bg-[#0B1220]">
-          <CreateLeadForm lead={lead} setLead={setLead} phoneOk={phoneOk} isReferral={isReferral} />
+          <CreateLeadForm
+            lead={lead}
+            setLead={setLead}
+            phoneOk={phoneOk}
+            isReferral={isReferral}
+            canAssignRm={false}
+            rmOptions={rmOptions}
+            rmLoading={rmsLoading}
+          />
         </div>
         <div className="rounded-2xl bg-white p-6 shadow-sm dark:bg-[#0B1220]">
           <AdditionalInsightsForm lead={lead} setLead={setLead} isCompanyRequired={isCompanyRequired} />

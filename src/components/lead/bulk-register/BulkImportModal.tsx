@@ -1,7 +1,7 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as XLSX from "xlsx";
 import { useMutation } from "@apollo/client";
-import { CREATE_LEAD, ASSIGN_LEAD } from "@/core/graphql/lead/lead.gql";
+import { CREATE_LEAD, ASSIGN_LEAD, REASSIGN_LEAD } from "@/core/graphql/lead/lead.gql";
 import Label from "../../form/Label";
 import Button from "../../ui/button/Button";
 import { Modal } from "../../ui/modal";
@@ -42,6 +42,8 @@ type CreateLeadVars = { input: any }; // use GraphQL shape when sending
 type CreateLeadResult = { createIpkLeadd?: { id?: string | null } | null };
 type AssignLeadVars = { id: string };
 type AssignLeadResult = { assignLead?: { assignedRM?: string | null } | null };
+type ReassignLeadVars = { input: { leadId: string; newRmId: string } };
+type ReassignLeadResult = { reassignLead?: { assignedRM?: string | null } | null };
 
 const CONCURRENCY = 4;
 const toStr = (v: unknown) => (v == null ? "" : String(v));
@@ -129,8 +131,16 @@ export default function BulkImportModal({ isOpen, onClose, onImported, rowsFromF
 
   const [createLeadMut] = useMutation<CreateLeadResult, CreateLeadVars>(CREATE_LEAD);
   const [assignLeadMut] = useMutation<AssignLeadResult, AssignLeadVars>(ASSIGN_LEAD);
+  const [reassignLeadMut] = useMutation<ReassignLeadResult, ReassignLeadVars>(REASSIGN_LEAD);
 
   const [processing, setProcessing] = useState(false);
+  // After a successful run, freeze the primary action as completed
+  const [completed, setCompleted] = useState(false);
+
+  // If input changes (file, mapping), allow running again
+  useEffect(() => {
+    setCompleted(false);
+  }, [rows, map]);
   const [progress, setProgress] = useState<Progress>({
     total: 0,
     done: 0,
@@ -229,6 +239,7 @@ export default function BulkImportModal({ isOpen, onClose, onImported, rowsFromF
     setSummaryOpen(false);
 
     setProcessing(true);
+    setCompleted(false);
     setProgress({
       total: validIndexes.length,
       done: 0,
@@ -335,6 +346,7 @@ export default function BulkImportModal({ isOpen, onClose, onImported, rowsFromF
       onImported?.();
     } finally {
       setProcessing(false);
+      setCompleted(true);
     }
   }
 
@@ -352,6 +364,10 @@ export default function BulkImportModal({ isOpen, onClose, onImported, rowsFromF
             <li>Other fields (Email, Remark, City) are optional.</li>
             <li>Phone is normalized to the last 10 digits.</li>
             <li>If you map <b>Created Time → Approach Date</b>, we store that as <code>approachAt</code>.</li>
+            <li><b>Excel recommendation:</b> Prefer true Date/Time cells. If using text, format as ISO
+              <code className="mx-1">yyyy-mm-dd</code> or
+              <code className="mx-1">yyyy-mm-dd hh:mm</code>.
+            </li>
             <li>Select up to 6 <b>Client Q&amp;A</b> columns (header =&gt; <i>question</i>, cell =&gt; <i>answer</i>).</li>
           </ul>
         </details>
@@ -400,7 +416,8 @@ export default function BulkImportModal({ isOpen, onClose, onImported, rowsFromF
             validIndexes={validIndexes}
             invalidCount={invalidCount}
             processing={processing}
-            onEditMapping={() => setSetupHidden(false)}
+            completed={completed}
+            onEditMapping={() => { setSetupHidden(false); setCompleted(false); }}
             onStart={startImport}
           />
         )}
@@ -611,6 +628,7 @@ function PreviewUI({
   validIndexes,
   invalidCount,
   processing,
+  completed,
   onEditMapping,
   onStart,
 }: {
@@ -620,6 +638,7 @@ function PreviewUI({
   validIndexes: number[];
   invalidCount: number;
   processing: boolean;
+  completed: boolean;
   onEditMapping: () => void;
   onStart: () => void;
 }) {
@@ -658,6 +677,7 @@ function PreviewUI({
                   : map.leadSource}
               </th>
               {map.city !== "none" && <th className="px-2 py-2 font-semibold">{map.city}</th>}
+              {map.remark !== "none" && <th className="px-2 py-2 font-semibold">{map.remark} (remark)</th>}
               {map.approachAt !== "none" && (
                 <th className="px-2 py-2 font-semibold">{map.approachAt} (→ approachAt)</th>
               )}
@@ -679,8 +699,9 @@ function PreviewUI({
               }
 
               const invalid = !trim(name) || !phone || !trim(source);
-              const loc = map.city !== "none" ? toStr(r[map.city]) : "";
-              const at = map.approachAt !== "none" ? parseApproachAt(r[map.approachAt]) : null;
+              const remarkVal = map.remark !== "none" ? toStr(r[(map.remark as string)]) : "";
+              const loc = map.city !== "none" ? toStr(r[(map.city as string)]) : "";
+              const at = map.approachAt !== "none" ? parseApproachAt(r[(map.approachAt as string)]) : null;
 
               const qaCount = qaCountFor(r as RowRecord);
               const qaTitle =
@@ -699,6 +720,11 @@ function PreviewUI({
                   <td className="px-2 py-1.5">{name}</td>
                   <td className="px-2 py-1.5">{phone}</td>
                   <td className="px-2 py-1.5">{source}</td>
+                  {map.remark !== "none" && (
+                    <td className="px-2 py-1.5" title={remarkVal}>
+                      {remarkVal || "�"}
+                    </td>
+                  )}
                   {map.city !== "none" && <td className="px-2 py-1.5">{loc}</td>}
                   {map.approachAt !== "none" && <td className="px-2 py-1.5">{at ? at.toISOString() : ""}</td>}
                   {map.qaCols.length > 0 && (
@@ -714,8 +740,14 @@ function PreviewUI({
       </div>
 
       <div className="mt-4 flex justify-end gap-2">
-        <Button size="sm" type="button" onClick={onStart} disabled={!validIndexes.length || processing}>
-          {processing ? "Working…" : `Generate & Assign (${validIndexes.length} rows)`}
+        <Button
+          size="sm"
+          type="button"
+          onClick={onStart}
+          disabled={!validIndexes.length || processing || completed}
+          variant={completed ? "outline" : "primary"}
+        >
+          {completed ? "Completed" : processing ? "Working…" : `Generate & Assign (${validIndexes.length} rows)`}
         </Button>
       </div>
     </div>
@@ -753,3 +785,4 @@ function SelectField({
     </div>
   );
 }
+

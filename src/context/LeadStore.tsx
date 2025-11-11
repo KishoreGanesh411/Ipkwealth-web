@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState } from "react";
+import { leadOptions, valueToLabel } from "@/components/lead/types";
 
 /* ===== Types ===== */
 export type AssignedRM = "Ramyapriya" | "Haripriya" | "Bharath";
@@ -51,7 +52,7 @@ export function LeadStoreProvider({ children }: { children: React.ReactNode }) {
         id: tempId,
         name,
         phone: data.phone,
-        source: data.leadSource || "Unknown",
+        source: valueToLabel(data.leadSource, leadOptions) || "Unknown",
         createdAt: new Date().toISOString(),
         // assignedRm left blank until Generate
       },

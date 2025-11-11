@@ -1,21 +1,35 @@
-import { Navigate } from "react-router-dom";
-import { useAuth } from "../context/AuthContex";
 import { JSX } from "react";
+import { Navigate, Outlet, useLocation } from "react-router-dom";
+import { Role, useAuth } from "@/context/AuthContex";
 
-export default function ProtectedRoute({
-  children,
-  roles,
-}: {
-  children: JSX.Element;
-  roles?: Array<"ADMIN" | "RM" | "STAFF" | "MARKETING">;
-}) {
-  const { isAuthenticated, user } = useAuth();
+type Props = {
+  children?: JSX.Element;
+  allow?: Role[];
+};
 
-  if (!isAuthenticated) return <Navigate to="/signin" replace />;
+export default function ProtectedRoute({ children, allow }: Props) {
+  const { firebaseUser, user, loading } = useAuth();
+  const loc = useLocation();
 
-  if (roles && user && !roles.includes(user.role)) {
-    return <Navigate to="/" replace />;
+  // While auth bootstraps, don't redirect
+  if (loading) {
+    return (
+      <div className="flex min-h-screen items-center justify-center text-sm font-medium text-gray-600">
+        Loading…
+      </div>
+    );
   }
 
-  return children;
+  // Not signed in → go to signin
+  if (!firebaseUser) {
+    return <Navigate to="/signin" state={{ from: loc }} replace />;
+  }
+
+  // Role-gated guard
+  if (allow && (!user || !allow.includes(user.role as Role))) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  // Support both wrapper and element usage
+  return children ?? <Outlet />;
 }
