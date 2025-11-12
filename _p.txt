@@ -1,5 +1,0 @@
-*** Begin Patch
-*** Add File: z_test2.txt
-+line1
-*** End Patch
-
