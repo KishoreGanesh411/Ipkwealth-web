@@ -9,25 +9,28 @@ import PageBreadcrumb from '@/components/common/PageBreadCrumb';
 import PageMeta from '@/components/common/PageMeta';
 import MyLeads from '@/components/sales/myleads/MyLeads';
 import { STAGE_META, STAGE_SEQUENCE } from '@/components/sales/myleads/stageMeta';
-import { LeadStage } from '@/components/sales/myleads/interface/type';
+import { LeadStage, LeadStageFilter } from '@/components/sales/myleads/interface/type';
 import Button from '@/components/ui/button/Button';
 import { LEADS_PAGED, MY_ASSIGNED_LEADS } from '@/core/graphql/lead/lead.gql';
 
-type StageFilter = 'ALL' | LeadStage;
+type FilterId = 'ALL' | LeadStage | LeadStageFilter | 'PENDING_CALLS' | 'MISSED_CALLS';
+
+type FilterMode = 'STAGE' | 'STATUS';
 
 type StageCardInfo = {
-  id: StageFilter;
+  id: FilterId;
   label: string;
-  helper: string;
-  count: number;
-  badgeClass: string;
+  helper?: string;
+  count?: number;
+  badgeClass?: string;
 };
 
 export default function LeadStagesPage() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const isAdmin = user?.role === 'ADMIN' || user?.role === 'MARKETING';
-  const [selectedStage, setSelectedStage] = useState<StageFilter>('ALL');
+  const [selectedStage, setSelectedStage] = useState<FilterId>('ALL');
+  const [mode, setMode] = useState<FilterMode>('STAGE');
   const [q, setQ] = useState('');
   const [exportOpen, setExportOpen] = useState(false);
 
@@ -51,8 +54,10 @@ export default function LeadStagesPage() {
       leadSource: n.leadSource ?? '-',
       // For the Status column we now show the new lead stage filter when present
       status: n.stageFilter || n.clientStage || n.status || undefined,
+      stageFilter: n.stageFilter ?? null,
       clientStage: n.clientStage || undefined,
       lastContactedAt: n.lastContactedAt ?? null,
+      nextActionDueAt: n.nextActionDueAt ?? null,
       assignedRm: n.assignedRM ?? null,
       isNew: (n.clientStage === 'NEW_LEAD') || !n.lastContactedAt,
     }));
@@ -68,32 +73,124 @@ export default function LeadStagesPage() {
     return counts;
   }, [allLeads]);
 
+  // Status display metadata — mirrors enums in schema
+  const STATUS_SEQUENCE: LeadStageFilter[] = useMemo(
+    () => [
+      LeadStageFilter.FUTURE_INTERESTED,
+      LeadStageFilter.HIGH_PRIORITY,
+      LeadStageFilter.LOW_PRIORITY,
+      LeadStageFilter.NEED_CLARIFICATION,
+      LeadStageFilter.NOT_ELIGIBLE,
+      LeadStageFilter.NOT_INTERESTED,
+      LeadStageFilter.ON_PROCESS,
+    ],
+    []
+  );
+
+  const STATUS_META: Record<LeadStageFilter, { label: string; pillClass: string }> = {
+    [LeadStageFilter.FUTURE_INTERESTED]: {
+      label: 'Future interested',
+      pillClass: 'bg-sky-50 text-sky-700 dark:bg-sky-500/15 dark:text-sky-200',
+    },
+    [LeadStageFilter.HIGH_PRIORITY]: {
+      label: 'High priority',
+      pillClass: 'bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200',
+    },
+    [LeadStageFilter.LOW_PRIORITY]: {
+      label: 'Low priority',
+      pillClass: 'bg-slate-100 text-slate-600 dark:bg-slate-500/20 dark:text-slate-100',
+    },
+    [LeadStageFilter.NEED_CLARIFICATION]: {
+      label: 'Need clarification',
+      pillClass: 'bg-indigo-50 text-indigo-700 dark:bg-indigo-500/15 dark:text-indigo-200',
+    },
+    [LeadStageFilter.NOT_ELIGIBLE]: {
+      label: 'Not eligible',
+      pillClass: 'bg-gray-100 text-gray-700 dark:bg-gray-500/20 dark:text-gray-200',
+    },
+    [LeadStageFilter.NOT_INTERESTED]: {
+      label: 'Not interested',
+      pillClass: 'bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200',
+    },
+    [LeadStageFilter.ON_PROCESS]: {
+      label: 'On process',
+      pillClass: 'bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200',
+    },
+  };
+
   const stageCards = useMemo<StageCardInfo[]>(() => {
+    const now = Date.now();
+    const soonCutoff = now + 24 * 60 * 60 * 1000; // next 24h
+
+    const pendingCalls = allLeads.filter((l: any) => {
+      const ts = l.nextActionDueAt ? Date.parse(l.nextActionDueAt) : NaN;
+      return Number.isFinite(ts) && ts >= now && ts <= soonCutoff;
+    }).length;
+
+    const missedCalls = allLeads.filter((l: any) => {
+      const ts = l.nextActionDueAt ? Date.parse(l.nextActionDueAt) : NaN;
+      return Number.isFinite(ts) && ts < now;
+    }).length;
+
+    if (mode === 'STATUS') {
+      // Build Status cards
+      const statusCounts = new Map<LeadStageFilter, number>();
+      STATUS_SEQUENCE.forEach((s) => statusCounts.set(s, 0));
+      allLeads.forEach((l: any) => {
+        const sf = l.stageFilter as LeadStageFilter | undefined;
+        if (sf && statusCounts.has(sf)) statusCounts.set(sf, (statusCounts.get(sf) ?? 0) + 1);
+      });
+
+      return [
+        { id: 'ALL', label: 'All statuses', helper: 'Overview', count: allLeads.length, badgeClass: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-200' },
+        ...STATUS_SEQUENCE.map((sf) => ({
+          id: sf,
+          label: STATUS_META[sf].label,
+          helper: undefined,
+          count: statusCounts.get(sf) ?? 0,
+          badgeClass: STATUS_META[sf].pillClass,
+        })),
+        { id: 'PENDING_CALLS', label: 'Pending calls', helper: undefined, count: pendingCalls, badgeClass: 'bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200' },
+        { id: 'MISSED_CALLS', label: 'Missed calls', helper: undefined, count: missedCalls, badgeClass: 'bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200' },
+      ];
+    }
+
+    // Default: Stage cards
     return [
-      {
-        id: 'ALL',
-        label: 'All stages',
-        helper: 'Overview',
-        count: allLeads.length,
-        badgeClass: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-200',
-      },
-      ...STAGE_SEQUENCE.map((stage) => {
-        const meta = STAGE_META[stage];
-        return {
-          id: stage,
-          label: meta.label,
-          helper: 'Stage',
-          count: stageCounts.get(stage) ?? 0,
-          badgeClass: meta.pillClass,
-        } as StageCardInfo;
-      }),
+      { id: 'ALL', label: 'All stages', helper: 'Overview', count: allLeads.length, badgeClass: 'bg-emerald-100 text-emerald-600 dark:bg-emerald-500/15 dark:text-emerald-200' },
+      ...STAGE_SEQUENCE.map((stage) => ({
+        id: stage,
+        label: STAGE_META[stage].label,
+        helper: undefined,
+        count: stageCounts.get(stage) ?? 0,
+        badgeClass: STAGE_META[stage].pillClass,
+      })),
+      { id: 'PENDING_CALLS', label: 'Pending calls', helper: undefined, count: pendingCalls, badgeClass: 'bg-amber-50 text-amber-700 dark:bg-amber-500/20 dark:text-amber-200' },
+      { id: 'MISSED_CALLS', label: 'Missed calls', helper: undefined, count: missedCalls, badgeClass: 'bg-rose-50 text-rose-700 dark:bg-rose-500/20 dark:text-rose-200' },
     ];
-  }, [stageCounts]);
+  }, [mode, stageCounts, allLeads]);
 
   const filteredByStage = useMemo(() => {
     if (selectedStage === 'ALL') return allLeads;
+
+    if (selectedStage === 'PENDING_CALLS' || selectedStage === 'MISSED_CALLS') {
+      const now = Date.now();
+      const soonCutoff = now + 24 * 60 * 60 * 1000;
+      return allLeads.filter((l: any) => {
+        const ts = l.nextActionDueAt ? Date.parse(l.nextActionDueAt) : NaN;
+        if (!Number.isFinite(ts)) return false;
+        if (selectedStage === 'MISSED_CALLS') return ts < now;
+        // pending calls: due within next 24h
+        return ts >= now && ts <= soonCutoff;
+      });
+    }
+
+    if (mode === 'STATUS') {
+      return allLeads.filter((lead: any) => lead.stageFilter === selectedStage);
+    }
+
     return allLeads.filter((lead: any) => lead.clientStage === selectedStage);
-  }, [selectedStage, allLeads]);
+  }, [selectedStage, allLeads, mode]);
 
   const filtered = useMemo(() => {
     const dataset = filteredByStage;
@@ -121,6 +218,33 @@ export default function LeadStagesPage() {
       <PageBreadcrumb pageTitle='Lead Stages' items={[{ label: 'My Leads', href: '/sales/stages' }]} />
 
       {/* Compact, responsive stage grid: fills available width without large right gaps */}
+      {/* Mode toggle: Stage vs Status */}
+      <div className='mb-3 flex items-center justify-end gap-2'>
+        <span className='text-xs font-medium text-gray-500 dark:text-white/60'>View</span>
+        <div className='inline-flex rounded-xl border border-gray-200 p-1 dark:border-white/10'>
+          <button
+            type='button'
+            onClick={() => {
+              setMode('STAGE');
+              setSelectedStage('ALL');
+            }}
+            className={`rounded-lg px-3 py-1 text-xs font-semibold ${mode === 'STAGE' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'text-gray-600 hover:bg-gray-50 dark:text-white/70 dark:hover:bg-white/[0.06]'}`}
+          >
+            By stage
+          </button>
+          <button
+            type='button'
+            onClick={() => {
+              setMode('STATUS');
+              setSelectedStage('ALL');
+            }}
+            className={`rounded-lg px-3 py-1 text-xs font-semibold ${mode === 'STATUS' ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200' : 'text-gray-600 hover:bg-gray-50 dark:text-white/70 dark:hover:bg-white/[0.06]'}`}
+          >
+            By status
+          </button>
+        </div>
+      </div>
+
       <section className='mb-6 grid auto-rows-[112px] grid-cols-[repeat(auto-fit,minmax(220px,1fr))] gap-3'>
         {stageCards.map((card) => {
           const isActive = card.id === selectedStage;
@@ -129,26 +253,30 @@ export default function LeadStagesPage() {
               key={card.id}
               type='button'
               onClick={() => setSelectedStage(card.id)}
-              className={`flex h-full flex-col justify-between overflow-hidden rounded-xl border border-gray-200 bg-white p-3 text-left shadow-sm transition-colors duration-150 hover:bg-gray-50 dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.06] ${
-                isActive ? 'border-emerald-300 ring-1 ring-emerald-200 dark:border-emerald-400/60 dark:ring-emerald-400/40' : ''
+              className={`flex h-full flex-col justify-between overflow-hidden rounded-2xl border border-gray-200 bg-white p-3 text-left shadow-sm transition duration-200 ease-out hover:bg-gray-50 hover:shadow-md active:scale-[0.99] dark:border-white/10 dark:bg-white/[0.02] dark:hover:bg-white/[0.06] ${
+                isActive
+                  ? 'border-emerald-300 ring-2 ring-emerald-300 shadow-lg shadow-emerald-200/60 bg-gradient-to-br from-emerald-50 to-white dark:from-emerald-500/10 dark:to-transparent'
+                  : ''
               }`}
               aria-pressed={isActive}
             >
-              <p className='text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-white/60'>
-                {card.helper}
-              </p>
-              <h3 className='mt-1 truncate text-sm font-semibold text-gray-900 dark:text-white' title={card.label}>
-                {card.label}
-              </h3>
-              <span
-                className={`mt-2 inline-flex items-center rounded-full px-2.5 py-0.5 text-[11px] font-semibold ${
-                  isActive && card.id === 'ALL'
-                    ? 'bg-emerald-100 text-emerald-700 dark:bg-emerald-500/20 dark:text-emerald-200'
-                    : card.badgeClass
-                }`}
-              >
-                {card.count} lead{card.count === 1 ? '' : 's'}
-              </span>
+              {card.helper && (
+                <p className='text-[11px] font-medium uppercase tracking-wide text-gray-500 dark:text-white/60'>
+                  {card.helper}
+                </p>
+              )}
+              <h3 className='mt-1 truncate text-sm font-semibold text-gray-900 dark:text-white' title={card.label}>{card.label}</h3>
+              {typeof card.count === 'number' && (
+                <span
+                  className={`mt-2 inline-flex items-center rounded-full px-3 py-1 text-[11px] font-semibold transition ${
+                    isActive
+                      ? 'bg-emerald-100 text-emerald-700 ring-1 ring-emerald-300 shadow-sm dark:bg-emerald-500/20 dark:text-emerald-200'
+                      : card.badgeClass
+                  }`}
+                >
+                  {card.count} lead{card.count === 1 ? '' : 's'}
+                </span>
+              )}
             </button>
           );
         })}

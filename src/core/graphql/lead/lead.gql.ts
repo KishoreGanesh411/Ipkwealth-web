@@ -23,6 +23,8 @@ export const LEAD_FIELDS = gql`
     reenterCount
     remark
     approachAt
+    # next scheduled follow-up (used in lists/table views)
+    nextActionDueAt
   }
 `;
 

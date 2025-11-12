@@ -44,11 +44,14 @@ export type Lead = {
   // Status column in Sales pages shows the Stage Filter when available
   status?: LeadStage | LeadStatus | LeadStageFilter | string | null;
   clientStage?: LeadStage;
+  stageFilter?: LeadStageFilter | string | null;
   gender?: 'Male' | 'Female' | 'Other' | string;
   product?: string;
   profession?: string;
   assignedAt?: string | null;
   lastContactedAt?: string | null;
+  /** next scheduled follow-up timestamp (ISO) */
+  nextActionDueAt?: string | null;
   remark?: string | null;
   assignedRm?: string | null;
   isNew?: boolean;

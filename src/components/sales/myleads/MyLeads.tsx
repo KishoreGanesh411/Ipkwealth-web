@@ -103,15 +103,15 @@ export default function MyLeads({
           <caption className="sr-only">Assigned leads with status, stage, and actions</caption>
           <TableHeader className="bg-gray-50 text-left text-xs font-semibold uppercase tracking-wide text-gray-500 dark:bg-white/[0.04] dark:text-white/50">
             <TableRow>
-              <TableCell isHeader className="px-6 py-3">Name</TableCell>
               <TableCell isHeader className="px-6 py-3">Lead ID</TableCell>
+              <TableCell isHeader className="px-6 py-3">Name</TableCell>
               <TableCell isHeader className="px-6 py-3">Mobile No</TableCell>
               <TableCell isHeader className="px-6 py-3">Stage</TableCell>
               <TableCell isHeader className="px-6 py-3">Status</TableCell>
               {showAssignedRm && (
                 <TableCell isHeader className="px-6 py-3">Assigned RM</TableCell>
               )}
-              <TableCell isHeader className="px-6 py-3">Last contact</TableCell>
+              <TableCell isHeader className="px-6 py-3">Next follow-up</TableCell>
               <TableCell isHeader className="px-6 py-3 text-center">View more</TableCell>
               <TableCell isHeader className="px-6 py-3 text-right">Actions</TableCell>
             </TableRow>
@@ -137,6 +137,15 @@ export default function MyLeads({
                   tabIndex={0}
                   className={`cursor-pointer transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-400 ${rowBase}`}
                 >
+                  {/* Lead Code first */}
+                  <TableCell className="px-6 py-4">
+                    <div className="text-sm font-medium text-gray-800 dark:text-white/80">{lead.leadCode ?? "-"}</div>
+                    {lead.agingDays !== undefined && (
+                      <div className="text-xs text-gray-500 dark:text-white/60">{formatAgingDays(lead.agingDays)}</div>
+                    )}
+                  </TableCell>
+
+                  {/* Name and source */}
                   <TableCell className="px-6 py-4">
                     <div className="flex flex-col gap-2">
                       <div className="flex items-center gap-3">
@@ -157,13 +166,6 @@ export default function MyLeads({
                     </div>
                   </TableCell>
 
-                  <TableCell className="px-6 py-4">
-                    <div className="text-sm font-medium text-gray-800 dark:text-white/80">{lead.leadCode ?? "-"}</div>
-                    {lead.agingDays !== undefined && (
-                      <div className="text-xs text-gray-500 dark:text-white/60">{formatAgingDays(lead.agingDays)}</div>
-                    )}
-                  </TableCell>
-
                   <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-white/80">
                     {lead.mobile ?? "-"}
                   </TableCell>
@@ -182,7 +184,7 @@ export default function MyLeads({
                   )}
 
                   <TableCell className="px-6 py-4 text-sm text-gray-700 dark:text-white/80">
-                    {formatLastContact(lead.lastContactedAt)}
+                    {formatNextFollowUp(lead.nextActionDueAt)}
                   </TableCell>
 
                   <TableCell className="px-6 py-4 text-center">
@@ -312,6 +314,17 @@ function NewBadge() {
 
 function formatLastContact(value?: string | null) {
   if (!value) return "No contact yet";
+  try {
+    const date = parseISO(value);
+    if (!isValidDate(date)) return value;
+    return formatDistanceToNow(date, { addSuffix: true });
+  } catch (error) {
+    return value;
+  }
+}
+
+function formatNextFollowUp(value?: string | null) {
+  if (!value) return "No follow-up yet";
   try {
     const date = parseISO(value);
     if (!isValidDate(date)) return value;
