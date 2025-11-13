@@ -8,7 +8,16 @@ type Props = {
 };
 
 export default function LeadStatusBadge({ status, size = "sm" }: Props) {
-  const s = String(status || "PENDING").toUpperCase();
+  // If no Stage Filter/status provided, show a neutral placeholder instead of "Pending"
+  if (!status) {
+    return (
+      <Badge size={size} color="secondary">
+        Not set
+      </Badge>
+    );
+  }
+
+  const s = String(status).toUpperCase();
 
   // Support classic LeadStatus plus the new StageFilter values
   const color: React.ComponentProps<typeof Badge>["color"] = (() => {

@@ -5,6 +5,7 @@ import { useMutation } from "@apollo/client";
 import Label from "../../form/Label";
 import { toast } from "react-toastify";
 import { UPDATE_LEAD_DETAILS } from "../editLead/update_gql/update_lead.gql";
+import { useAuth } from "@/context/AuthContex";
 import { UPDATE_LEAD_BIO, CHANGE_STAGE } from "@/components/sales/view_lead/gql/view_lead.gql";
 import {
   genderOptions,
@@ -60,6 +61,8 @@ export default function LeadEditModal({
   saving = false,
   title = "Edit lead details",
 }: LeadEditModalProps) {
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
   const [form, setForm] = useState<LeadEditModalValues>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const firstRef = useRef<HTMLInputElement | null>(null);
@@ -279,7 +282,14 @@ export default function LeadEditModal({
                 <input className={INPUT} value={String((form as any).email ?? "")} onChange={(e) => (handle as any)("email", e.target.value)} placeholder="email@example.com" />
               </Field>
               <Field label="Phone">
-                <input className={INPUT} value={String((form as any).phone ?? "")} onChange={(e) => (handle as any)("phone", e.target.value)} placeholder="10-digit mobile" />
+                <input
+                  className={INPUT}
+                  value={String((form as any).phone ?? "")}
+                  onChange={(e) => (handle as any)("phone", e.target.value)}
+                  placeholder="10-digit mobile"
+                  disabled={!isAdmin}
+                  title={isAdmin ? "Primary phone" : "Primary phone can be edited by admin only"}
+                />
               </Field>
             </div>
 

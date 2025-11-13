@@ -156,8 +156,8 @@ function normalizeLead(node: MyAssignedLeadNode): Lead {
 
   const stageFromStatus = statusRaw && isLeadStage(statusRaw) ? (statusRaw as LeadStage) : undefined;
   const stageValue = (clientStageRaw && isLeadStage(clientStageRaw) ? clientStageRaw : undefined) ?? stageFromStatus;
-  // Prefer stageFilter for the Status column; fallback to non-stage LeadStatus
-  const statusValue = (stageFilterRaw as any) ?? (statusRaw && !isLeadStage(statusRaw) ? (statusRaw as LeadStatus) : undefined);
+  // Show Stage Filter only in the Status column; if absent, leave undefined (no "Pending")
+  const statusValue = stageFilterRaw as any;
 
   return {
     id: node.id,

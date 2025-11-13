@@ -164,6 +164,14 @@ export const ADD_LEAD_NOTE = gql`
   }
 `;
 
+/** Add an extra phone to a lead (returns the full updated list) */
+export const ADD_LEAD_PHONE = gql`
+  mutation AddLeadPhone($leadId: ID!, $input: LeadPhoneInput!) {
+    addLeadPhone(input: $input, leadId: $leadId) { ...LeadPhoneParts }
+  }
+  ${FRAG_LEAD_PHONE}
+`;
+
 /** Update just the biography text */
 export const UPDATE_LEAD_BIO = gql`
   mutation UpdateLeadBio($input: UpdateLeadBioInput!) {

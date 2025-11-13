@@ -19,6 +19,7 @@ import {
   User,
   Code,
   Copy,
+  PhoneCall,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -41,6 +42,8 @@ import type { LeadEditModalValues } from "../editLead/LeadEditModal";
 import LeadEditModal from "../editLead/LeadEditModal";
 import { useModal } from "@/hooks/useModal";
 import { Modal } from "@/components/ui/modal";
+import { useAuth } from "@/context/AuthContex";
+import { ADD_LEAD_PHONE } from "./gql/view_lead.gql";
 
 /**
  * LeadProfileHeader component displays a lead summary and exposes an edit button.
@@ -79,9 +82,14 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   const [isEditing, setIsEditing] = useState(false);
   const [mutateBio, { loading: savingBio }] = useMutation(UPDATE_LEAD_BIO);
   const [mutateRemark, { loading: savingRemark }] = useMutation(UPDATE_LEAD_REMARK);
+  const [mutAddPhone, { loading: addingPhone }] = useMutation(ADD_LEAD_PHONE);
+  const { user } = useAuth();
+  const isAdmin = user?.role === "ADMIN";
 
-  // Normalize the lead status; treat ASSIGNED as PENDING for display
+  // Pipeline stage hint logic can still consider legacy LeadStatus
   const displayStatus = lead.status === "ASSIGNED" ? "PENDING" : lead.status;
+  // Header Status badge must reflect the Stage Filter (RM intent)
+  const headerStatus = (lead.stageFilter as any) ?? null;
   const stageDisplay = resolveStageDisplay({
     rawStage: (lead.clientStageRaw as any) ?? undefined,
     normalizedStage: (lead.clientStage as any) ?? undefined,
@@ -432,6 +440,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   // which caused the hook order to change once loading flipped to false.
   const remarkModal = useModal(false);
   const bioModal = useModal(false);
+  const addPhoneModal = useModal(false);
 
   if (loading) {
     return (
@@ -491,6 +500,41 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       onProfileRefresh?.();
     } catch (error: any) {
       toast.error(error?.message ?? "Unable to update lead");
+    }
+  };
+
+  // Add-phone local form state
+  const [newPhone, setNewPhone] = useState<string>("");
+  const [newLabel, setNewLabel] = useState<string>("MOBILE");
+  const [newIsWa, setNewIsWa] = useState<boolean>(false);
+  const [newMakePrimary, setNewMakePrimary] = useState<boolean>(false);
+
+  const handleAddPhone = async () => {
+    const number = newPhone.trim();
+    if (!number) {
+      toast.warn("Enter a phone number");
+      return;
+    }
+    try {
+      await mutAddPhone({
+        variables: {
+          leadId: lead.id,
+          input: {
+            number,
+            label: (newLabel || "MOBILE") as any,
+            isWhatsapp: newIsWa,
+            isPrimary: isAdmin ? newMakePrimary : false,
+          },
+        },
+      });
+      toast.success("Phone added");
+      addPhoneModal.closeModal();
+      setNewPhone("");
+      setNewIsWa(false);
+      setNewMakePrimary(false);
+      onProfileRefresh?.();
+    } catch (e: any) {
+      toast.error(e?.message || "Failed to add phone");
     }
   };
 
@@ -562,13 +606,22 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
                   <h1 className="text-xl font-semibold capitalize text-gray-900 dark:text-white">
                     {lead.name ?? "Unnamed lead"}
                   </h1>
-                  <LeadStatusBadge status={displayStatus} size="md" />
+                  <LeadStatusBadge status={headerStatus} size="md" />
                   <span
                     className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-semibold ${stageDisplay.pillClass}`}
                   >
                     <StageIcon className="h-3.5 w-3.5" />
                     {stageDisplay.label}
                   </span>
+                  <button
+                    type="button"
+                    onClick={() => addPhoneModal.openModal()}
+                    className="inline-flex items-center gap-1 rounded-full border border-emerald-200 bg-white px-2.5 py-1 text-[11px] font-semibold text-emerald-700 shadow-sm hover:bg-emerald-50 focus:outline-hidden focus:ring-3 focus:ring-emerald-200 dark:border-emerald-500/30 dark:bg-white/5 dark:text-emerald-200"
+                    title="Add another phone"
+                  >
+                    <PhoneCall className="h-3.5 w-3.5" />
+                    Add phone
+                  </button>
                 </div>
                 {stageDisplay.hint && (
                   <p className={`mt-1 text-xs font-medium ${stageHintClass}`}>{stageDisplay.hint}</p>
@@ -714,6 +767,56 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
         onSubmit={handleModalSubmit}
         title="Edit lead details"
       />
+
+      {/* Add Phone Modal */}
+      <Modal isOpen={addPhoneModal.isOpen} onClose={addPhoneModal.closeModal} className="max-w-[560px] m-4">
+        <div className="space-y-3 p-4">
+          <h3 className="text-base font-semibold text-gray-900 dark:text-white">Add phone</h3>
+          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+            <div className="sm:col-span-2">
+              <label className="form-label">Phone number</label>
+              <input
+                value={newPhone}
+                onChange={(e) => setNewPhone(e.target.value)}
+                placeholder="Enter number"
+                className="form-input"
+                inputMode="tel"
+              />
+            </div>
+            <div>
+              <label className="form-label">Label</label>
+              <select value={newLabel} onChange={(e) => setNewLabel(e.target.value)} className="form-select">
+                <option value="MOBILE">Mobile</option>
+                <option value="HOME">Home</option>
+                <option value="WORK">Work</option>
+                <option value="WHATSAPP">Whatsapp</option>
+                <option value="OTHER">Other</option>
+              </select>
+            </div>
+          </div>
+          <div className="flex items-center gap-4">
+            <label className="inline-flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={newIsWa} onChange={(e) => setNewIsWa(e.target.checked)} />
+              Whatsapp
+            </label>
+            <label className="inline-flex items-center gap-2 text-sm opacity-100">
+              <input
+                type="checkbox"
+                checked={newMakePrimary && isAdmin}
+                onChange={(e) => setNewMakePrimary(e.target.checked)}
+                disabled={!isAdmin}
+              />
+              Set as primary {isAdmin ? "" : "(admin only)"}
+            </label>
+          </div>
+          <div className="flex items-center justify-end gap-2 pt-2">
+            <button type="button" onClick={addPhoneModal.closeModal} className="btn btn-secondary">Cancel</button>
+            <button type="button" onClick={handleAddPhone} disabled={addingPhone} className="btn btn-success">
+              {addingPhone ? "Saving..." : "Add phone"}
+            </button>
+          </div>
+        </div>
+      </Modal>
     </>
   );
 }

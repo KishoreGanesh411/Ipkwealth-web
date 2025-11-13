@@ -52,8 +52,8 @@ export default function LeadStagesPage() {
       location: undefined,
       agingDays: (n.approachAt || n.createdAt) ? Math.max(0, Math.floor((Date.now() - Date.parse(n.approachAt || n.createdAt)) / 86400000)) : undefined,
       leadSource: n.leadSource ?? '-',
-      // For the Status column we now show the new lead stage filter when present
-      status: n.stageFilter || n.clientStage || n.status || undefined,
+      // Status column should reflect only the Stage Filter (not pipeline stage)
+      status: n.stageFilter ?? undefined,
       stageFilter: n.stageFilter ?? null,
       clientStage: n.clientStage || undefined,
       lastContactedAt: n.lastContactedAt ?? null,
