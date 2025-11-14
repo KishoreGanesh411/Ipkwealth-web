@@ -8,8 +8,10 @@ import {
   CREATE_LEAD_EVENT,
   ADD_LEAD_NOTE,
   UPDATE_LEAD_REMARK,
+  UPDATE_LEAD_STATUS,
 } from './gql/view_lead.gql';
 import { UPDATE_LEAD_DETAILS } from '@/components/sales/editLead/update_gql/update_lead.gql';
+import { shouldAutoOpenLead } from './autoStatus';
 
 import type { LeadStage, LeadStatus } from '@/components/sales/myleads/interface/type';
 
@@ -17,6 +19,8 @@ type Props = {
   leadId: string;
   currentStatus: LeadStatus | string;
   currentStage?: LeadStage | string | null;
+  /** Pipeline status (PENDING/OPEN/...) for automation rules */
+  pipelineStatus?: LeadStatus | string | null;
   onSaved?: () => void;
 };
 
@@ -40,7 +44,13 @@ const STAGE_OPTIONS: Array<LeadStage | string> = [
 const CHANNEL_OPTIONS = ['CALL','WHATSAPP','SMS','EMAIL','MEETING','OTHER'];
 const OUTCOME_OPTIONS = ['ANSWERED','NO_ANSWER','INTERESTED','NOT_INTERESTED','FOLLOW_UP_NEEDED','WRONG_NUMBER'];
 
-export default function LeadUnifiedUpdateCard({ leadId, currentStatus, currentStage, onSaved }: Props) {
+export default function LeadUnifiedUpdateCard({
+  leadId,
+  currentStatus,
+  currentStage,
+  pipelineStatus,
+  onSaved,
+}: Props) {
   const [status, setStatus] = useState<string>(String(currentStatus ?? 'OPEN'));
   const [stage, setStage] = useState<string>(String(currentStage ?? 'NEW_LEAD'));
   const [followUp, setFollowUp] = useState<string>('');
@@ -51,6 +61,7 @@ export default function LeadUnifiedUpdateCard({ leadId, currentStatus, currentSt
 
   const [mutUpdateDetails] = useMutation(UPDATE_LEAD_DETAILS);
   const [mutStage] = useMutation(CHANGE_STAGE);
+  const [mutUpdateStatus] = useMutation(UPDATE_LEAD_STATUS);
   const [mutInteraction] = useMutation(CREATE_LEAD_EVENT);
   const [mutNote] = useMutation(ADD_LEAD_NOTE);
   const [mutRemark] = useMutation(UPDATE_LEAD_REMARK);
@@ -60,6 +71,19 @@ export default function LeadUnifiedUpdateCard({ leadId, currentStatus, currentSt
     const t = Date.parse(followUp);
     return isNaN(t) ? null : new Date(t).toISOString();
   }, [followUp]);
+
+  // Once a lead has moved beyond the early pipeline (FIRST_TALK_DONE),
+  // hide NEW_LEAD and FIRST_TALK_DONE from the stage dropdown so RMs
+  // don't accidentally move it backwards.
+  const stageOptionsForUi = useMemo(() => {
+    const currentUpper = String(stage || '').toUpperCase();
+    if (!currentUpper || currentUpper === 'NEW_LEAD' || currentUpper === 'FIRST_TALK_DONE') {
+      return STAGE_OPTIONS;
+    }
+    return STAGE_OPTIONS.filter(
+      (s) => String(s).toUpperCase() !== 'NEW_LEAD' && String(s).toUpperCase() !== 'FIRST_TALK_DONE',
+    );
+  }, [stage]);
 
   const onSave = async () => {
     if (!leadId) return;
@@ -100,6 +124,34 @@ export default function LeadUnifiedUpdateCard({ leadId, currentStatus, currentSt
           },
         })
       );
+
+      // Auto-open rule: when first talk is done on a pending lead,
+      // quietly flip pipeline status from PENDING -> OPEN so
+      // marketing "Open leads" views stay accurate.
+      if (
+        shouldAutoOpenLead({
+          previousStatus: pipelineStatus as string | null,
+          nextStage: stage,
+        })
+      ) {
+        ops.push(
+          mutUpdateStatus({
+            variables: { leadId, status: 'OPEN' as LeadStatus },
+            update(cache, result) {
+              const payload = (result?.data as any)?.updateLeadStatus;
+              if (!payload?.id) return;
+              cache.modify({
+                id: cache.identify({ __typename: 'IpkLeaddEntity', id: payload.id }),
+                fields: {
+                  status: () => payload.status,
+                  clientStage: () => payload.clientStage,
+                  ...(payload.leadCode ? { leadCode: () => payload.leadCode } : {}),
+                },
+              });
+            },
+          })
+        );
+      }
 
       // timeline entry + remark mirror
       if (notes.trim()) {
@@ -151,7 +203,7 @@ export default function LeadUnifiedUpdateCard({ leadId, currentStatus, currentSt
           <label className="mb-1 block text-xs font-medium text-gray-500">Pipeline stage</label>
           <div className="relative">
             <select className={`${INPUT} w-full appearance-none pr-8`} value={stage} onChange={(e) => setStage(e.target.value)}>
-              {STAGE_OPTIONS.map((s) => (
+              {stageOptionsForUi.map((s) => (
                 <option key={s} value={s}>{s.replace(/_/g, ' ')}</option>
               ))}
             </select>

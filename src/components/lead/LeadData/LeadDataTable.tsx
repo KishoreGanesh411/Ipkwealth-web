@@ -75,7 +75,7 @@ type Notice =
   | { variant: "success" | "warning" | "error" | "info"; title: string; message: string }
   | null;
 
-type ViewMode = "Open" | "all" | "dormant";
+type ViewMode = "all" | "unassigned" | "dormant";
 
 /* ------------------------------ Formatters ------------------------------ */
 
@@ -185,7 +185,7 @@ export default function LeadDataTable() {
     [rms],
   );
 
-  const [mode, setMode] = useState<ViewMode>("Open");
+  const [mode, setMode] = useState<ViewMode>("all");
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounced(search, 350);
@@ -209,7 +209,7 @@ export default function LeadDataTable() {
     leadName: string;
   } | null>(null);
 
-  const isOpenView = mode === "Open";
+  const isUnassignedView = mode === "unassigned";
   const isDormant = mode === "dormant";
 
   const dormantDays = Number(import.meta.env.VITE_DORMANT_DAYS ?? 60);
@@ -220,13 +220,13 @@ export default function LeadDataTable() {
         page,
         pageSize: PAGE_SIZE,
         archived: false,
-         status: isOpenView ? "OPEN" : null,
+        status: null,
         search: debouncedSearch || null,
         dormantOnly: isDormant ? true : null,
         dormantDays: isDormant ? dormantDays : null,
       },
     }),
-    [page, debouncedSearch, isOpenView, isDormant, dormantDays],
+    [page, debouncedSearch, isDormant, dormantDays],
   );
 
   const [runLeads, { data, loading, error, previousData, networkStatus }] = useLazyQuery<
@@ -285,10 +285,13 @@ export default function LeadDataTable() {
   }, [rows]);
 
   const visibleRows = useMemo(() => {
-    const lower = (s?: string | null) => (s || '').toLowerCase().trim();
+    const lower = (s?: string | null) => (s || "").toLowerCase().trim();
     return rows.filter((r) => {
+      // View mode: Unassigned -> only leads without an assigned RM id
+      if (isUnassignedView && r.assignedRmId) return false;
+
       if (filters.rm) {
-        if (filters.rm === 'UNASSIGNED') {
+        if (filters.rm === "UNASSIGNED") {
           if (r.assignedRm) return false;
         } else if (lower(r.assignedRm) !== lower(filters.rm)) {
           return false;
@@ -302,17 +305,17 @@ export default function LeadDataTable() {
         const d = new Date(ts);
         const only = Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate());
         if (filters.from) {
-          const [fy, fm, fd] = String(filters.from).split('-').map((x) => parseInt(x, 10));
+          const [fy, fm, fd] = String(filters.from).split("-").map((x) => parseInt(x, 10));
           if (only < Date.UTC(fy, fm - 1, fd)) return false;
         }
         if (filters.to) {
-          const [ty, tm, td] = String(filters.to).split('-').map((x) => parseInt(x, 10));
+          const [ty, tm, td] = String(filters.to).split("-").map((x) => parseInt(x, 10));
           if (only > Date.UTC(ty, tm - 1, td)) return false;
         }
       }
       return true;
     });
-  }, [rows, filters]);
+  }, [rows, filters, isUnassignedView]);
 
   // Selection helpers (unused in Dormant mode)
   const rowKey = (r: Row) => r.id;
@@ -505,7 +508,13 @@ export default function LeadDataTable() {
       <div className="flex flex-col gap-3 border-b border-gray-100 p-4 dark:border-white/[0.05] md:flex-row md:items-center md:justify-between">
         <div>
           <h2 className="text-base font-medium text-gray-800 dark:text-white/90">
-            Leads ({mode === "Open" ? "Open" : mode === "dormant" ? "Dormant" : "All"})
+            Leads (
+            {mode === "dormant"
+              ? "Dormant"
+              : mode === "unassigned"
+              ? "Unassigned"
+              : "All"}
+            )
           </h2>
         </div>
 
@@ -521,8 +530,8 @@ export default function LeadDataTable() {
             className="rounded-md border border-gray-300 bg-white px-3 py-2 text-sm text-gray-700 focus:border-blue-500 focus:outline-none dark:border-white/10 dark:bg-white/10 dark:text-white/80"
             title="View Mode"
           >
-            <option value="open">open</option>
             <option value="all">All</option>
+            <option value="unassigned">Unassigned</option>
             <option value="dormant">Dormant</option>
           </select>
 

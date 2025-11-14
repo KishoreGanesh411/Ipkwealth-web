@@ -131,16 +131,29 @@ export default function LeadEntry() {
         remark: lead.remark || undefined,
       };
       const created = await createLead(payload);
-      // After creation, apply manual assignment if selected and allowed
-      if (
-        isAdmin &&
-        (lead.assignMode ?? "AUTO") === "MANUAL" &&
-        lead.assignedRmId &&
-        created?.id
-      ) {
-        try {
-          await reassignLead({ variables: { input: { leadId: created.id, newRmId: lead.assignedRmId } } });
-        } catch {}
+
+      // After creation, apply RM assignment based on admin's selection.
+      // - AUTO: call backend round-robin assignLead
+      // - MANUAL: explicitly reassign to selected RM
+      if (isAdmin && created?.id) {
+        const mode = (lead.assignMode ?? "AUTO");
+        if (mode === "AUTO") {
+          try {
+            await assignLead({ variables: { id: created.id } });
+          } catch {
+            // ignore assignment failure; lead is still created
+          }
+        } else if (mode === "MANUAL" && lead.assignedRmId) {
+          try {
+            await reassignLead({
+              variables: {
+                input: { leadId: created.id, newRmId: lead.assignedRmId },
+              },
+            });
+          } catch {
+            // ignore assignment failure; lead is still created
+          }
+        }
       }
       toast.success(created?.leadCode ? `Lead created: ${created.leadCode}` : "Lead created");
       setLead({
@@ -204,7 +217,7 @@ export default function LeadEntry() {
             setLead={setLead}
             phoneOk={phoneOk}
             isReferral={isReferral}
-            canAssignRm={false}
+            canAssignRm={isAdmin}
             rmOptions={rmOptions}
             rmLoading={rmsLoading}
           />

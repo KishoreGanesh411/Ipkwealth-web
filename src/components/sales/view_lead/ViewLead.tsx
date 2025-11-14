@@ -19,6 +19,7 @@ import LeadProfileHeader from "./LeadProfileHeader";
 import LeadUnifiedUpdateCard from "./LeadUnifiedUpdateCard";
 import TimelineList from "./TimelineList";
 import { pickLeadStage, pickLeadStatus } from "./interface/utils";
+import { shouldAutoOpenLead } from "./autoStatus";
 import type { LeadEvent, LeadProfile } from "./interface/types";
 import FirstContactCard from "./FirstContactCard";
 import RmLeadsDrawer from "./RmLeadsDrawer";
@@ -121,6 +122,35 @@ export default function ViewLead() {
           });
         },
       });
+
+      // Auto-open rule for simple stage dropdown as well.
+      if (
+        shouldAutoOpenLead({
+          previousStatus: lead?.status as string | null,
+          nextStage: next,
+        })
+      ) {
+        try {
+          await mutUpdateStatus({
+            variables: { leadId, status: "OPEN" },
+            update(cache, result) {
+              const payload = (result?.data as any)?.updateLeadStatus;
+              if (!payload?.id) return;
+              cache.modify({
+                id: cache.identify({ __typename: "IpkLeaddEntity", id: payload.id }),
+                fields: {
+                  status: () => payload.status,
+                  clientStage: () => payload.clientStage,
+                  ...(payload.leadCode ? { leadCode: () => payload.leadCode } : {}),
+                },
+              });
+            },
+          });
+        } catch (e) {
+          // non-blocking; ignore auto-open failures
+        }
+      }
+
       toast.success("Stage updated");
       await refetch();
     } catch (e: any) {
@@ -267,6 +297,36 @@ export default function ViewLead() {
                     },
                   },
                 });
+
+                // After first contact, treat the lead as "first talk done"
+                // and automatically move pipeline status from PENDING -> OPEN
+                // so marketing open-lead views stay in sync.
+                if (
+                  shouldAutoOpenLead({
+                    previousStatus: lead.status as string | null,
+                    nextStage: 'FIRST_TALK_DONE',
+                  })
+                ) {
+                  try {
+                    await mutUpdateStatus({
+                      variables: { leadId, status: 'OPEN' },
+                      update(cache, result) {
+                        const payload = (result?.data as any)?.updateLeadStatus;
+                        if (!payload?.id) return;
+                        cache.modify({
+                          id: cache.identify({ __typename: 'IpkLeaddEntity', id: payload.id }),
+                          fields: {
+                            status: () => payload.status,
+                            clientStage: () => payload.clientStage,
+                            ...(payload.leadCode ? { leadCode: () => payload.leadCode } : {}),
+                          },
+                        });
+                      },
+                    });
+                  } catch {
+                    // ignore; non-blocking
+                  }
+                }
                 // Also update Latest remark with a concise summary
                 const parts: string[] = [];
                 parts.push(productExplained ? 'Product explained' : 'Product not explained');
@@ -301,6 +361,7 @@ export default function ViewLead() {
               leadId={leadId}
               currentStatus={(lead.stageFilter as any) ?? (pickLeadStatus<string>(lead.status) as any)}
               currentStage={pickLeadStage(lead.clientStage as any) as any}
+              pipelineStatus={lead.status as any}
               onSaved={() => refetch()}
             />
           </div>

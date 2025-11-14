@@ -412,13 +412,33 @@ export default function LeadEditModal({
             {/* Stage controls */}
             <div className="grid grid-cols-2 gap-3">
               <Field label="Pipeline stage">
-                <select className={INPUT} value={String((form as any).clientStage ?? "")} onChange={(e) => (handle as any)("clientStage", e.target.value)}>
-                  {[
+                {(() => {
+                  const allStages = [
                     'NEW_LEAD','FIRST_TALK_DONE','FOLLOWING_UP','CLIENT_INTERESTED','ACCOUNT_OPENED','NO_RESPONSE_DORMANT','NOT_INTERESTED_DORMANT','RISKY_CLIENT_DORMANT','HIBERNATED',
-                  ].map((s) => (
-                    <option key={s} value={s}>{s.replace(/_/g,' ')}</option>
-                  ))}
-                </select>
+                  ];
+                  const currentStage = String((form as any).clientStage ?? (initial as any)?.clientStage ?? "").toUpperCase();
+                  const stageOptions =
+                    !currentStage || currentStage === 'NEW_LEAD' || currentStage === 'FIRST_TALK_DONE'
+                      ? allStages
+                      : allStages.filter(
+                          (s) =>
+                            s.toUpperCase() !== 'NEW_LEAD' &&
+                            s.toUpperCase() !== 'FIRST_TALK_DONE',
+                        );
+                  return (
+                    <select
+                      className={INPUT}
+                      value={String((form as any).clientStage ?? "")}
+                      onChange={(e) => (handle as any)("clientStage", e.target.value)}
+                    >
+                      {stageOptions.map((s) => (
+                        <option key={s} value={s}>
+                          {s.replace(/_/g, " ")}
+                        </option>
+                      ))}
+                    </select>
+                  );
+                })()}
               </Field>
               <Field label="Lead status (Stage filter)">
                 <select className={INPUT} value={String((form as any).stageFilter ?? "")} onChange={(e) => (handle as any)("stageFilter", e.target.value)}>
