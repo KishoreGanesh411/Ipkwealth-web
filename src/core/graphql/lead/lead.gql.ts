@@ -17,21 +17,19 @@ export const LEAD_FIELDS = gql`
     clientStage
     createdAt
     lastContactedAt
-    # telemetry for dormant view / metrics
     firstSeenAt
     lastSeenAt
     reenterCount
-    remark
     approachAt
-    # next scheduled follow-up (used in lists/table views)
     nextActionDueAt
   }
 `;
-
 export const LEADS_PAGED = gql`
   query Leads($args: LeadListArgs!) {
     leads(args: $args) {
-      items { ...LeadFields }
+      items {
+        ...LeadFields
+      }
       page
       pageSize
       total
@@ -43,7 +41,9 @@ export const LEADS_PAGED = gql`
 export const MY_ASSIGNED_LEADS = gql`
   query MyAssignedLeads($args: LeadListArgs!) {
     myAssignedLeads(args: $args) {
-      items { ...LeadFields }
+      items {
+        ...LeadFields
+      }
       page
       pageSize
       total
@@ -68,55 +68,50 @@ export const MY_ASSIGNED_LEAD_SUMMARY = gql`
 `;
 
 export const LEAD_DETAIL_WITH_TIMELINE = gql`
-  query LeadDetailWithTimeline($id: ID!) {
-    lead(id: $id) {
+  query LeadDetailWithTimeline($id: ID!, $eventsLimit: Int) {
+    lead: leadDetailWithTimeline(leadId: $id, eventsLimit: $eventsLimit) {
       ...LeadFields
-      clientStage
+      # extra profile fields
       location
-      city
       product
       investmentRange
       sipAmount
-      profession
-      companyName
       clientTypes
       gender
-      designation
-      mobile
-      phone
+      # embedded occupations
+      occupations {
+        profession
+        companyName
+        designation
+        startedAt
+        endedAt
+      }
       phones {
         number
         isPrimary
         isWhatsapp
+        label
       }
       referralName
       referralCode
-      remark
-      lastContactedAt
-      assignedRmDetails {
-        id
-        name
-        email
-        phone
+      # full remark history (safe: backend field is remarks[])
+      remarks {
+        text
+        author
+        createdAt
       }
-    }
-    leadEvents(leadId: $id) {
-      id
-      type
-      occurredAt
-      note
-      summary
-      prevStatus
-      nextStatus
-      prevStage
-      nextStage
-      followUpOn
-      createdAt
-      author {
+      history
+      # timeline events
+      events {
         id
-        name
-        initials
-        avatarUrl
+        type
+        occurredAt
+        text
+        tags
+        prev
+        next
+        meta
+        authorId
       }
     }
   }
@@ -125,17 +120,22 @@ export const LEAD_DETAIL_WITH_TIMELINE = gql`
 
 export const CREATE_LEAD = gql`
   mutation CreateIpkLeadd($input: CreateIpkLeaddInput!) {
-    createIpkLeadd(input: $input) { ...LeadFields }
+    createIpkLeadd(input: $input) {
+      ...LeadFields
+    }
   }
   ${LEAD_FIELDS}
 `;
+
 
 // Use backend's mode-based assignment API for both auto and manual
 // Align with current backend schema:
 // - Auto-assign a single lead
 export const ASSIGN_LEAD = gql`
   mutation AssignLead($id: ID!) {
-    assignLead(id: $id) { ...LeadFields }
+    assignLead(id: $id) {
+      ...LeadFields
+    }
   }
   ${LEAD_FIELDS}
 `;
@@ -143,17 +143,22 @@ export const ASSIGN_LEAD = gql`
 // - Manually reassign a lead to a specific RM
 export const REASSIGN_LEAD = gql`
   mutation ReassignLead($input: ReassignLeadInput!) {
-    reassignLead(input: $input) { ...LeadFields }
+    reassignLead(input: $input) {
+      ...LeadFields
+    }
   }
   ${LEAD_FIELDS}
 `;
 
 export const ASSIGN_LEADS = gql`
   mutation AssignLeads($ids: [ID!]!) {
-    assignLeads(ids: $ids) { ...LeadFields }
+    assignLeads(ids: $ids) {
+      ...LeadFields
+    }
   }
   ${LEAD_FIELDS}
 `;
+
 
 export const UPDATE_LEAD_PROGRESS = gql`
   mutation UpdateLeadProgress($id: ID!, $input: UpdateLeadProgressInput!) {
@@ -161,7 +166,6 @@ export const UPDATE_LEAD_PROGRESS = gql`
       id
       status
       clientStage
-      remark
       lastContactedAt
       updatedAt
     }

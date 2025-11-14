@@ -57,7 +57,6 @@ export const FRAG_LEAD_BASE = gql`
     clientStage
     archived
 
-    remark
     remarks { text author createdAt }
     bioText
     clientTypes
@@ -188,7 +187,6 @@ export const UPDATE_LEAD_REMARK = gql`
   mutation UpdateLeadRemark($input: UpdateLeadRemarkInput!) {
     updateLeadRemark(input: $input) {
       id
-      remark
       updatedAt
     }
   }
@@ -205,7 +203,6 @@ export const RM_FIRST_CONTACT = gql`
       lastSeenAt
       nextActionDueAt
       lastContactedAt
-      remark
       updatedAt
     }
   }

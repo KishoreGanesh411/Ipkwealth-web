@@ -21,14 +21,47 @@ export default function CallConnectPage() {
   // Fetch the latest lead details (specifically remark) when we have an id
   const { data } = useQuery(LEAD_DETAIL_WITH_TIMELINE, {
     skip: !lead?.id,
-    variables: { id: lead?.id },
+    variables: { id: lead?.id, eventsLimit: 50 },
     fetchPolicy: "cache-and-network",
   });
 
-  const rawRemark: any = data?.lead?.remark ?? lead?.remark ?? undefined;
-  const latestRemark: string | undefined = (rawRemark && typeof rawRemark === "object")
-    ? (typeof rawRemark.text === "string" ? rawRemark.text : (() => { try { return JSON.stringify(rawRemark); } catch { return String(rawRemark); } })())
-    : (rawRemark != null ? String(rawRemark) : undefined);
+  const apiLead: any = data?.lead;
+
+  const pickLatestFromList = (list: any[] | undefined | null): string | undefined => {
+    if (!Array.isArray(list) || list.length === 0) return undefined;
+    const ts = (s?: string | null) => {
+      const t = s ? Date.parse(s) : NaN;
+      return Number.isFinite(t) ? t : 0;
+    };
+    const sorted = list.slice().sort((a, b) => ts(b.createdAt) - ts(a.createdAt));
+    const head = sorted[0];
+    return head && typeof head.text === "string" ? head.text : undefined;
+  };
+
+  const normalizeRemarkValue = (value: any): string | undefined => {
+    if (!value) return undefined;
+    if (typeof value === "string") return value;
+    if (typeof value === "object") {
+      if (typeof value.text === "string") return value.text;
+      try {
+        return JSON.stringify(value);
+      } catch {
+        return String(value);
+      }
+    }
+    return String(value);
+  };
+
+  const latestRemark: string | undefined = (() => {
+    const fromApiList = pickLatestFromList(apiLead?.remarks);
+    if (fromApiList && fromApiList.trim()) return fromApiList;
+
+    const fromApiScalar = normalizeRemarkValue(apiLead?.remark);
+    if (fromApiScalar && fromApiScalar.trim()) return fromApiScalar;
+
+    const fromStateScalar = normalizeRemarkValue(lead?.remark);
+    return fromStateScalar && fromStateScalar.trim() ? fromStateScalar : undefined;
+  })();
   const goBack = () => navigate(-1);
   return (
     <>
