@@ -7,7 +7,7 @@ type Props = {
 
 export default function TimelineList({ events }: Props) {
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.03] h-full min-h-0 flex flex-col">
+    <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.03] flex flex-col max-h-[480px]">
       <div className="flex items-center justify-between">
         <h2 className="text-base font-semibold">Activity Timeline</h2>
         <span className="text-xs text-gray-400">{events.length} entries</span>

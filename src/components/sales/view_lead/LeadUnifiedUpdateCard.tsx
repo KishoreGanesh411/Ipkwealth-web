@@ -24,7 +24,7 @@ type Props = {
   onSaved?: () => void;
 };
 
-const CARD = 'rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/[0.03] h-full min-h-0 flex flex-col overflow-hidden';
+const CARD = 'rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-white/[0.03] flex flex-col overflow-hidden';
 const INPUT = 'rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm focus:border-zinc-900 outline-none dark:border-white/10 dark:bg-white/5 dark:text-white';
 const BTN = 'rounded-xl bg-emerald-600 text-white px-4 py-2 border border-emerald-600 disabled:bg-zinc-300 disabled:text-white/70';
 
@@ -41,8 +41,7 @@ const STATUS_OPTIONS: Array<string> = [
 const STAGE_OPTIONS: Array<LeadStage | string> = [
   'NEW_LEAD','FIRST_TALK_DONE','FOLLOWING_UP','CLIENT_INTERESTED','ACCOUNT_OPENED','NO_RESPONSE_DORMANT','NOT_INTERESTED_DORMANT','RISKY_CLIENT_DORMANT','HIBERNATED',
 ];
-const CHANNEL_OPTIONS = ['CALL','WHATSAPP','SMS','EMAIL','MEETING','OTHER'];
-const OUTCOME_OPTIONS = ['ANSWERED','NO_ANSWER','INTERESTED','NOT_INTERESTED','FOLLOW_UP_NEEDED','WRONG_NUMBER'];
+// REMOVED: CHANNEL_OPTIONS and OUTCOME_OPTIONS
 
 export default function LeadUnifiedUpdateCard({
   leadId,
@@ -54,9 +53,9 @@ export default function LeadUnifiedUpdateCard({
   const [status, setStatus] = useState<string>(String(currentStatus ?? 'OPEN'));
   const [stage, setStage] = useState<string>(String(currentStage ?? 'NEW_LEAD'));
   const [followUp, setFollowUp] = useState<string>('');
-  const [channel, setChannel] = useState<string>('CALL');
-  const [outcome, setOutcome] = useState<string>('');
+  // REMOVED: channel and outcome state
   const [notes, setNotes] = useState<string>('');
+  const [productExplained, setProductExplained] = useState<boolean>(true);
   const [saving, setSaving] = useState(false);
 
   const [mutUpdateDetails] = useMutation(UPDATE_LEAD_DETAILS);
@@ -117,9 +116,9 @@ export default function LeadUnifiedUpdateCard({
               leadId,
               stage,
               note: notes || null,
-              channel: channel || null,
+              channel: 'CALL', // Hardcoded default as field is removed
               nextFollowUpAt: nextFollowUpAt ?? null,
-              productExplained: stage === 'FIRST_TALK_DONE' ? true : null,
+              productExplained,
             },
           },
         })
@@ -162,8 +161,8 @@ export default function LeadUnifiedUpdateCard({
               input: {
                 leadId,
                 text: notes,
-                channel: channel || null,
-                outcome: outcome || null,
+                channel: 'CALL', // Hardcoded default
+                outcome: null, // Hardcoded default
                 nextFollowUpAt: nextFollowUpAt ?? undefined,
                 tags: ['ui:unified'],
               },
@@ -187,7 +186,7 @@ export default function LeadUnifiedUpdateCard({
 
   return (
     <section className={CARD}>
-      <div className="mb-3 flex items-center justify-between">
+      <div className="mb-2 flex items-center justify-between">
         <div className="flex items-center gap-2 text-gray-800 dark:text-white">
           <Flag className="h-4 w-4 text-emerald-600" />
           <h3 className="text-sm font-semibold">Progress & Activity</h3>
@@ -197,8 +196,35 @@ export default function LeadUnifiedUpdateCard({
         </button>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2 flex-1">
-        {/* Stage (left) */}
+      {/* REORDERED: Fields are now in the requested order */}
+      <div className="grid grid-cols-1 gap-5 flex-1">
+        
+        {/* Product explained */}
+        <div>
+          <label className="mb-1 block text-xs font-medium text-gray-500">Was the product explained?</label>
+          <div className="mt-1 flex items-center gap-4 text-xs text-gray-700 dark:text-white/80">
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                className="h-3.5 w-3.5 accent-emerald-600"
+                checked={productExplained === true}
+                onChange={() => setProductExplained(true)}
+              />
+              <span>Yes</span>
+            </label>
+            <label className="inline-flex items-center gap-2">
+              <input
+                type="radio"
+                className="h-3.5 w-3.5 accent-emerald-600"
+                checked={productExplained === false}
+                onChange={() => setProductExplained(false)}
+              />
+              <span>No</span>
+            </label>
+          </div>
+        </div>
+
+        {/* Stage */}
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-500">Pipeline stage</label>
           <div className="relative">
@@ -211,7 +237,7 @@ export default function LeadUnifiedUpdateCard({
           </div>
         </div>
 
-        {/* Status (right) */}
+        {/* Status */}
         <div>
           <label className="mb-1 block text-xs font-medium text-gray-500">Lead status</label>
           <div className="relative">
@@ -233,29 +259,12 @@ export default function LeadUnifiedUpdateCard({
           </div>
         </div>
 
-        {/* Channel & Outcome */}
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Channel</label>
-            <select className={`${INPUT} w-full`} value={channel} onChange={(e) => setChannel(e.target.value)}>
-              {CHANNEL_OPTIONS.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="mb-1 block text-xs font-medium text-gray-500">Outcome (optional)</label>
-            <select className={`${INPUT} w-full`} value={outcome} onChange={(e) => setOutcome(e.target.value)}>
-              <option value="">—</option>
-              {OUTCOME_OPTIONS.map((o) => (
-                <option key={o} value={o}>{o.replace(/_/g, ' ')}</option>
-              ))}
-            </select>
-          </div>
-        </div>
+        {/* REMOVED: Channel */}
+
+        {/* REMOVED: Outcome */}
 
         {/* Notes */}
-        <div className="md:col-span-2">
+        <div>
           <label className="mb-1 block text-xs font-medium text-gray-500">Notes (also saved as Remark)</label>
           <div className="relative">
             <textarea rows={3} value={notes} onChange={(e) => setNotes(e.target.value)} className={`${INPUT} w-full resize-y`} placeholder="Add context, commitments, objections, etc." />

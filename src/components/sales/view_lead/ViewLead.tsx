@@ -21,7 +21,6 @@ import TimelineList from "./TimelineList";
 import { pickLeadStage, pickLeadStatus } from "./interface/utils";
 import { shouldAutoOpenLead } from "./autoStatus";
 import type { LeadEvent, LeadProfile } from "./interface/types";
-import FirstContactCard from "./FirstContactCard";
 import RmLeadsDrawer from "./RmLeadsDrawer";
 
 type LeadDetailResp = { leadDetailWithTimeline: LeadProfile };
@@ -269,93 +268,7 @@ export default function ViewLead() {
       />
 
       <div className="flex flex-col gap-6 lg:gap-8">
-        {(
-          (lead.clientStage !== 'FIRST_TALK_DONE') &&
-          (lead.status === 'PENDING' || lead.clientStage === 'NEW_LEAD')
-        ) && (
-          <FirstContactCard
-            submitting={updatingProgress}
-            onSubmit={async ({ productExplained, channel, notExplainedReason, nextFollowUpAt, note }) => {
-              if (!leadId) return;
-              setUpdatingProgress(true);
-              try {
-                // Require a follow-up date for first contact
-                if (!nextFollowUpAt) {
-                  toast.warn('Next follow-up is required');
-                  setUpdatingProgress(false);
-                  return;
-                }
-                await mutRmFirstContact({
-                  variables: {
-                    input: {
-                      leadId,
-                      productExplained,
-                      channel: (channel || 'CALL') as any,
-                      notExplainedReason: notExplainedReason ?? null,
-                      note: note ?? null,
-                      nextFollowUpAt: nextFollowUpAt ?? null,
-                    },
-                  },
-                });
-
-                // After first contact, treat the lead as "first talk done"
-                // and automatically move pipeline status from PENDING -> OPEN
-                // so marketing open-lead views stay in sync.
-                if (
-                  shouldAutoOpenLead({
-                    previousStatus: lead.status as string | null,
-                    nextStage: 'FIRST_TALK_DONE',
-                  })
-                ) {
-                  try {
-                    await mutUpdateStatus({
-                      variables: { leadId, status: 'OPEN' },
-                      update(cache, result) {
-                        const payload = (result?.data as any)?.updateLeadStatus;
-                        if (!payload?.id) return;
-                        cache.modify({
-                          id: cache.identify({ __typename: 'IpkLeaddEntity', id: payload.id }),
-                          fields: {
-                            status: () => payload.status,
-                            clientStage: () => payload.clientStage,
-                            ...(payload.leadCode ? { leadCode: () => payload.leadCode } : {}),
-                          },
-                        });
-                      },
-                    });
-                  } catch {
-                    // ignore; non-blocking
-                  }
-                }
-                // Also update Latest remark with a concise summary
-                const parts: string[] = [];
-                parts.push(productExplained ? 'Product explained' : 'Product not explained');
-                if (channel) parts.push(`via ${channel}`);
-                if (!productExplained && notExplainedReason) parts.push(`Reason: ${notExplainedReason}`);
-                if (nextFollowUpAt) parts.push(`Next follow-up: ${new Date(nextFollowUpAt).toLocaleString()}`);
-                if (note) parts.push(`Notes: ${note}`);
-                const summary = parts.join(' | ');
-                try {
-                  await mutUpdateRemark({ variables: { input: { leadId, remark: summary } } });
-                } catch (_) {
-                  // ignore; non-blocking
-                }
-                const pretty = nextFollowUpAt ? format(new Date(nextFollowUpAt), 'dd MMM, HH:mm') : '';
-                toast.success(
-                  pretty
-                    ? `First contact saved. Follow-up scheduled for ${pretty}.`
-                    : 'First contact saved.'
-                );
-                await refetch();
-              } catch (e: any) {
-                toast.error(e?.message || 'Failed to save');
-              } finally {
-                setUpdatingProgress(false);
-              }
-            }}
-          />
-        )}
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch md:h-[70vh]">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
           <div className="h-full min-h-0">
             <LeadUnifiedUpdateCard
               leadId={leadId}
