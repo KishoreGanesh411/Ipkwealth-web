@@ -178,6 +178,14 @@ export type LeadProfile = {
 
   phones: LeadPhone[];
   events: LeadEvent[];
+  history?: Array<{
+    id: string;
+    type?: string | null;
+    text?: string | null;
+    at?: string | null;
+    authorId?: string | null;
+    authorName?: string | null;
+  } | null> | null;
 };
 
 export type LeadEditFormValues = Partial<LeadProfile>;

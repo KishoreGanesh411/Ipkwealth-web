@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { useMutation } from "@apollo/client";
 import { toast } from "react-toastify";
@@ -20,6 +20,7 @@ import {
   Code,
   Copy, // Keep for lead code copy
   PhoneCall,
+  CalendarClock,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
@@ -68,7 +69,7 @@ type ContactGridField = {
   key: string;
   icon: LucideIcon;
   label: string;
-  value: string;
+  value: ReactNode;
   muted?: boolean;
 };
 
@@ -131,21 +132,109 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
   // Contact Info
   const rawPrimaryPhone =
     lead.mobile ?? lead.phone ?? lead.phoneNormalized ?? null;
-  const phoneDisplay = rawPrimaryPhone ? String(rawPrimaryPhone).trim() : "Not provided";
   const emailDisplay = lead.email?.trim() || "Not provided";
 
+  const normalizedPhones = useMemo(() => {
+    const entries = new Map<
+      string,
+      { label?: string | null; isWhatsapp?: boolean; isPrimary?: boolean }
+    >();
+    const add = (
+      value?: string | null,
+      meta?: { label?: string | null; isWhatsapp?: boolean; isPrimary?: boolean },
+    ) => {
+      if (!value) return;
+      const trimmed = value.toString().trim();
+      if (!trimmed) return;
+      const existing = entries.get(trimmed);
+      entries.set(trimmed, {
+        label: meta?.label ?? existing?.label,
+        isWhatsapp: meta?.isWhatsapp ?? existing?.isWhatsapp ?? false,
+        isPrimary: meta?.isPrimary ?? existing?.isPrimary ?? false,
+      });
+    };
+    add(rawPrimaryPhone, { isPrimary: true });
+    if (Array.isArray(lead.phones)) {
+      lead.phones.forEach((phone) =>
+        add(phone.number, {
+          label: phone.label,
+          isWhatsapp: phone.isWhatsapp,
+          isPrimary: phone.isPrimary,
+        }),
+      );
+    }
+    return Array.from(entries).map(([number, meta]) => ({
+      number,
+      label: meta.label,
+      isWhatsapp: meta.isWhatsapp,
+      isPrimary: meta.isPrimary,
+    }));
+  }, [lead.phones, rawPrimaryPhone]);
+  const hasPhoneNumbers = normalizedPhones.length > 0;
+  const fallbackPhone = rawPrimaryPhone ? String(rawPrimaryPhone).trim() : "";
+  const phoneDisplay = (normalizedPhones[0]?.number ?? fallbackPhone) || "Not provided";
+
+  const phoneListMarkup =
+    hasPhoneNumbers && (
+      <div className="flex flex-wrap gap-2">
+        {normalizedPhones.map((phone) => (
+          <span
+            key={phone.number}
+            className="inline-flex items-center gap-1 rounded-full border border-gray-200 bg-white px-3 py-1 text-[11px] font-semibold text-gray-700 dark:border-white/10 dark:bg-white/5 dark:text-white/80"
+          >
+            <PhoneCall className="h-3 w-3 text-emerald-600" aria-hidden="true" />
+            <span>{phone.number}</span>
+            {phone.label && (
+              <span className="rounded-full bg-emerald-100 px-2 py-[2px] text-[10px] font-semibold text-emerald-600 dark:bg-emerald-50/20 dark:text-emerald-200">
+                {phone.label}
+              </span>
+            )}
+            {phone.isWhatsapp && (
+              <MessageCircle className="h-3 w-3 text-emerald-600" aria-label="WhatsApp" />
+            )}
+          </span>
+        ))}
+      </div>
+    );
+  const phoneListValue = hasPhoneNumbers ? phoneListMarkup : "Not provided";
+  const nextFollowUpDisplay = lead.nextActionDueAt ? formatDateDisplay(lead.nextActionDueAt) : "Not scheduled";
+  const hasNextFollowUp = Boolean(lead.nextActionDueAt);
+
   // Date / Aging
-  const enteredOnRaw = lead.approachAt || lead.createdAt || null;
+  const enteredOnRaw = lead.createdAt ?? null;
+  const agingSourceRaw = lead.approachAt?.trim() ? lead.approachAt : enteredOnRaw;
   const agingDaysNum = useMemo(() => {
-    if (enteredOnRaw) {
+    if (agingSourceRaw) {
       try {
-        const d = parseISO(enteredOnRaw);
+        const d = parseISO(agingSourceRaw);
         if (isValidDate(d)) return Math.max(0, differenceInCalendarDays(new Date(), d));
       } catch {}
     }
     return null;
-  }, [enteredOnRaw]);
+  }, [agingSourceRaw]);
   const agingDisplay = formatAgingDays(agingDaysNum ?? undefined);
+
+  const lastActivityAt = useMemo(() => {
+    const candidates: number[] = [];
+    const pushDate = (value?: string | null) => {
+      if (!value) return;
+      const ts = Date.parse(value);
+      if (Number.isFinite(ts)) candidates.push(ts);
+    };
+    pushDate(lead.lastContactedAt);
+    pushDate(lead.lastSeenAt);
+    pushDate(lead.approachAt);
+    if (Array.isArray(lead.events)) {
+      lead.events.forEach((ev) => pushDate(ev.occurredAt));
+    }
+    if (Array.isArray(lead.remarks)) {
+      lead.remarks.forEach((remark) => pushDate(remark.createdAt));
+    }
+    if (candidates.length === 0) return null;
+    return new Date(Math.max(...candidates)).toISOString();
+  }, [lead.events, lead.lastContactedAt, lead.lastSeenAt, lead.approachAt, lead.remarks]);
+  const lastContactRaw = lead.lastContactedAt ?? lastActivityAt;
+  const lastSeenRaw = lead.lastSeenAt ?? lastActivityAt;
 
   /**
    * Data for the center "CONTACT & DETAILS" grid
@@ -174,21 +263,47 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
         muted: !(hasInvestmentRange || hasSipAmount),
       },
       {
+        key: "phones",
+        icon: Phone,
+        label: "Phones",
+        value: phoneListValue,
+        muted: !hasPhoneNumbers,
+      },
+      {
+        key: "nextFollowUp",
+        icon: CalendarClock,
+        label: "Next follow-up",
+        value: nextFollowUpDisplay,
+        muted: !hasNextFollowUp,
+      },
+      {
         key: "lastContact",
         icon: PhoneCall,
         label: "Last Contact",
-        value: "Not captured", // No data for this in LeadProfile
-        muted: true,
+        value: lastContactRaw ? formatDateDisplay(lastContactRaw) : "Not captured",
+        muted: !lastContactRaw,
       },
       {
         key: "lastSeen",
         icon: Calendar,
         label: "Last Seen",
-        value: formatDateDisplay(enteredOnRaw),
-        muted: !enteredOnRaw,
+        value: lastSeenRaw ? formatDateDisplay(lastSeenRaw) : "Not captured",
+        muted: !lastSeenRaw,
       },
     ];
-  }, [emailDisplay, product, investmentValue, hasInvestmentRange, hasSipAmount, enteredOnRaw]);
+  }, [
+    emailDisplay,
+    product,
+    investmentValue,
+    hasInvestmentRange,
+    hasSipAmount,
+    phoneListValue,
+    hasPhoneNumbers,
+    nextFollowUpDisplay,
+    hasNextFollowUp,
+    lastContactRaw,
+    lastSeenRaw,
+  ]);
 
   /**
    * Prepare initial values for the edit modal.
@@ -454,7 +569,9 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
               Contact & Details
             </h3>
             <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-6">
-              {contactDetailsGrid.map((field) => (
+            {contactDetailsGrid.map((field) => {
+              const valueTitle = typeof field.value === "string" ? field.value : undefined;
+              return (
                 <div key={field.key} className="flex items-start gap-3">
                   <field.icon
                     className={`h-5 w-5 flex-shrink-0 ${
@@ -467,13 +584,14 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
                       className={`mt-0.5 truncate text-base font-bold ${
                         field.muted ? "text-gray-400 dark:text-white/40" : "text-gray-900 dark:text-white"
                       }`}
-                      title={field.value}
+                      title={valueTitle}
                     >
                       {field.value}
                     </div>
                   </div>
                 </div>
-              ))}
+              );
+            })}
               {/* This fills the 6th grid slot if contactDetailsGrid has 5 items */}
               <div></div>
             </div>

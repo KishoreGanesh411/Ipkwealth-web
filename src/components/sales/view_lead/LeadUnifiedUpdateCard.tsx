@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { useMutation } from '@apollo/client';
 import { toast } from 'react-toastify';
-import { Flag, Milestone, Clock3, StickyNote, ChevronDown } from 'lucide-react';
+import { Flag, Milestone, Clock3, StickyNote, ChevronDown, CheckCircle2 } from 'lucide-react';
 
 import {
   CHANGE_STAGE,
@@ -83,6 +83,9 @@ export default function LeadUnifiedUpdateCard({
       (s) => String(s).toUpperCase() !== 'NEW_LEAD' && String(s).toUpperCase() !== 'FIRST_TALK_DONE',
     );
   }, [stage]);
+
+  const isNewLeadStage = String(stage || '').toUpperCase() === 'NEW_LEAD';
+  const showProductExplainedReminder = !isNewLeadStage && productExplained;
 
   const onSave = async () => {
     if (!leadId) return;
@@ -200,29 +203,41 @@ export default function LeadUnifiedUpdateCard({
       <div className="grid grid-cols-1 gap-5 flex-1">
         
         {/* Product explained */}
-        <div>
-          <label className="mb-1 block text-xs font-medium text-gray-500">Was the product explained?</label>
-          <div className="mt-1 flex items-center gap-4 text-xs text-gray-700 dark:text-white/80">
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="radio"
-                className="h-3.5 w-3.5 accent-emerald-600"
-                checked={productExplained === true}
-                onChange={() => setProductExplained(true)}
-              />
-              <span>Yes</span>
-            </label>
-            <label className="inline-flex items-center gap-2">
-              <input
-                type="radio"
-                className="h-3.5 w-3.5 accent-emerald-600"
-                checked={productExplained === false}
-                onChange={() => setProductExplained(false)}
-              />
-              <span>No</span>
-            </label>
+        {isNewLeadStage && (
+          <div>
+            <label className="mb-1 block text-xs font-medium text-gray-500">Was the product explained?</label>
+            <div className="mt-1 flex items-center gap-4 text-xs text-gray-700 dark:text-white/80">
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  className="h-3.5 w-3.5 accent-emerald-600"
+                  checked={productExplained === true}
+                  onChange={() => setProductExplained(true)}
+                />
+                <span>Yes</span>
+              </label>
+              <label className="inline-flex items-center gap-2">
+                <input
+                  type="radio"
+                  className="h-3.5 w-3.5 accent-emerald-600"
+                  checked={productExplained === false}
+                  onChange={() => setProductExplained(false)}
+                />
+                <span>No</span>
+              </label>
+            </div>
           </div>
-        </div>
+        )}
+
+        {showProductExplainedReminder && (
+          <div className="flex items-center gap-3 rounded-2xl border border-emerald-200 bg-emerald-50/60 px-4 py-3 text-xs font-semibold text-emerald-900">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600" />
+            <div>
+              <p>Product explained</p>
+              <p className="text-[11px] font-medium text-emerald-700">Captured as yes</p>
+            </div>
+          </div>
+        )}
 
         {/* Stage */}
         <div>
