@@ -25,7 +25,7 @@ import {
 import type { LucideIcon } from "lucide-react";
 
 // Note: Use specific field mutations supported by the API schema
-import { UPDATE_LEAD_BIO, UPDATE_LEAD_REMARK } from "./gql/view_lead.gql";
+import { UPDATE_LEAD_REMARK } from "./gql/view_lead.gql";
 import LeadStatusBadge from "@/components/sales/myleads/LeadStatusBadge";
 import { leadOptions, valueToLabel } from "@/components/lead/types";
 import {
@@ -75,7 +75,6 @@ type ContactGridField = {
 
 export default function LeadProfileHeader({ lead, loading, canEditProfile, onProfileRefresh }: Props) {
   const [isEditing, setIsEditing] = useState(false);
-  const [mutateBio, { loading: savingBio }] = useMutation(UPDATE_LEAD_BIO);
   const [mutateRemark, { loading: savingRemark }] = useMutation(UPDATE_LEAD_REMARK);
   const [mutAddPhone, { loading: addingPhone }] = useMutation(ADD_LEAD_PHONE);
   const { user } = useAuth();
@@ -325,11 +324,14 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
     }
     return {
       leadCode: lead.leadCode ?? "",
+      leadId: lead.id,
+      id: lead.id,
       leadSource: lead.leadSource ?? "",
       firstName: lead.firstName ?? "",
       lastName: lead.lastName ?? "",
       fullName: lead.name ?? "",
       email: lead.email ?? "",
+      phone: primaryPhone ?? "",
       primaryPhone: primaryPhone ?? "",
       whatsappPhone: whatsappPhone ?? "",
       location: lead.location ?? "",
@@ -358,6 +360,9 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       age: lead.age ?? null,
       referralCode: lead.referralCode ?? "",
       bioText: lead.bioText ?? "",
+      clientStage: lead.clientStage ?? "",
+      stageFilter: lead.stageFilter ?? "",
+      status: lead.status ?? "",
     } as LeadEditModalValues;
   }, [lead]);
 
@@ -397,28 +402,16 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       );
     }
 
-    // Bio text
-    const nextBio = String(values.bioText ?? "").trim();
-    const currBio = String(lead.bioText ?? "").trim();
-    if (nextBio !== currBio) {
-      ops.push(
-        mutateBio({ variables: { input: { leadId: lead.id, bioText: nextBio } } })
-      );
-    }
-
-    if (ops.length === 0) {
-      toast.info("Nothing to update");
-      setIsEditing(false);
-      return;
-    }
-
     try {
-      await Promise.all(ops);
-      toast.success("Profile updated");
-      setIsEditing(false);
-      onProfileRefresh?.();
+      if (ops.length > 0) {
+        await Promise.all(ops);
+        toast.success("Profile updated");
+      }
     } catch (error: any) {
       toast.error(error?.message ?? "Unable to update lead");
+    } finally {
+      onProfileRefresh?.();
+      setIsEditing(false);
     }
   };
 
@@ -502,9 +495,9 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
     <>
       <div className="card rounded-2xl shadow-lg">
         {/* NEW 3-COLUMN LAYOUT */}
-        <div className="grid grid-cols-1 items-start gap-6 p-6 lg:grid-cols-12">
+        <div className="grid grid-cols-1 items-start gap-4 p-4 lg:grid-cols-12">
           {/* Col 1: Profile */}
-          <div className="flex items-center gap-4 lg:col-span-5">
+          <div className="flex items-center gap-4 lg:col-span-5 text-sm">
             {/* Avatar + Edit */}
             <div className="relative flex-shrink-0">
               <div className="grid h-16 w-16 place-items-center rounded-full bg-emerald-500/10 text-lg font-semibold text-emerald-700 transition-colors dark:bg-emerald-400/20 dark:text-emerald-100">
@@ -533,22 +526,22 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
                 {lead.leadCode ?? "No code"}
               </p>
               <div
-                className={`mt-2 inline-flex items-center gap-2 text-base font-medium ${
-                  hasReferral ? "text-gray-700 dark:text-gray-200" : "text-gray-400 dark:text-white/50"
+                className={`mt-2 inline-flex items-center gap-2 text-xs font-medium ${
+                  hasReferral ? "text-gray-600 dark:text-gray-200" : "text-gray-400 dark:text-white/50"
                 }`}
               >
                 <User className="h-4 w-4" />
-                <span>Referred by: {referralPrimary}</span>
+                <span className="text-xs">Referred by: {referralPrimary}</span>
               </div>
               {/* Info: Age, Gender, Add Phone */}
               <div className="mt-4 flex flex-wrap items-center gap-4">
                 <div className="flex items-baseline gap-1.5">
-                  <span className="text-xs font-semibold uppercase text-emerald-600 dark:text-emerald-400">AGE</span>
-                  <span className="text-base font-semibold text-gray-800 dark:text-white">{ageDisplay}</span>
+                  <span className="text-[0.65rem] font-semibold uppercase text-emerald-600 dark:text-emerald-400">AGE</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-white">{ageDisplay}</span>
                 </div>
                  <div className="flex items-baseline gap-1.5">
-                  <span className="text-xs font-semibold uppercase text-emerald-600 dark:text-emerald-400">GENDER</span>
-                  <span className="text-base font-semibold text-gray-800 dark:text-white">{genderDisplay}</span>
+                  <span className="text-[0.65rem] font-semibold uppercase text-emerald-600 dark:text-emerald-400">GENDER</span>
+                  <span className="text-sm font-semibold text-gray-800 dark:text-white">{genderDisplay}</span>
                 </div>
                 <button
                   type="button"
@@ -564,11 +557,11 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
           </div>
 
           {/* Col 2: Contact & Details */}
-          <div className="lg:col-span-4 lg:border-l lg:pl-6 border-gray-200 dark:border-white/10">
+          <div className="lg:col-span-4 lg:border-l lg:pl-6 border-gray-200 dark:border-white/10 text-sm">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-white/60">
               Contact & Details
             </h3>
-            <div className="mt-4 grid grid-cols-2 gap-x-4 gap-y-6">
+            <div className="mt-4 grid grid-cols-2 gap-x-3 gap-y-4">
             {contactDetailsGrid.map((field) => {
               const valueTitle = typeof field.value === "string" ? field.value : undefined;
               return (
@@ -579,9 +572,11 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
                     }`}
                   />
                   <div>
-                    <div className="text-sm font-medium text-gray-500 dark:text-white/60">{field.label}</div>
+                    <div className="text-[0.65rem] font-semibold uppercase tracking-wide text-gray-500 dark:text-white/60">
+                      {field.label}
+                    </div>
                     <div
-                      className={`mt-0.5 truncate text-base font-bold ${
+                      className={`mt-1 truncate text-sm font-semibold ${
                         field.muted ? "text-gray-400 dark:text-white/40" : "text-gray-900 dark:text-white"
                       }`}
                       title={valueTitle}
@@ -598,7 +593,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
           </div>
 
           {/* Col 3: Status & Key Dates */}
-          <div className="lg:col-span-3 lg:text-right lg:border-l lg:pl-6 border-gray-200 dark:border-white/10">
+          <div className="lg:col-span-3 lg:text-right lg:border-l lg:pl-6 border-gray-200 dark:border-white/10 text-sm">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-white/60">
               Contact
             </h3>
@@ -609,14 +604,14 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
               {phoneDisplay}
             </div>
 
-            <div className="mt-6 flex flex-wrap items-center gap-2 lg:justify-end">
-              <LeadStatusBadge status={headerStatus} size="lg" />
+            <div className="mt-5 flex flex-wrap items-center gap-1.5 lg:justify-end">
+              <LeadStatusBadge status={headerStatus} size="sm" />
               <span
-                className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-semibold ${stageDisplay.pillClass}`}
+                className={`inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-semibold ${stageDisplay.pillClass}`}
               >
                 <StageIcon
                   state={stageDisplay.state}
-                  className="h-4 w-4"
+                  className="h-3 w-3"
                 />
                 {stageDisplay.label}
               </span>
@@ -664,9 +659,10 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
         isOpen={isEditing}
         onClose={handleModalClose}
         initial={modalInitialValues}
-        saving={savingBio || savingRemark}
+        saving={savingRemark}
         onSubmit={handleModalSubmit}
         title="Edit lead details"
+        onAddPhone={addPhoneModal.openModal}
       />
 
       {/* Add Phone Modal */}

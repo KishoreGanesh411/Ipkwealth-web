@@ -4,15 +4,15 @@ import Button from "../../ui/button/Button";
 import { useMutation } from "@apollo/client";
 import Label from "../../form/Label";
 import { toast } from "react-toastify";
-import { UPDATE_LEAD_DETAILS } from "../editLead/update_gql/update_lead.gql";
-import { useAuth } from "@/context/AuthContex";
-import { UPDATE_LEAD_BIO, CHANGE_STAGE } from "@/components/sales/view_lead/gql/view_lead.gql";
+import { UPDATE_LEAD_DETAILS_FULL } from "../editLead/update_gql/update_lead_full.gql";
+import { UPDATE_LEAD_BIO, CHANGE_STAGE, UPDATE_LEAD_STATUS } from "@/components/sales/view_lead/gql/view_lead.gql";
 import {
   genderOptions,
   professionOptions,
   leadOptions,
   valueToLabel,
   titleCaseWords,
+  humanizeEnum,
 } from "@/components/lead/types";
 
 import type { LeadShape } from "../../ui/lead/Validators";
@@ -39,6 +39,8 @@ export type LeadEditModalValues = Partial<LeadShape & OptionalExtras> & {
     startedAt?: string | Date;
     endedAt?: string | Date;
   }>;
+  status?: string | null;
+  leadId?: string | null;
 };
 
 type LeadEditModalProps = {
@@ -48,10 +50,13 @@ type LeadEditModalProps = {
   onSubmit: (values: LeadEditModalValues) => Promise<void> | void;
   saving?: boolean;
   title?: string;
+  onAddPhone?: () => void;
 };
 
 const INPUT =
   "mt-1 w-full rounded-xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:border-emerald-400 focus:outline-hidden focus:ring-2 focus:ring-emerald-200 disabled:cursor-not-allowed disabled:opacity-60 dark:border-white/10 dark:bg-white/[0.07] dark:text-white dark:placeholder:text-white/40";
+
+const leadStatusOptions = ["ASSIGNED", "OPEN", "IN_PROGRESS", "ON_HOLD", "CLOSED", "PENDING"] as const;
 
 export default function LeadEditModal({
   isOpen,
@@ -60,15 +65,15 @@ export default function LeadEditModal({
   onSubmit,
   saving = false,
   title = "Edit lead details",
+  onAddPhone,
 }: LeadEditModalProps) {
-  const { user } = useAuth();
-  const isAdmin = user?.role === "ADMIN";
   const [form, setForm] = useState<LeadEditModalValues>({});
   const [errors, setErrors] = useState<Record<string, string>>({});
   const firstRef = useRef<HTMLInputElement | null>(null);
-  const [mutUpdate, { loading: mutating }] = useMutation(UPDATE_LEAD_DETAILS);
+  const [mutUpdate, { loading: mutating }] = useMutation(UPDATE_LEAD_DETAILS_FULL);
   const [mutBio] = useMutation(UPDATE_LEAD_BIO);
   const [mutStage] = useMutation(CHANGE_STAGE);
+  const [mutUpdateStatus] = useMutation(UPDATE_LEAD_STATUS);
 
   const leadIdFromUrl = useMemo(() => {
     try {
@@ -118,8 +123,8 @@ export default function LeadEditModal({
 
   const validate = () => {
     const nextErrors: Record<string, string> = {};
-    const nameOrFirst = String((form as any).name ?? form.firstName ?? "").trim();
-    if (!nameOrFirst) nextErrors.name = "Name is required";
+    const first = String(form.firstName ?? "").trim();
+    if (!first) nextErrors.firstName = "First name is required";
 
     // Age: optional, must be a number between 0 and 120
     const ageRaw = String(form.age ?? "").trim();
@@ -183,12 +188,18 @@ export default function LeadEditModal({
                 companyName: normalize(form.companyName) ?? undefined,
                 designation: normalize(form.designation) ?? undefined,
               },
-            ],
+      ],
+      status: normalize((form as any).status) ?? undefined,
     };
 
     try {
+      const resolvedLeadId =
+        (form as any).leadId ??
+        (initial as any)?.leadId ??
+        (initial as any)?.id ??
+        leadIdFromUrl;
       const input: any = {
-        leadId: (initial as any).id ?? (initial as any).leadId ?? leadIdFromUrl,
+        leadId: resolvedLeadId,
         name: (payload as any).name,
         firstName: payload.firstName,
         lastName: payload.lastName,
@@ -198,11 +209,10 @@ export default function LeadEditModal({
         occupations: payload.occupations,
         bioText: payload.bioText,
         email: normalize((form as any).email) ?? undefined,
-        phone: normalize((form as any).phone) ?? undefined,
         product: normalize((form as any).product) ?? undefined,
         investmentRange: normalize((form as any).investmentRange) ?? undefined,
         sipAmount: (() => {
-          const sv = String((form as any).sipAmount ?? '').trim();
+          const sv = String((form as any).sipAmount ?? "").trim();
           if (!sv) return undefined;
           const n = Number(sv);
           return Number.isFinite(n) ? n : undefined;
@@ -217,15 +227,22 @@ export default function LeadEditModal({
 
       await mutUpdate({ variables: { input } });
 
+      const leadId = input.leadId;
+
       // Update stage if changed
-      const nextStage = String((form as any).clientStage ?? '').trim();
-      const prevStage = String((initial as any)?.clientStage ?? '').trim();
-      const stageLeadId = input.leadId;
-      if (nextStage && nextStage !== prevStage && stageLeadId) {
-        await mutStage({ variables: { input: { leadId: stageLeadId, stage: nextStage } } });
+      const nextStage = String((form as any).clientStage ?? "").trim();
+      const prevStage = String((initial as any)?.clientStage ?? "").trim();
+      if (nextStage && nextStage !== prevStage && leadId) {
+        await mutStage({ variables: { input: { leadId, stage: nextStage } } });
       }
 
-      const leadId = input.leadId;
+      // Update status if changed
+      const nextStatus = String(form.status ?? "").trim();
+      const prevStatus = String((initial as any)?.status ?? "").trim();
+      if (nextStatus && prevStatus !== nextStatus && leadId) {
+        await mutUpdateStatus({ variables: { leadId, status: nextStatus } });
+      }
+
       const nextBio = String(payload.bioText ?? "").trim();
       const prevBio = String((initial as any)?.bioText ?? "").trim();
       if (nextBio !== prevBio) {
@@ -257,22 +274,12 @@ export default function LeadEditModal({
           </div>
 
           <div className="grid gap-4 rounded-2xl border border-gray-100 p-4 dark:border-white/10 sm:grid-cols-2">
-            <Field label="Full name" error={errors.name}>
-              <input
-                ref={firstRef}
-                className={INPUT}
-                value={String((form as any).name ?? "")}
-                onChange={(e) => (handle as any)("name", e.target.value)}
-                placeholder="Enter full name"
-              />
-            </Field>
-
             <div className="grid grid-cols-2 gap-3">
-              <Field label="First name">
-                <input className={INPUT} value={String(form.firstName ?? "")} onChange={(e) => handle("firstName", e.target.value)} placeholder="Optional" />
+              <Field label="First name" error={errors.firstName}>
+                <input ref={firstRef} className={INPUT} value={String(form.firstName ?? "")} onChange={(e) => handle("firstName", e.target.value)} placeholder="First name" />
               </Field>
               <Field label="Last name">
-                <input className={INPUT} value={String(form.lastName ?? "")} onChange={(e) => handle("lastName", e.target.value)} placeholder="Optional" />
+                <input className={INPUT} value={String(form.lastName ?? "")} onChange={(e) => handle("lastName", e.target.value)} placeholder="Last name" />
               </Field>
             </div>
 
@@ -282,14 +289,27 @@ export default function LeadEditModal({
                 <input className={INPUT} value={String((form as any).email ?? "")} onChange={(e) => (handle as any)("email", e.target.value)} placeholder="email@example.com" />
               </Field>
               <Field label="Phone">
-                <input
-                  className={INPUT}
-                  value={String((form as any).phone ?? "")}
-                  onChange={(e) => (handle as any)("phone", e.target.value)}
-                  placeholder="10-digit mobile"
-                  disabled={!isAdmin}
-                  title={isAdmin ? "Primary phone" : "Primary phone can be edited by admin only"}
-                />
+                <div className="space-y-2">
+                  <input
+                    className={INPUT}
+                    value={String((form as any).phone ?? "")}
+                    readOnly
+                    placeholder="Primary phone"
+                    title="Primary phone cannot be edited here"
+                  />
+                  {onAddPhone && (
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-emerald-600 transition hover:text-emerald-800"
+                      onClick={onAddPhone}
+                    >
+                      Add another phone
+                    </button>
+                  )}
+                  <p className="text-xs text-gray-500 dark:text-white/50">
+                    Primary phone is read-only. Use the Add phone action to save extra numbers.
+                  </p>
+                </div>
               </Field>
             </div>
 
@@ -410,20 +430,29 @@ export default function LeadEditModal({
             </div>
 
             {/* Stage controls */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid gap-3 sm:grid-cols-3">
               <Field label="Pipeline stage">
                 {(() => {
                   const allStages = [
-                    'NEW_LEAD','FIRST_TALK_DONE','FOLLOWING_UP','CLIENT_INTERESTED','ACCOUNT_OPENED','NO_RESPONSE_DORMANT','NOT_INTERESTED_DORMANT','RISKY_CLIENT_DORMANT','HIBERNATED',
+                    "NEW_LEAD",
+                    "FIRST_TALK_DONE",
+                    "FOLLOWING_UP",
+                    "CLIENT_INTERESTED",
+                    "ACCOUNT_OPENED",
+                    "NO_RESPONSE_DORMANT",
+                    "NOT_INTERESTED_DORMANT",
+                    "RISKY_CLIENT_DORMANT",
+                    "HIBERNATED",
                   ];
-                  const currentStage = String((form as any).clientStage ?? (initial as any)?.clientStage ?? "").toUpperCase();
+                  const currentStage = String(
+                    (form as any).clientStage ?? (initial as any)?.clientStage ?? ""
+                  ).toUpperCase();
                   const stageOptions =
-                    !currentStage || currentStage === 'NEW_LEAD' || currentStage === 'FIRST_TALK_DONE'
+                    !currentStage || currentStage === "NEW_LEAD" || currentStage === "FIRST_TALK_DONE"
                       ? allStages
                       : allStages.filter(
                           (s) =>
-                            s.toUpperCase() !== 'NEW_LEAD' &&
-                            s.toUpperCase() !== 'FIRST_TALK_DONE',
+                            s.toUpperCase() !== "NEW_LEAD" && s.toUpperCase() !== "FIRST_TALK_DONE"
                         );
                   return (
                     <select
@@ -440,10 +469,38 @@ export default function LeadEditModal({
                   );
                 })()}
               </Field>
+              <Field label="Lead status">
+                <select
+                  className={INPUT}
+                  value={String(form.status ?? "")}
+                  onChange={(e) => handle("status", e.target.value)}
+                >
+                  <option value="">Select status</option>
+                  {leadStatusOptions.map((s) => (
+                    <option key={s} value={s}>
+                      {humanizeEnum(s)}
+                    </option>
+                  ))}
+                </select>
+              </Field>
               <Field label="Lead status (Stage filter)">
-                <select className={INPUT} value={String((form as any).stageFilter ?? "")} onChange={(e) => (handle as any)("stageFilter", e.target.value)}>
-                  {['FUTURE_INTERESTED','HIGH_PRIORITY','LOW_PRIORITY','NEED_CLARIFICATION','NOT_ELIGIBLE','NOT_INTERESTED','ON_PROCESS'].map((s) => (
-                    <option key={s} value={s}>{s.replace(/_/g,' ')}</option>
+                <select
+                  className={INPUT}
+                  value={String((form as any).stageFilter ?? "")}
+                  onChange={(e) => (handle as any)("stageFilter", e.target.value)}
+                >
+                  {[
+                    "FUTURE_INTERESTED",
+                    "HIGH_PRIORITY",
+                    "LOW_PRIORITY",
+                    "NEED_CLARIFICATION",
+                    "NOT_ELIGIBLE",
+                    "NOT_INTERESTED",
+                    "ON_PROCESS",
+                  ].map((s) => (
+                    <option key={s} value={s}>
+                      {s.replace(/_/g, " ")}
+                    </option>
                   ))}
                 </select>
               </Field>

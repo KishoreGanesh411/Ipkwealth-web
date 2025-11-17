@@ -10,7 +10,7 @@ import {
   UPDATE_LEAD_REMARK,
   UPDATE_LEAD_STATUS,
 } from './gql/view_lead.gql';
-import { UPDATE_LEAD_DETAILS } from '@/components/sales/editLead/update_gql/update_lead.gql';
+import { UPDATE_LEAD_DETAILS_FULL } from '@/components/sales/editLead/update_gql/update_lead_full.gql';
 import { shouldAutoOpenLead } from './autoStatus';
 
 import type { LeadStage, LeadStatus } from '@/components/sales/myleads/interface/type';
@@ -58,7 +58,7 @@ export default function LeadUnifiedUpdateCard({
   const [productExplained, setProductExplained] = useState<boolean>(true);
   const [saving, setSaving] = useState(false);
 
-  const [mutUpdateDetails] = useMutation(UPDATE_LEAD_DETAILS);
+  const [mutUpdateDetails] = useMutation(UPDATE_LEAD_DETAILS_FULL);
   const [mutStage] = useMutation(CHANGE_STAGE);
   const [mutUpdateStatus] = useMutation(UPDATE_LEAD_STATUS);
   const [mutInteraction] = useMutation(CREATE_LEAD_EVENT);
