@@ -130,32 +130,34 @@ export default function LeadEntry() {
         clientTypes: lead.clientType || undefined,
         remark: lead.remark || undefined,
       };
-      const created = await createLead(payload);
+      let createdLead = await createLead(payload);
 
       // After creation, apply RM assignment based on admin's selection.
       // - AUTO: call backend round-robin assignLead
       // - MANUAL: explicitly reassign to selected RM
-      if (isAdmin && created?.id) {
+      if (isAdmin && createdLead?.id) {
         const mode = (lead.assignMode ?? "AUTO");
         if (mode === "AUTO") {
           try {
-            await assignLead({ variables: { id: created.id } });
+            const result = await assignLead({ variables: { id: createdLead?.id } });
+            createdLead = result?.data?.assignLead ?? createdLead;
           } catch {
             // ignore assignment failure; lead is still created
           }
         } else if (mode === "MANUAL" && lead.assignedRmId) {
           try {
-            await reassignLead({
+            const result = await reassignLead({
               variables: {
-                input: { leadId: created.id, newRmId: lead.assignedRmId },
+                input: { leadId: createdLead.id, newRmId: lead.assignedRmId },
               },
             });
+            createdLead = result?.data?.reassignLead ?? createdLead;
           } catch {
             // ignore assignment failure; lead is still created
           }
         }
       }
-      toast.success(created?.leadCode ? `Lead created: ${created.leadCode}` : "Lead created");
+      toast.success(createdLead?.leadCode ? `Lead created: ${createdLead.leadCode}` : "Lead created");
       setLead({
         firstName: "", lastName: "", email: "", phone: "", leadSource: "",
         assignMode: "AUTO",
@@ -206,7 +208,7 @@ export default function LeadEntry() {
 
       {formError && (
         <div ref={alertRef} className="mb-4">
-          <Alert variant="error" title="Validation Error" message={formError} showLink={false} />
+          <Alert variant="error" title="please check valid Fields" message={formError} showLink={false} />
         </div>
       )}
 
