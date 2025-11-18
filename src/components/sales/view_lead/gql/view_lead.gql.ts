@@ -14,6 +14,14 @@ export const FRAG_LEAD_PHONE = gql`
   }
 `;
 
+export const FRAG_LEAD_REMARK = gql`
+  fragment LeadRemarkParts on RemarkEntry {
+    text
+    author
+    createdAt
+  }
+`;
+
 export const FRAG_LEAD_EVENT = gql`
   fragment LeadEventParts on LeadEventEntity {
     id
@@ -57,7 +65,7 @@ export const FRAG_LEAD_BASE = gql`
     clientStage
     archived
 
-    remarks { text author createdAt }
+    remarks { ...LeadRemarkParts }
     bioText
     clientTypes
     clientQa { question answer }
@@ -92,6 +100,7 @@ export const LEAD_DETAIL_WITH_TIMELINE = gql`
   ${FRAG_LEAD_BASE}
   ${FRAG_LEAD_PHONE}
   ${FRAG_LEAD_EVENT}
+  ${FRAG_LEAD_REMARK}
 `;
 
 /** Simpler variant if you ever want to read by id directly */
@@ -106,6 +115,17 @@ export const LEAD_BY_ID = gql`
   ${FRAG_LEAD_BASE}
   ${FRAG_LEAD_PHONE}
   ${FRAG_LEAD_EVENT}
+  ${FRAG_LEAD_REMARK}
+`;
+
+export const LEAD_REMARK_HISTORY = gql`
+  query LeadRemarkHistory($leadId: ID!) {
+    lead(id: $leadId) {
+      id
+      remarks { ...LeadRemarkParts }
+    }
+  }
+  ${FRAG_LEAD_REMARK}
 `;
 
 /* -------------------------------- Mutations ------------------------------- */
@@ -187,9 +207,11 @@ export const UPDATE_LEAD_REMARK = gql`
   mutation UpdateLeadRemark($input: UpdateLeadRemarkInput!) {
     updateLeadRemark(input: $input) {
       id
+      remarks { ...LeadRemarkParts }
       updatedAt
     }
   }
+  ${FRAG_LEAD_REMARK}
 `;
 
 /** First contact form submission (server persists structured JSON in remark) */

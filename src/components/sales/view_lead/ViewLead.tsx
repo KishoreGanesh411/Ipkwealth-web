@@ -18,6 +18,7 @@ import { useAuth } from "@/context/AuthContex";
 import LeadProfileHeader from "./LeadProfileHeader";
 import LeadUnifiedUpdateCard from "./LeadUnifiedUpdateCard";
 import TimelineList from "./TimelineList";
+import LeadHistoryList from "./LeadHistoryList";
 import { pickLeadStage, pickLeadStatus } from "./interface/utils";
 import { shouldAutoOpenLead } from "./autoStatus";
 import type { LeadEvent, LeadProfile } from "./interface/types";
@@ -51,13 +52,43 @@ export default function ViewLead() {
   const [mutChangeStage] = useMutation(CHANGE_STAGE);
   const [mutCreateEvent, { loading: creatingEvent }] = useMutation(CREATE_LEAD_EVENT);
   const [mutRmFirstContact] = useMutation(RM_FIRST_CONTACT);
-  const [mutUpdateRemark] = useMutation(UPDATE_LEAD_REMARK);
+  const [mutUpdateRemark] = useMutation(UPDATE_LEAD_REMARK, {
+    update(cache, { data }) {
+      const payload = (data as any)?.updateLeadRemark;
+      if (!payload?.id) return;
+      cache.modify({
+        id: cache.identify({ __typename: "IpkLeaddEntity", id: payload.id }),
+        fields: {
+          remarks: () => payload.remarks ?? [],
+          updatedAt: () => payload.updatedAt,
+        },
+      });
+    },
+  });
 
   const lead = data?.leadDetailWithTimeline;
 
   const events: LeadEvent[] = useMemo(
     () => (lead?.events ?? []).slice().sort((a, b) => Date.parse(b.occurredAt) - Date.parse(a.occurredAt)),
     [lead?.events]
+  );
+
+  const remarkHistory = useMemo(
+    () =>
+      (lead?.remarks ?? [])
+        .map((remark, idx) => ({
+          id: `${lead?.id ?? "lead"}-remark-${idx}`,
+          type: "REMARK",
+          text: remark?.text ?? "-",
+          at: remark?.createdAt ?? null,
+          authorName: remark?.author ?? null,
+        }))
+        .sort((a, b) => {
+          const ta = a.at ? Date.parse(a.at) : 0;
+          const tb = b.at ? Date.parse(b.at) : 0;
+          return tb - ta;
+        }),
+    [lead?.id, lead?.remarks]
   );
 
   const [statusValue, setStatusValue] = useState<string | undefined>(lead?.status as string | undefined);
@@ -278,8 +309,9 @@ export default function ViewLead() {
               onSaved={() => refetch()}
             />
           </div>
-          <div className="h-full min-h-0">
+          <div className="h-full min-h-0 space-y-6">
             <TimelineList events={events} />
+            <LeadHistoryList history={remarkHistory} />
           </div>
         </div>
       </div>

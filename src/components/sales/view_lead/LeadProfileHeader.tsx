@@ -196,8 +196,29 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       </div>
     );
   const phoneListValue = hasPhoneNumbers ? phoneListMarkup : "Not provided";
-  const nextFollowUpDisplay = lead.nextActionDueAt ? formatDateDisplay(lead.nextActionDueAt) : "Not scheduled";
-  const hasNextFollowUp = Boolean(lead.nextActionDueAt);
+  const nextFollowUpAt = useMemo(() => {
+    const candidates: number[] = [];
+    const pushDate = (value?: string | null) => {
+      if (!value) return;
+      const ts = Date.parse(value);
+      if (Number.isFinite(ts)) candidates.push(ts);
+    };
+    pushDate(lead.nextActionDueAt ?? null);
+    if (Array.isArray(lead.events)) {
+      lead.events.forEach((event) => {
+        const meta = event.meta as Record<string, unknown> | null;
+        const candidate = (meta?.nextFollowUpAt as string | undefined) ?? (meta?.followUpOn as string | undefined);
+        pushDate(candidate ?? null);
+      });
+    }
+    if (candidates.length === 0) return null;
+    const now = Date.now();
+    const future = candidates.filter((ts) => ts >= now);
+    const selected = future.length > 0 ? Math.min(...future) : Math.min(...candidates);
+    return new Date(selected).toISOString();
+  }, [lead.events, lead.nextActionDueAt]);
+  const nextFollowUpDisplay = nextFollowUpAt ? formatDateDisplay(nextFollowUpAt) : "Not scheduled";
+  const hasNextFollowUp = Boolean(nextFollowUpAt);
 
   // Date / Aging
   const enteredOnRaw = lead.createdAt ?? null;
@@ -278,7 +299,7 @@ export default function LeadProfileHeader({ lead, loading, canEditProfile, onPro
       {
         key: "lastContact",
         icon: PhoneCall,
-        label: "Last Contact",
+        label: "last call Conect",
         value: lastContactRaw ? formatDateDisplay(lastContactRaw) : "Not captured",
         muted: !lastContactRaw,
       },
